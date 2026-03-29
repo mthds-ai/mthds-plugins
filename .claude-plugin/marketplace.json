@@ -1,0 +1,18 @@
+{
+  "name": "mthds-plugins",
+  "owner": {
+    "name": "Pipelex staff",
+    "email": "oss@pipelex.com"
+  },
+  "metadata": {
+    "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
+    "version": "0.6.0"
+  },
+  "plugins": [
+    {
+      "name": "mthds",
+      "description": "Skills and tools for building, running, validating, and editing AI methods following the MTHDS standard.",
+      "source": "./"
+    }
+  ]
+}

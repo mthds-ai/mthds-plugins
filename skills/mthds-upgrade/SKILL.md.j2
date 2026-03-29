@@ -1,0 +1,40 @@
+---
+name: mthds-upgrade
+min_mthds_version: 0.2.1
+description: >
+  Upgrade MTHDS CLI tools to the latest compatible versions.
+  Use when: "upgrade mthds", "update mthds", "mthds upgrade",
+  "update my tools", "upgrade pipelex", "update pipelex",
+  "upgrade plxt", "update tools".
+---
+
+## Step 0 — Environment check
+
+{% include 'shared/preamble.md' %}
+
+## Step 1 — Force version check
+
+Run this bash:
+
+```bash
+mthds-agent update-check --force
+```
+
+Interpret the output:
+- No output or `UP_TO_DATE`: All tools are up to date. Tell the user and stop.
+- `UPGRADE_AVAILABLE <json>`: Upgrades are available. Read `../shared/upgrade-flow.md` and follow the upgrade flow.
+- `JUST_UPGRADED <json>`: Tools were just upgraded. Report what changed and stop.
+- `MTHDS_AGENT_OUTDATED <installed> <required>`: mthds-agent itself is outdated. Warn the user that their mthds-agent (v\<installed>) is older than v\<required> and suggest `npm install -g mthds@latest`, but do not block — proceed to Step 2.
+
+## Step 2 — Report summary
+
+After upgrade completes (or if already up to date), summarize:
+- Which tools were checked
+- Which were upgraded (with old -> new versions)
+- Which failed (with manual install commands)
+- Current status of all tools
+
+## Reference
+
+- Upgrade flow details: `../shared/upgrade-flow.md`
+- Tool install guide: `../shared/mthds-agent-guide.md`
