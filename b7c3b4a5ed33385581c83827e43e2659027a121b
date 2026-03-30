@@ -1,0 +1,25 @@
+skills/shared/mthds-reference.md
+  3dea65d1f6da450c 156-157
+skills/mthds-build/references/manual-build-phases.md
+  3dea65d1f6da450c 71-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "b7c3b4a5ed33385581c83827e43e2659027a121b",
+  "prompts": {
+    "3dea65d1f6da450c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e758fe6f-2d91-4dda-ae19-568375bdb1c3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 2
+    }
+  }
+}
