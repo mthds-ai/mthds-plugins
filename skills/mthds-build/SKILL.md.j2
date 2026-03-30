@@ -139,9 +139,9 @@ Prepare JSON specs for all concepts, then convert them **in parallel** by making
 **Example** (3 concepts converted in parallel):
 ```bash
 # Call all three in parallel (single response, multiple tool calls):
-mthds-agent concept --spec '{"the_concept_code": "Invoice", "description": "A commercial invoice document", "structure": {"invoice_number": "The unique identifier", "vendor_name": {"type": "text", "description": "Vendor name", "required": true}, "total_amount": {"type": "number", "description": "Total amount", "required": true}}}'
-mthds-agent concept --spec '{"the_concept_code": "LineItem", "description": "A single line item on an invoice", "structure": {"description": "Item description", "quantity": {"type": "integer", "required": true}, "unit_price": {"type": "number", "required": true}}}'
-mthds-agent concept --spec '{"the_concept_code": "Summary", "description": "A text summary of content", "refines": "Text"}'
+mthds-agent concept --spec '{"concept_code": "Invoice", "description": "A commercial invoice document", "structure": {"invoice_number": "The unique identifier", "vendor_name": {"type": "text", "description": "Vendor name", "required": true}, "total_amount": {"type": "number", "description": "Total amount", "required": true}}}'
+mthds-agent concept --spec '{"concept_code": "LineItem", "description": "A single line item on an invoice", "structure": {"description": "Item description", "quantity": {"type": "integer", "required": true}, "unit_price": {"type": "number", "required": true}}}'
+mthds-agent concept --spec '{"concept_code": "Summary", "description": "A text summary of content", "refines": "Text"}'
 ```
 
 **Field types**: `text`, `integer`, `boolean`, `number`, `date`, `concept`, `list`

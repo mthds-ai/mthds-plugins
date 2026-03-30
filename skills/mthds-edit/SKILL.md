@@ -59,45 +59,7 @@ Modify existing MTHDS method bundles.
 Run this command to check toolchain status:
 
 ```bash
-if ! command -v mthds-agent &>/dev/null; then
-  echo "MTHDS_AGENT_MISSING"
-else
-  # Version gate: block if mthds-agent is too old for this plugin
-  # NOTE: This bash semver comparison must stay in sync with the TypeScript
-  # implementation in mthds-js/src/installer/runtime/version-check.ts.
-  # Both implement major.minor.patch comparison. The bash version is
-  # intentionally simpler (no prerelease/build metadata support).
-  INSTALLED=$(mthds-agent --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-  REQUIRED="0.2.1"
-  if [ -z "$INSTALLED" ]; then
-    echo "MTHDS_AGENT_VERSION_UNKNOWN"
-  else
-    IFS='.' read -r ia ib ic <<< "$INSTALLED"
-    IFS='.' read -r ra rb rc <<< "$REQUIRED"
-    if [ "$ia" -lt "$ra" ] 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -lt "$rb" ]; } 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -eq "$rb" ] && [ "$ic" -lt "$rc" ]; } 2>/dev/null; then
-      echo "MTHDS_AGENT_OUTDATED $INSTALLED $REQUIRED"
-    else
-      UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
-        echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
-      }
-      if [ -n "$UPDATE_ERR_FILE" ]; then
-        UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
-        UPDATE_EXIT=$?
-        UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
-        rm -f "$UPDATE_ERR_FILE"
-        if [ $UPDATE_EXIT -ne 0 ]; then
-          echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
-          [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
-          [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
-        elif [ -n "$UPDATE_OUTPUT" ]; then
-          echo "$UPDATE_OUTPUT"
-        fi
-      fi
-    fi
-  fi
-fi
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
 ```
 
 **Interpret the output:**
