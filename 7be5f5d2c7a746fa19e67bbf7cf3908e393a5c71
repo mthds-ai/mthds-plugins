@@ -1,0 +1,53 @@
+.claude/skills/bump-mthds-version/SKILL.md
+  3452126736df5219 39
+skills/mthds-install/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-fix/SKILL.md.j2
+  3452126736df5219 3
+skills/shared/mthds-agent-guide.md
+  3452126736df5219 3
+skills/mthds-share/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-pkg/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-upgrade/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-check/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-explain/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-inputs/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-edit/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-run/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-publish/SKILL.md.j2
+  3452126736df5219 3
+tests/unit/test_check.py
+  3452126736df5219 17
+skills/mthds-build/SKILL.md.j2
+  3452126736df5219 3
+skills/mthds-pipelex-setup/SKILL.md.j2
+  3452126736df5219 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "7be5f5d2c7a746fa19e67bbf7cf3908e393a5c71",
+  "prompts": {
+    "3452126736df5219": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "81288bcd-8601-4d71-9311-4c690250dc99",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 16,
+      "total_deletions": 16,
+      "accepted_lines": 16,
+      "overriden_lines": 0
+    }
+  }
+}
