@@ -1,6 +1,6 @@
 ---
 name: mthds-build
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
 ---
 
@@ -63,7 +63,7 @@ Create new MTHDS bundles through an adaptive, phase-based approach. This skill g
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

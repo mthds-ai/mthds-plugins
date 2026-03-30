@@ -1,6 +1,6 @@
 ---
 name: mthds-run
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Run MTHDS methods and interpret results. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", or wants to execute any MTHDS method bundle and see its output.
 ---
 
@@ -15,7 +15,7 @@ Execute MTHDS method bundles and interpret their JSON output.
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

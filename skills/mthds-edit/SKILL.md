@@ -1,6 +1,6 @@
 ---
 name: mthds-edit
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
 ---
 
@@ -59,7 +59,7 @@ Modify existing MTHDS method bundles.
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

@@ -1,6 +1,6 @@
 ---
 name: mthds-pkg
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Manage MTHDS packages — initialize, configure exports, list, and validate. Use when user says "init package", "set up METHODS.toml", "manage packages", "mthds init", "validate package", "list package", or wants to manage MTHDS package manifests.
 ---
 
@@ -15,7 +15,7 @@ Initialize, configure exports, list, and validate MTHDS packages using the `mthd
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

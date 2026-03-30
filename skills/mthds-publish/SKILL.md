@@ -1,6 +1,6 @@
 ---
 name: mthds-publish
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Publish MTHDS methods to mthds.sh. Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the mthds.sh hub.
 ---
 
@@ -15,7 +15,7 @@ Register and publish method packages to the mthds.sh hub. No files are written a
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

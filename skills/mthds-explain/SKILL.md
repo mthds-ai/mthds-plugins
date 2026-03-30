@@ -1,6 +1,6 @@
 ---
 name: mthds-explain
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
 ---
 
@@ -15,7 +15,7 @@ Analyze and explain existing MTHDS method bundles in plain language.
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

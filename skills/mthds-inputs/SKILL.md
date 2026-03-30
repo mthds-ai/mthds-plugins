@@ -1,6 +1,6 @@
 ---
 name: mthds-inputs
-min_mthds_version: 0.2.1
+min_mthds_version: 0.3.0
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
 ---
 
@@ -65,7 +65,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.2.1" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || true
 ```
 
 **Interpret the output:**

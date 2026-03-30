@@ -14,7 +14,7 @@ from scripts.check import (
     get_canonical_version,
 )
 
-CANONICAL = "0.2.1"
+CANONICAL = "0.3.0"
 
 GUIDE_CONTENT = (
     "# MTHDS Agent Guide\n"
