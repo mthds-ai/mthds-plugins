@@ -213,10 +213,11 @@ Check:
 - [ ] Main pipe is clearly identified and handles method inputs
 - [ ] Variable names are consistent across all pipes
 - [ ] Input/output types match between connected pipes
-- [ ] PipeBatch branches receive singular items, not lists
-- [ ] PipeBatch: `input_item_name` (singular) differs from `input_list_name` (plural) and all `inputs` keys
+- [ ] PipeSequence steps: each step has `result` (required) — no `inputs` field on steps (data flows through working memory)
 - [ ] PipeSequence batch steps: `batch_as` (singular) differs from `batch_over` (plural)
 - [ ] PipeSequence batch steps: `batch_over` supports dotted paths for nested attributes (e.g., `"search_result.sources"` to iterate over sources inside a SearchResult)
+- [ ] PipeBatch branches receive singular items, not lists
+- [ ] PipeBatch: `input_item_name` (singular) differs from `input_list_name` (plural) and all `inputs` keys
 - [ ] PipeCondition has a `default_outcome` — required even when outcomes seem exhaustive
 - [ ] PipeImgGen has a `prompt` field (template that references inputs, e.g., `prompt = "$description"` or `prompt = "A watercolor painting of $subject"`) — required even when the input IS the prompt
 - [ ] PipeImgGen inputs are text-compatible (add PipeLLM if needed to craft the prompt first)

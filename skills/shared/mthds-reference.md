@@ -153,6 +153,8 @@ steps = [
 
 **Naming constraint**: `batch_as` must differ from `batch_over`. Use plural for `batch_over` and singular for `batch_as` (e.g., `batch_over = "items"`, `batch_as = "item"`).
 
+> **Critical — PipeSequence step schema**: Each step has exactly: `pipe` (required), `result` (required), and optionally `batch_over`/`batch_as`. Steps do **not** have an `inputs` field — data flows automatically through working memory. Each step can access the sequence's `inputs` plus all previous steps' `result` values by variable name.
+
 ### PipeCondition - Conditional branching
 
 ```toml

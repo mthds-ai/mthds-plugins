@@ -98,9 +98,6 @@ fui: fix-unused-imports ## Shorthand -> fix-unused-imports
 ### CHECKS
 ##########################################################################################
 
-gen-skill-docs: install ## Generate SKILL.md from .j2 templates
-	@$(VENV_PYTHON) scripts/gen_skill_docs.py
-
 check: install ## Verify shared refs + version consistency + template freshness + format + lint + typecheck
 	@python3 scripts/check.py
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --check
@@ -153,3 +150,14 @@ agent-test: install ## Run unit tests quietly (output only on failure)
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+##########################################################################################
+### BUILD
+##########################################################################################
+
+gen-skill-docs: install ## Generate SKILL.md from .j2 templates
+	@$(VENV_PYTHON) scripts/gen_skill_docs.py
+
+build: gen-skill-docs
+	@echo "Done: built all skill docs from templates"
+	

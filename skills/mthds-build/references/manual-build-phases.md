@@ -68,6 +68,8 @@ mthds-agent pipe --spec '{
 }'
 ```
 
+> **Step fields**: `pipe` and `result` are required on every step. Steps do not accept `inputs` — each step automatically sees the sequence's inputs and all previous `result` variables.
+
 ### PipeBatch
 ```bash
 mthds-agent pipe --spec '{
