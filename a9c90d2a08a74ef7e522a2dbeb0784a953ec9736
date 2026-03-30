@@ -1,0 +1,48 @@
+skills/shared/preamble.md
+  3452126736df5219 4
+skills/mthds-publish/SKILL.md.j2
+  b661876dfa76f54f 9
+skills/mthds-upgrade/SKILL.md.j2
+  b661876dfa76f54f 4,7,9-11,13-15,17,29,39-41
+skills/mthds-explain/SKILL.md.j2
+  b661876dfa76f54f 76,78-83,88
+bin/mthds-env-check
+  3452126736df5219 1-62
+skills/mthds-check/SKILL.md.j2
+  b661876dfa76f54f 21-32,35-71
+skills/mthds-run/SKILL.md.j2
+  b661876dfa76f54f 19,35,37,48,52,90,101-102,104,142,155,184,201,206,211,216,221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "a9c90d2a08a74ef7e522a2dbeb0784a953ec9736",
+  "prompts": {
+    "3452126736df5219": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "81288bcd-8601-4d71-9311-4c690250dc99",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 80,
+      "total_deletions": 56,
+      "accepted_lines": 67,
+      "overriden_lines": 0
+    },
+    "b661876dfa76f54f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b0d90d93-7e34-4d2b-a34f-542fcd239baf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 95,
+      "total_deletions": 69,
+      "accepted_lines": 92,
+      "overriden_lines": 0
+    }
+  }
+}
