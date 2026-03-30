@@ -1,0 +1,48 @@
+scripts/check.py
+  8059115a5e3dd0eb 6,10,43-86,187-203
+tests/unit/test_check.py
+  8059115a5e3dd0eb 11,31-40,191-238
+.claude/skills/release/SKILL.md
+  8059115a5e3dd0eb 5-11,16-17,19,21-22,26-34,36,38-40,42-43,45,47,49-50,52,54-56,58-60,62,64,68-69,72,74-76,79-112,114,116,118-136,139,146-147,149-157,161,166,168-174
+CHANGELOG.md
+  8059115a5e3dd0eb 1-12
+README.md
+  8059115a5e3dd0eb 38,43,48,53
+.claude-plugin/plugin.json
+  8059115a5e3dd0eb 4
+.claude-plugin/marketplace.json
+  8059115a5e3dd0eb 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "447d718e2b2a5a89aafdd1b9f8c57d5caa187d9a",
+  "prompts": {
+    "3452126736df5219": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "81288bcd-8601-4d71-9311-4c690250dc99",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 2,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "8059115a5e3dd0eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8177ad09-b0a1-4d92-b401-fdb24eaa775f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 284,
+      "total_deletions": 64,
+      "accepted_lines": 262,
+      "overriden_lines": 0
+    }
+  }
+}
