@@ -8,6 +8,7 @@ import pytest
 
 from scripts.check import (
     check_frontmatter_versions,
+    check_plugin_version_sync,
     check_shared_files_exist,
     check_stale_install_references,
     check_stale_references,
@@ -26,6 +27,16 @@ GUIDE_CONTENT = (
 )
 
 VALID_FRONTMATTER = f"---\nname: mthds-test\nmin_mthds_version: {CANONICAL}\ndescription: Test skill\n---\n\n# Test Skill\n"
+
+PLUGIN_JSON_TEMPLATE = '{{\n  "name": "mthds",\n  "version": "{version}"\n}}'
+MARKETPLACE_JSON_TEMPLATE = '{{\n  "name": "mthds-plugins",\n  "metadata": {{\n    "version": "{version}"\n  }}\n}}'
+
+
+def _write_plugin_files(base: Path, plugin_version: str, marketplace_version: str) -> None:
+    plugin_dir = base / ".claude-plugin"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "plugin.json").write_text(PLUGIN_JSON_TEMPLATE.format(version=plugin_version))
+    (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version=marketplace_version))
 
 
 @pytest.fixture()
@@ -177,3 +188,51 @@ class TestFrontmatterVersions:
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
         assert "mthds-bad" in errors[0]
+
+
+class TestPluginVersionSync:
+    def test_versions_in_sync(self, tmp_path: Path) -> None:
+        _write_plugin_files(tmp_path, "0.6.0", "0.6.0")
+        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(tmp_path)
+        assert errors == []
+        assert plugin_ver == "0.6.0"
+        assert marketplace_ver == "0.6.0"
+
+    def test_versions_out_of_sync(self, tmp_path: Path) -> None:
+        _write_plugin_files(tmp_path, "0.6.2", "0.6.0")
+        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(tmp_path)
+        assert len(errors) == 1
+        assert "0.6.2" in errors[0]
+        assert "0.6.0" in errors[0]
+        assert plugin_ver == "0.6.2"
+        assert marketplace_ver == "0.6.0"
+
+    def test_missing_plugin_json(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / ".claude-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
+        with pytest.raises(ValueError, match="plugin.json not found"):
+            check_plugin_version_sync(tmp_path)
+
+    def test_missing_marketplace_json(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / ".claude-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "plugin.json").write_text(PLUGIN_JSON_TEMPLATE.format(version="0.6.0"))
+        with pytest.raises(ValueError, match="marketplace.json not found"):
+            check_plugin_version_sync(tmp_path)
+
+    def test_malformed_json(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / ".claude-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "plugin.json").write_text("not json")
+        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
+        with pytest.raises(ValueError, match="not valid JSON"):
+            check_plugin_version_sync(tmp_path)
+
+    def test_missing_version_key(self, tmp_path: Path) -> None:
+        plugin_dir = tmp_path / ".claude-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "plugin.json").write_text('{"name": "mthds"}')
+        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
+        with pytest.raises(ValueError, match="missing key"):
+            check_plugin_version_sync(tmp_path)

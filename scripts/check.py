@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 # Shared files that must exist in skills/shared/
 SHARED_FILES = [
@@ -36,6 +38,50 @@ STALE_INSTALL_PATTERNS = [
     re.compile(r"pip install\s+pipelex-tools\b"),
     re.compile(r"curl.*install\.sh"),
 ]
+
+
+def check_plugin_version_sync(base_dir: Path) -> tuple[list[str], str, str]:
+    """Check that plugin.json and marketplace.json have the same version.
+
+    Returns:
+        A tuple of (errors, plugin_version, marketplace_version).
+
+    Raises:
+        ValueError: If either file is missing, malformed, or lacks the expected key.
+    """
+    plugin_path = base_dir / ".claude-plugin" / "plugin.json"
+    marketplace_path = base_dir / ".claude-plugin" / "marketplace.json"
+
+    plugin_version = _read_json_version(plugin_path, "version")
+    marketplace_version = _read_json_version(marketplace_path, "metadata", "version")
+
+    errors: list[str] = []
+    if plugin_version != marketplace_version:
+        errors.append(f"plugin.json has {plugin_version}, marketplace.json has {marketplace_version}")
+    return errors, plugin_version, marketplace_version
+
+
+def _read_json_version(path: Path, *keys: str) -> str:
+    """Read a nested key from a JSON file, raising ValueError on any problem."""
+    rel = path.name
+    if not path.is_file():
+        msg = f"{rel} not found"
+        raise ValueError(msg)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = f"{rel} is not valid JSON"
+        raise ValueError(msg) from exc
+    value: Any = raw
+    for key in keys:
+        if not isinstance(value, dict) or key not in value:
+            msg = f"{rel} missing key: {'.'.join(keys)}"
+            raise ValueError(msg)
+        value = cast(dict[str, Any], value)[key]
+    if not isinstance(value, str):
+        msg = f"{rel} version is not a string"
+        raise ValueError(msg)
+    return value
 
 
 def check_stale_install_references(base_dir: Path) -> list[str]:
@@ -138,6 +184,23 @@ def main() -> int:
     base_dir = Path(__file__).resolve().parent.parent
     failed = False
 
+    # Check 0: plugin.json and marketplace.json version sync
+    print("Checking plugin version sync...")
+    try:
+        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(base_dir)
+    except ValueError as exc:
+        print(f"  {exc}")
+        print("FAIL: Cannot read plugin version files.")
+        return 1
+    if errors:
+        for error in errors:
+            print(f"  MISMATCH: {error}")
+        print("FAIL: plugin.json and marketplace.json versions are out of sync.")
+        failed = True
+    else:
+        print(f"  plugin.json: {plugin_ver}, marketplace.json: {marketplace_ver}")
+        print("  Versions in sync.")
+
     # Check 1a: stale install references (pip install pipelex, curl install.sh)
     print("Checking for stale install references in SKILL.md files...")
     errors = check_stale_install_references(base_dir)
@@ -153,8 +216,8 @@ def main() -> int:
     print("Checking for stale references/ paths to shared files...")
     errors = check_stale_references(base_dir)
     if errors:
-        for e in errors:
-            print(f"  {e}")
+        for error in errors:
+            print(f"  {error}")
         print("FAIL: Found stale references/ paths (should use ../shared/ instead).")
         failed = True
     else:
@@ -164,8 +227,8 @@ def main() -> int:
     print("Checking all shared files exist...")
     errors = check_shared_files_exist(base_dir)
     if errors:
-        for e in errors:
-            print(f"  {e}")
+        for error in errors:
+            print(f"  {error}")
         print("FAIL: Some shared files are missing.")
         failed = True
     else:
@@ -182,8 +245,8 @@ def main() -> int:
 
     errors = check_frontmatter_versions(base_dir, canonical)
     if errors:
-        for e in errors:
-            print(f"  MISMATCH: {e}")
+        for error in errors:
+            print(f"  MISMATCH: {error}")
         print(f"FAIL: Version inconsistency detected (canonical: {canonical}).")
         failed = True
     else:
