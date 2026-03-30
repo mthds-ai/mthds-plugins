@@ -1,6 +1,6 @@
-# Manual Build Phases — Detailed Examples
+# Build Phases — Detailed Examples
 
-Detailed examples and CLI commands for each phase of the manual 9-phase build process. See `mthds-build/SKILL.md` for the concise process.
+Detailed examples and CLI commands for each phase of the 9-phase build process. See `mthds-build/SKILL.md` for the concise process.
 
 ## Phase 2: Bundle Overview
 

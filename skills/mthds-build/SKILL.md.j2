@@ -98,7 +98,7 @@ Draft a plan in markdown that describes:
 - Use plural names for lists (e.g., `documents`), singular for items (e.g., `document`)
 - Don't detail types yet - focus on the flow
 
-**Show bundle overview** — see [Manual Build Phases](references/manual-build-phases.md#phase-2-bundle-overview) for the overview description.
+**Show bundle overview** — see [Build Phases](references/build-phases.md#phase-2-bundle-overview) for the overview description.
 
 **Output**: Plan draft (markdown)
 
@@ -199,7 +199,7 @@ items = {type = "list", item_type = "concept", item_concept_ref = "my_domain.Oth
 
 > **Note**: `Page[]` outputs from PipeExtract automatically convert to text when inserted into prompts using `@variable`.
 
-**Show detailed flow** — see [Manual Build Phases](references/manual-build-phases.md#phase-5-controller-flow-patterns) for all controller flow patterns.
+**Show detailed flow** — see [Build Phases](references/build-phases.md#phase-5-controller-flow-patterns) for all controller flow patterns.
 
 **Output**: Flow draft with pipe contracts (markdown)
 
@@ -253,7 +253,7 @@ Prepare JSON specs for all pipes, then convert them **in parallel** by making mu
 
 > **PipeImgGen `prompt` is required**: The `prompt` field must be included in the `--spec` JSON. It is a template — use `$variable` to insert inputs. Examples: `"prompt": "$img_prompt"` (passthrough) or `"prompt": "A black and white sketch of $description"` (template with context). Omitting `prompt` causes a validation error.
 
-For detailed CLI examples for each pipe type (PipeLLM, PipeSequence, PipeBatch, PipeCondition, PipeCompose, PipeParallel, PipeExtract, PipeImgGen, PipeSearch), see [Manual Build Phases](references/manual-build-phases.md#phase-7-pipe-type-cli-examples).
+For detailed CLI examples for each pipe type (PipeLLM, PipeSequence, PipeBatch, PipeCondition, PipeCompose, PipeParallel, PipeExtract, PipeImgGen, PipeSearch), see [Build Phases](references/build-phases.md#phase-7-pipe-type-cli-examples).
 
 **Output**: Validated pipe TOML (raw TOML output, held in context for Phase 8)
 
@@ -290,7 +290,7 @@ main_pipe = "<main_pipe_code>"
 
 No intermediate files are needed. The `concept --spec` and `pipe --spec` commands (Phases 4 and 7) already validated each fragment — assembly is just combining them with the bundle header.
 
-For the full `.mthds` file structure, see [Manual Build Phases](references/manual-build-phases.md#phase-8-assemble-bundle).
+For the full `.mthds` file structure, see [Build Phases](references/build-phases.md#phase-8-assemble-bundle).
 
 ---
 
@@ -384,5 +384,5 @@ After the command succeeds:
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
-- [Manual Build Phases](references/manual-build-phases.md) — read for detailed flow descriptions and CLI examples per phase
+- [Build Phases](references/build-phases.md) — read for detailed flow descriptions and CLI examples per phase
 - [Model References](references/model-references.md) — read when choosing whether and how to set a model on a pipe
