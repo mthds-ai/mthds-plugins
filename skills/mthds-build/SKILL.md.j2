@@ -1,7 +1,7 @@
 ---
 name: mthds-build
-min_mthds_version: 0.2.1
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
+{% include "shared/frontmatter.md" %}
 ---
 
 # Build AI Method using the MTHDS standard
@@ -98,7 +98,7 @@ Draft a plan in markdown that describes:
 - Use plural names for lists (e.g., `documents`), singular for items (e.g., `document`)
 - Don't detail types yet - focus on the flow
 
-**Show bundle overview** — see [Manual Build Phases](references/manual-build-phases.md#phase-2-bundle-overview) for the overview description.
+**Show bundle overview** — see [Build Phases](references/build-phases.md#phase-2-bundle-overview) for the overview description.
 
 **Output**: Plan draft (markdown)
 
@@ -139,9 +139,9 @@ Prepare JSON specs for all concepts, then convert them **in parallel** by making
 **Example** (3 concepts converted in parallel):
 ```bash
 # Call all three in parallel (single response, multiple tool calls):
-mthds-agent concept --spec '{"the_concept_code": "Invoice", "description": "A commercial invoice document", "structure": {"invoice_number": "The unique identifier", "vendor_name": {"type": "text", "description": "Vendor name", "required": true}, "total_amount": {"type": "number", "description": "Total amount", "required": true}}}'
-mthds-agent concept --spec '{"the_concept_code": "LineItem", "description": "A single line item on an invoice", "structure": {"description": "Item description", "quantity": {"type": "integer", "required": true}, "unit_price": {"type": "number", "required": true}}}'
-mthds-agent concept --spec '{"the_concept_code": "Summary", "description": "A text summary of content", "refines": "Text"}'
+mthds-agent concept --spec '{"concept_code": "Invoice", "description": "A commercial invoice document", "structure": {"invoice_number": "The unique identifier", "vendor_name": {"type": "text", "description": "Vendor name", "required": true}, "total_amount": {"type": "number", "description": "Total amount", "required": true}}}'
+mthds-agent concept --spec '{"concept_code": "LineItem", "description": "A single line item on an invoice", "structure": {"description": "Item description", "quantity": {"type": "integer", "required": true}, "unit_price": {"type": "number", "required": true}}}'
+mthds-agent concept --spec '{"concept_code": "Summary", "description": "A text summary of content", "refines": "Text"}'
 ```
 
 **Field types**: `text`, `integer`, `boolean`, `number`, `date`, `concept`, `list`
@@ -199,7 +199,7 @@ items = {type = "list", item_type = "concept", item_concept_ref = "my_domain.Oth
 
 > **Note**: `Page[]` outputs from PipeExtract automatically convert to text when inserted into prompts using `@variable`.
 
-**Show detailed flow** — see [Manual Build Phases](references/manual-build-phases.md#phase-5-controller-flow-patterns) for all controller flow patterns.
+**Show detailed flow** — see [Build Phases](references/build-phases.md#phase-5-controller-flow-patterns) for all controller flow patterns.
 
 **Output**: Flow draft with pipe contracts (markdown)
 
@@ -213,10 +213,11 @@ Check:
 - [ ] Main pipe is clearly identified and handles method inputs
 - [ ] Variable names are consistent across all pipes
 - [ ] Input/output types match between connected pipes
-- [ ] PipeBatch branches receive singular items, not lists
-- [ ] PipeBatch: `input_item_name` (singular) differs from `input_list_name` (plural) and all `inputs` keys
+- [ ] PipeSequence steps: each step has `result` (required) — no `inputs` field on steps (data flows through working memory)
 - [ ] PipeSequence batch steps: `batch_as` (singular) differs from `batch_over` (plural)
 - [ ] PipeSequence batch steps: `batch_over` supports dotted paths for nested attributes (e.g., `"search_result.sources"` to iterate over sources inside a SearchResult)
+- [ ] PipeBatch branches receive singular items, not lists
+- [ ] PipeBatch: `input_item_name` (singular) differs from `input_list_name` (plural) and all `inputs` keys
 - [ ] PipeCondition has a `default_outcome` — required even when outcomes seem exhaustive
 - [ ] PipeImgGen has a `prompt` field (template that references inputs, e.g., `prompt = "$description"` or `prompt = "A watercolor painting of $subject"`) — required even when the input IS the prompt
 - [ ] PipeImgGen inputs are text-compatible (add PipeLLM if needed to craft the prompt first)
@@ -252,7 +253,7 @@ Prepare JSON specs for all pipes, then convert them **in parallel** by making mu
 
 > **PipeImgGen `prompt` is required**: The `prompt` field must be included in the `--spec` JSON. It is a template — use `$variable` to insert inputs. Examples: `"prompt": "$img_prompt"` (passthrough) or `"prompt": "A black and white sketch of $description"` (template with context). Omitting `prompt` causes a validation error.
 
-For detailed CLI examples for each pipe type (PipeLLM, PipeSequence, PipeBatch, PipeCondition, PipeCompose, PipeParallel, PipeExtract, PipeImgGen, PipeSearch), see [Manual Build Phases](references/manual-build-phases.md#phase-7-pipe-type-cli-examples).
+For detailed CLI examples for each pipe type (PipeLLM, PipeSequence, PipeBatch, PipeCondition, PipeCompose, PipeParallel, PipeExtract, PipeImgGen, PipeSearch), see [Build Phases](references/build-phases.md#phase-7-pipe-type-cli-examples).
 
 **Output**: Validated pipe TOML (raw TOML output, held in context for Phase 8)
 
@@ -289,7 +290,7 @@ main_pipe = "<main_pipe_code>"
 
 No intermediate files are needed. The `concept --spec` and `pipe --spec` commands (Phases 4 and 7) already validated each fragment — assembly is just combining them with the bundle header.
 
-For the full `.mthds` file structure, see [Manual Build Phases](references/manual-build-phases.md#phase-8-assemble-bundle).
+For the full `.mthds` file structure, see [Build Phases](references/build-phases.md#phase-8-assemble-bundle).
 
 ---
 
@@ -334,23 +335,25 @@ Replace `<mthds_file>` and `<output_dir>` with actual paths from the build outpu
 
 After the command succeeds:
 
-1. **Input template**: Show the `inputs` JSON from the inputs command output. Save it to `<output_dir>/inputs.json` for the user to fill in.
+1. **Input schema**: Show the `inputs` JSON from the command output so the user can see what the method expects. **Do NOT save it to `inputs.json`** — input preparation is handled exclusively by `/mthds-inputs`.
 
 2. **Flowchart**: Tell the user that an interactive flowchart (`dry_run.html`) was generated during validation next to the bundle.
 
-3. **Next steps — test with mock inference**: If the method requires inputs, the saved `inputs.json` still contains placeholder values, so suggest a dry run to test with mock inference:
-   > To test this method with mock inference, use /mthds-run or from the terminal:
+3. **Next steps — test with mock inference**: Suggest a dry run to verify the method structure works:
+   > To test this method with mock inference (no real inputs needed):
    > ```
    > mthds-agent run bundle <output_dir>/ --dry-run --mock-inputs
    > ```
 
-4. **Next steps — run with real data**: Explain how to prepare real inputs, then run for real:
-   > To run with real data, use /mthds-inputs to prepare your inputs (provide your own files, or generate synthetic test data), then:
+4. **Next steps — prepare inputs and run**:
+   > To prepare inputs for a real run, use `/mthds-inputs`. It can generate a placeholder template, create synthetic test data, or integrate your own files. Then:
    > ```
    > mthds-agent run bundle <output_dir>/
    > ```
 
    Replace `<output_dir>` with the actual output directory path used throughout the build.
+
+> **NEVER write `inputs.json` manually.** If the user provides files, paths, or asks to run with real data, you MUST invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, file copying, and multiple input strategies. Writing `inputs.json` by hand bypasses all of this and produces broken paths.
 
 ---
 
@@ -383,5 +386,5 @@ After the command succeeds:
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
-- [Manual Build Phases](references/manual-build-phases.md) — read for detailed flow descriptions and CLI examples per phase
+- [Build Phases](references/build-phases.md) — read for detailed flow descriptions and CLI examples per phase
 - [Model References](references/model-references.md) — read when choosing whether and how to set a model on a pipe

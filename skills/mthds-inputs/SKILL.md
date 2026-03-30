@@ -1,7 +1,15 @@
 ---
 name: mthds-inputs
-min_mthds_version: 0.2.1
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
+min_mthds_version: 0.3.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Prepare Inputs for MTHDS methods
@@ -65,45 +73,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 Run this command to check toolchain status:
 
 ```bash
-if ! command -v mthds-agent &>/dev/null; then
-  echo "MTHDS_AGENT_MISSING"
-else
-  # Version gate: block if mthds-agent is too old for this plugin
-  # NOTE: This bash semver comparison must stay in sync with the TypeScript
-  # implementation in mthds-js/src/installer/runtime/version-check.ts.
-  # Both implement major.minor.patch comparison. The bash version is
-  # intentionally simpler (no prerelease/build metadata support).
-  INSTALLED=$(mthds-agent --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-  REQUIRED="0.2.1"
-  if [ -z "$INSTALLED" ]; then
-    echo "MTHDS_AGENT_VERSION_UNKNOWN"
-  else
-    IFS='.' read -r ia ib ic <<< "$INSTALLED"
-    IFS='.' read -r ra rb rc <<< "$REQUIRED"
-    if [ "$ia" -lt "$ra" ] 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -lt "$rb" ]; } 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -eq "$rb" ] && [ "$ic" -lt "$rc" ]; } 2>/dev/null; then
-      echo "MTHDS_AGENT_OUTDATED $INSTALLED $REQUIRED"
-    else
-      UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
-        echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
-      }
-      if [ -n "$UPDATE_ERR_FILE" ]; then
-        UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
-        UPDATE_EXIT=$?
-        UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
-        rm -f "$UPDATE_ERR_FILE"
-        if [ $UPDATE_EXIT -ne 0 ]; then
-          echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
-          [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
-          [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
-        elif [ -n "$UPDATE_OUTPUT" ]; then
-          echo "$UPDATE_OUTPUT"
-        fi
-      fi
-    fi
-  fi
-fi
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -136,6 +106,8 @@ fi
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
+- `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
@@ -161,6 +133,10 @@ If data files need to be generated or copied (images, PDFs, etc.), they go in a 
 
 The `/inputs` subdirectory is only created when there are actual data files to store. Paths to these files are referenced from within `inputs.json`.
 
+> **Path resolution rule**: All `url` values in `inputs.json` are resolved **relative to the `inputs.json` file itself** (i.e., relative to the bundle directory), NOT relative to the current working directory. When referencing local files, you MUST either:
+> 1. **Copy files** into `<output_dir>/inputs/` and reference with a path relative to the `inputs.json` file, e.g., `inputs/the_doc.pdf` (preferred — keeps the bundle self-contained), or
+> 2. **Use a URL or absolute path**, e.g., `https://example.com/doc.pdf` or `/Users/alice/data/invoice.pdf`
+
 ### Step 2: Get Input Schema
 
 Extract the input template from the method:
@@ -177,7 +153,7 @@ mthds-agent inputs bundle <bundle.mthds> -L <bundle-dir>/ [--pipe specific_pipe]
   "inputs": {
     "document": {
       "concept": "native.Document",
-      "content": {"url": "url_value"}
+      "content": {"url": "https://mock-xxxxxxxx.invalid/..."}
     },
     "context": {
       "concept": "native.Text",
@@ -205,9 +181,14 @@ Based on the heuristics above and what the user has provided, follow the appropr
 The fastest path. Produces a placeholder `inputs.json` that the user can fill in manually.
 
 1. Take the `inputs` object from Step 2's output
-2. Save it to `<output_dir>/inputs.json` (next to `bundle.mthds`)
-3. Report the saved file path and show the template content
-4. Offer: "To populate this with realistic test data, re-run /mthds-inputs and ask for synthetic data. Or provide your own files."
+2. For `url` fields, replace the mock URLs (e.g., `https://mock-xxxxxxxx.invalid/...`) with descriptive placeholders that explicitly tell the path resolution is relative to inputs.json, e.g:
+  good: `<VARNAME-url-or-path-relative-to-this-inputs-file>` ✅ do this
+  bad:  `<path-to-VARNAME>` ❌ don't do that
+This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
+This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
+3. Save it to `<output_dir>/inputs.json` (next to `bundle.mthds`)
+4. Report the saved file path and show the template content
+5. Offer: "To populate this with realistic test data, re-run /mthds-inputs and ask for synthetic data. Or provide your own files."
 
 ---
 
@@ -630,7 +611,7 @@ mthds-agent run bundle <bundle-dir>/
 ### Image
 ```json
 {
-  "url": "/path/to/image.jpg",
+  "url": "inputs/image.jpg",
   "caption": "Optional description",
   "mime_type": "image/jpeg"
 }
@@ -639,7 +620,7 @@ mthds-agent run bundle <bundle-dir>/
 ### Document
 ```json
 {
-  "url": "/path/to/document.pdf",
+  "url": "inputs/document.pdf",
   "mime_type": "application/pdf"
 }
 ```
@@ -657,7 +638,7 @@ mthds-agent run bundle <bundle-dir>/
 {
   "text": {"text": "Main text content"},
   "images": [
-    {"url": "/path/to/img1.png", "caption": "Figure 1"}
+    {"url": "inputs/img1.png", "caption": "Figure 1"}
   ]
 }
 ```

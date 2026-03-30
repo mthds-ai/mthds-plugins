@@ -1,7 +1,15 @@
 ---
 name: mthds-run
-min_mthds_version: 0.2.1
 description: Run MTHDS methods and interpret results. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", or wants to execute any MTHDS method bundle and see its output.
+min_mthds_version: 0.3.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Run MTHDS methods
@@ -15,45 +23,7 @@ Execute MTHDS method bundles and interpret their JSON output.
 Run this command to check toolchain status:
 
 ```bash
-if ! command -v mthds-agent &>/dev/null; then
-  echo "MTHDS_AGENT_MISSING"
-else
-  # Version gate: block if mthds-agent is too old for this plugin
-  # NOTE: This bash semver comparison must stay in sync with the TypeScript
-  # implementation in mthds-js/src/installer/runtime/version-check.ts.
-  # Both implement major.minor.patch comparison. The bash version is
-  # intentionally simpler (no prerelease/build metadata support).
-  INSTALLED=$(mthds-agent --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-  REQUIRED="0.2.1"
-  if [ -z "$INSTALLED" ]; then
-    echo "MTHDS_AGENT_VERSION_UNKNOWN"
-  else
-    IFS='.' read -r ia ib ic <<< "$INSTALLED"
-    IFS='.' read -r ra rb rc <<< "$REQUIRED"
-    if [ "$ia" -lt "$ra" ] 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -lt "$rb" ]; } 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -eq "$rb" ] && [ "$ic" -lt "$rc" ]; } 2>/dev/null; then
-      echo "MTHDS_AGENT_OUTDATED $INSTALLED $REQUIRED"
-    else
-      UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
-        echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
-      }
-      if [ -n "$UPDATE_ERR_FILE" ]; then
-        UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
-        UPDATE_EXIT=$?
-        UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
-        rm -f "$UPDATE_ERR_FILE"
-        if [ $UPDATE_EXIT -ne 0 ]; then
-          echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
-          [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
-          [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
-        elif [ -n "$UPDATE_OUTPUT" ]; then
-          echo "$UPDATE_OUTPUT"
-        fi
-      fi
-    fi
-  fi
-fi
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -86,6 +56,8 @@ fi
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
+- `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
@@ -93,7 +65,7 @@ fi
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
-### Step 0.5 — Pipelex Runtime Check (mandatory)
+### Step 1 — Pipelex Runtime Check (mandatory)
 
 Running methods requires the Pipelex runtime to be installed and configured.
 The preamble (Step 0) already verifies mthds-agent and its managed binaries are present
@@ -109,9 +81,9 @@ mthds-agent doctor  # outputs markdown
 
 - **If the user is requesting a dry run** (`--dry-run`): config issues are OK — dry runs work without backend configuration. Proceed.
 
-- **If healthy**: proceed to Step 1.
+- **If healthy**: proceed to Step 2.
 
-### Step 1: Identify the Target
+### Step 2: Identify the Target
 
 | Target | Command |
 |--------|---------|
@@ -122,11 +94,11 @@ mthds-agent doctor  # outputs markdown
 
 > **Directory mode** (recommended): Pass the pipeline directory as target. The CLI auto-detects `bundle.mthds`, `inputs.json`, and sets `-L` automatically — no need to specify them explicitly. This also avoids namespace collisions with other bundles.
 
-### Step 2: Prepare Inputs and Check Readiness
+### Step 3: Prepare Inputs and Check Readiness
 
 #### Fast path — inputs just prepared
 
-If inputs were already prepared during this conversation — via `/mthds-inputs` (user-data, synthetic, or mixed strategy), or by manually assembling `inputs.json` with real values earlier in this session — skip the schema fetch and readiness check. The inputs are ready. Proceed directly to Step 3 with a normal run.
+If inputs were already prepared during this conversation — via `/mthds-inputs` (user-data, synthetic, or mixed strategy), or by manually assembling `inputs.json` with real values earlier in this session — skip the schema fetch and readiness check. The inputs are ready. Proceed directly to Step 4 with a normal run.
 
 This applies when you just wrote or saw `inputs.json` being written with real content values. It does NOT apply after `/mthds-build` (which saves a placeholder template) or after `/mthds-inputs` with the template strategy.
 
@@ -164,7 +136,7 @@ Fill in the `content` fields with actual values. For complex inputs, use the /mt
 
 Before running, assess whether inputs are ready. This prevents runtime failures from placeholder values.
 
-**No inputs required**: If `mthds-agent inputs bundle <file>.mthds` returns an empty `inputs` object (`{}`), inputs are ready — skip to Step 3.
+**No inputs required**: If `mthds-agent inputs bundle <file>.mthds` returns an empty `inputs` object (`{}`), inputs are ready — skip to Step 4.
 
 **Inputs required**: If inputs exist, check `inputs.json` for readiness:
 
@@ -175,10 +147,10 @@ Before running, assess whether inputs are ready. This prevents runtime failures 
    - **Non-existent file paths**: `url` fields pointing to local files that don't exist on disk
 
 **Readiness result**:
-- **Ready**: `inputs.json` exists AND all content values are real (no placeholders, referenced files exist) → proceed to Step 3 with normal run
-- **Not ready**: `inputs.json` is missing, OR contains any placeholder values → proceed to Step 3 with dry-run fallback
+- **Ready**: `inputs.json` exists AND all content values are real (no placeholders, referenced files exist) → proceed to Step 4 with normal run
+- **Not ready**: `inputs.json` is missing, OR contains any placeholder values → proceed to Step 4 with dry-run fallback
 
-### Step 3: Choose Run Mode
+### Step 4: Choose Run Mode
 
 #### If inputs are not ready
 
@@ -216,7 +188,7 @@ mthds-agent run bundle <bundle-dir>/ --inputs '{"theme": {"concept": "native.Tex
 mthds-agent run bundle <bundle-dir>/
 ```
 
-### Step 4: Present Results
+### Step 5: Present Results
 
 After a successful run, **always show the actual output to the user** — never just summarize what fields exist.
 
@@ -229,7 +201,7 @@ The CLI has two output modes:
 
 The `output_file` and `graph_files` are written to disk as side effects (paths appear in logs/stderr), not in compact stdout.
 
-#### 4a. Determine what to show
+#### 5a. Determine what to show
 
 **In compact mode** (default), the output is the concept JSON directly. Show the fields to the user:
 
@@ -258,7 +230,7 @@ else:
 | PipeParallel with `combined_output` | Yes | `main_stuff` |
 | PipeParallel without `combined_output` | No (`{}`) | `working_memory.root` entries |
 
-#### 4b. Show the output content
+#### 5b. Show the output content
 
 **In compact mode**: show the JSON fields directly. For structured concepts, format for readability.
 
@@ -275,27 +247,27 @@ else:
 
 **For dry runs**: Show the same output but clearly label it as mock/simulated data.
 
-#### 4c. Output file
+#### 5c. Output file
 
 - The CLI automatically saves the full JSON output next to the bundle (`live_run.json` or `dry_run.json`).
 - The output file path appears in runtime logs (stderr), not in compact stdout.
 
-#### 4d. Present graph files
+#### 5d. Present graph files
 
 - Graph visualizations are generated by default (`live_run.html` / `dry_run.html`). Use `--no-graph` to disable.
 - The graph file path appears in runtime logs (stderr), not in compact stdout.
 
-#### 4e. Mention intermediate results
+#### 5e. Mention intermediate results
 
 - If the pipeline has multiple steps, briefly note key intermediate values from `working_memory` (e.g., "The match analysis intermediate step scored 82/100").
 - Offer: "I can show the full working memory if you want to inspect any intermediate step."
 
-#### 4f. Suggest next steps
+#### 5f. Suggest next steps
 
 - Re-run with different inputs
 - Adjust prompts or pipe configurations if output quality needs improvement
 
-### Step 5: Handle Errors
+### Step 6: Handle Errors
 
 When encountering runtime errors, re-run with `--log-level debug` for additional context:
 

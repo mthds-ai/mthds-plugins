@@ -1,12 +1,20 @@
 ---
 name: mthds-publish
-min_mthds_version: 0.2.1
 description: Publish MTHDS methods to mthds.sh. Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the mthds.sh hub.
+min_mthds_version: 0.3.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Publish MTHDS methods to mthds.sh
 
-Publish method packages to mthds.sh (telemetry tracking). No files are written, no runner is installed — this only registers the method on the hub.
+Register and publish method packages to the mthds.sh hub. No files are written and no runner is installed — this only registers the method for discovery.
 
 ## Process
 
@@ -15,45 +23,7 @@ Publish method packages to mthds.sh (telemetry tracking). No files are written, 
 Run this command to check toolchain status:
 
 ```bash
-if ! command -v mthds-agent &>/dev/null; then
-  echo "MTHDS_AGENT_MISSING"
-else
-  # Version gate: block if mthds-agent is too old for this plugin
-  # NOTE: This bash semver comparison must stay in sync with the TypeScript
-  # implementation in mthds-js/src/installer/runtime/version-check.ts.
-  # Both implement major.minor.patch comparison. The bash version is
-  # intentionally simpler (no prerelease/build metadata support).
-  INSTALLED=$(mthds-agent --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-  REQUIRED="0.2.1"
-  if [ -z "$INSTALLED" ]; then
-    echo "MTHDS_AGENT_VERSION_UNKNOWN"
-  else
-    IFS='.' read -r ia ib ic <<< "$INSTALLED"
-    IFS='.' read -r ra rb rc <<< "$REQUIRED"
-    if [ "$ia" -lt "$ra" ] 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -lt "$rb" ]; } 2>/dev/null ||
-       { [ "$ia" -eq "$ra" ] && [ "$ib" -eq "$rb" ] && [ "$ic" -lt "$rc" ]; } 2>/dev/null; then
-      echo "MTHDS_AGENT_OUTDATED $INSTALLED $REQUIRED"
-    else
-      UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
-        echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
-      }
-      if [ -n "$UPDATE_ERR_FILE" ]; then
-        UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
-        UPDATE_EXIT=$?
-        UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
-        rm -f "$UPDATE_ERR_FILE"
-        if [ $UPDATE_EXIT -ne 0 ]; then
-          echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
-          [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
-          [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
-        elif [ -n "$UPDATE_OUTPUT" ]; then
-          echo "$UPDATE_OUTPUT"
-        fi
-      fi
-    fi
-  fi
-fi
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -85,6 +55,8 @@ fi
 - `UPGRADE_AVAILABLE ...` → Read [upgrade flow](../shared/upgrade-flow.md) and follow the upgrade prompts before continuing to Step 1.
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
+
+- `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 

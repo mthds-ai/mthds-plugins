@@ -14,7 +14,7 @@ skills/
 │   ├── mthds-build/                  # /mthds-build — create new .mthds bundles from scratch
 │   │   ├── SKILL.md.j2              # Jinja2 template (source of truth)
 │   │   ├── SKILL.md                 # Generated from .j2 (build artifact, checked in)
-│   │   └── references/              # Skill-specific refs (manual-build-phases, model-references)
+│   │   └── references/              # Skill-specific refs (build-phases, model-references)
 │   ├── mthds-check/                  # /mthds-check — validate bundles (read-only)
 │   ├── mthds-edit/                   # /mthds-edit — modify existing bundles
 │   │   └── references/              # Skill-specific refs (model-references)

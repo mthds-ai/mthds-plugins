@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# mthds-env-check — check mthds-agent installation and version
+# Usage: mthds-env-check <min_version>
+# Output status codes (via stdout):
+#   MTHDS_AGENT_MISSING              — mthds-agent not on PATH
+#   MTHDS_AGENT_VERSION_UNKNOWN      — could not parse installed version
+#   MTHDS_AGENT_OUTDATED <inst> <req> — installed version too old
+#   MTHDS_UPDATE_CHECK_FAILED ...    — update-check command failed
+#   UPGRADE_AVAILABLE ...            — from mthds-agent update-check
+#   JUST_UPGRADED ...                — from mthds-agent update-check
+#   UP_TO_DATE                       — from mthds-agent update-check
+#   (no output)                      — up to date, nothing to report
+set -u
+exec 2>/dev/null
+
+REQUIRED="${1:-}"
+if [ -z "$REQUIRED" ]; then
+  echo "MTHDS_ENV_CHECK_ERROR: missing min_version argument"
+  exit 0
+fi
+
+if ! command -v mthds-agent &>/dev/null; then
+  echo "MTHDS_AGENT_MISSING"
+  exit 0
+fi
+
+# Version gate: block if mthds-agent is too old for this plugin
+# NOTE: This bash semver comparison must stay in sync with the TypeScript
+# implementation in mthds-js/src/installer/runtime/version-check.ts.
+# Both implement major.minor.patch comparison. The bash version is
+# intentionally simpler (no prerelease/build metadata support).
+INSTALLED=$(mthds-agent --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+if [ -z "$INSTALLED" ]; then
+  echo "MTHDS_AGENT_VERSION_UNKNOWN"
+  exit 0
+fi
+
+IFS='.' read -r ia ib ic <<< "$INSTALLED"
+IFS='.' read -r ra rb rc <<< "$REQUIRED"
+if [ "$ia" -lt "$ra" ] 2>/dev/null ||
+   { [ "$ia" -eq "$ra" ] && [ "$ib" -lt "$rb" ]; } 2>/dev/null ||
+   { [ "$ia" -eq "$ra" ] && [ "$ib" -eq "$rb" ] && [ "$ic" -lt "$rc" ]; } 2>/dev/null; then
+  echo "MTHDS_AGENT_OUTDATED $INSTALLED $REQUIRED"
+  exit 0
+fi
+
+# Version is sufficient — check for available updates
+UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
+  echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
+  exit 0
+}
+UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
+UPDATE_EXIT=$?
+UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
+rm -f "$UPDATE_ERR_FILE"
+if [ $UPDATE_EXIT -ne 0 ]; then
+  echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
+  [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
+  [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
+elif [ -n "$UPDATE_OUTPUT" ]; then
+  echo "$UPDATE_OUTPUT"
+fi

@@ -36,7 +36,7 @@ For each file matching `skills/*/SKILL.md.j2`, update the frontmatter version:
 
 - `min_mthds_version: OLD` → `min_mthds_version: NEW`
 
-This is the only version string in each `.j2` template — the old body-text version patterns were replaced by `{% include 'shared/preamble.md' %}`.
+This is the only version string in each `.j2` template. The preamble version is injected automatically by `gen_skill_docs.py` from the canonical source.
 
 ### 4. Regenerate SKILL.md files
 
