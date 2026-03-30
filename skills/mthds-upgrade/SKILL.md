@@ -1,7 +1,7 @@
 ---
 name: mthds-upgrade
-min_mthds_version: 0.3.0
 description: Upgrade MTHDS CLI tools to the latest compatible versions. Use when user says "upgrade mthds", "update mthds", "mthds upgrade", "update my tools", "upgrade pipelex", "update pipelex", "upgrade plxt", "update tools".
+min_mthds_version: 0.3.0
 allowed-tools:
   - Bash
   - Read

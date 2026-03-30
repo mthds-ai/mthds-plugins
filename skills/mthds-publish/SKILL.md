@@ -1,7 +1,7 @@
 ---
 name: mthds-publish
-min_mthds_version: 0.3.0
 description: Publish MTHDS methods to mthds.sh. Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the mthds.sh hub.
+min_mthds_version: 0.3.0
 allowed-tools:
   - Bash
   - Read

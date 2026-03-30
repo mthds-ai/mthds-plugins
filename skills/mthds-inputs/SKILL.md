@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
-min_mthds_version: 0.3.0
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
+min_mthds_version: 0.3.0
 allowed-tools:
   - Bash
   - Read
