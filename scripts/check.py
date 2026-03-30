@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -36,6 +37,24 @@ STALE_INSTALL_PATTERNS = [
     re.compile(r"pip install\s+pipelex-tools\b"),
     re.compile(r"curl.*install\.sh"),
 ]
+
+
+def check_plugin_version_sync(base_dir: Path) -> tuple[list[str], str, str]:
+    """Check that plugin.json and marketplace.json have the same version.
+
+    Returns:
+        A tuple of (errors, plugin_version, marketplace_version).
+    """
+    plugin_path = base_dir / ".claude-plugin" / "plugin.json"
+    marketplace_path = base_dir / ".claude-plugin" / "marketplace.json"
+
+    plugin_version = json.loads(plugin_path.read_text(encoding="utf-8"))["version"]
+    marketplace_version = json.loads(marketplace_path.read_text(encoding="utf-8"))["metadata"]["version"]
+
+    errors: list[str] = []
+    if plugin_version != marketplace_version:
+        errors.append(f"plugin.json has {plugin_version}, marketplace.json has {marketplace_version}")
+    return errors, plugin_version, marketplace_version
 
 
 def check_stale_install_references(base_dir: Path) -> list[str]:
@@ -137,6 +156,18 @@ def check_frontmatter_versions(base_dir: Path, canonical: str) -> list[str]:
 def main() -> int:
     base_dir = Path(__file__).resolve().parent.parent
     failed = False
+
+    # Check 0: plugin.json and marketplace.json version sync
+    print("Checking plugin version sync...")
+    errors, plugin_ver, marketplace_ver = check_plugin_version_sync(base_dir)
+    if errors:
+        for error in errors:
+            print(f"  MISMATCH: {error}")
+        print("FAIL: plugin.json and marketplace.json versions are out of sync.")
+        failed = True
+    else:
+        print(f"  plugin.json: {plugin_ver}, marketplace.json: {marketplace_ver}")
+        print("  Versions in sync.")
 
     # Check 1a: stale install references (pip install pipelex, curl install.sh)
     print("Checking for stale install references in SKILL.md files...")

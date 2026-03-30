@@ -34,19 +34,27 @@ Start Claude Code:
 claude
 ```
 
-Tell Claude to install the MTHDS skills marketplace:
-```bash
+Tell Claude to install the MTHDS plugins marketplace:
+```
 /plugin marketplace add mthds-ai/mthds-plugins
 ```
 
-then install the MTHDS skills plugin:
-```bash
-/plugin install mthds@mthds-ai-mthds-plugins
+then install the MTHDS Claude Code plugin:
+```
+/plugin install mthds@mthds-plugins
 ```
 
-then you must exit Claude Code and reopen it.
-```bash
+then reload plugins:
+```
+/reload-plugins
+```
+
+If that doesn't work, exit Claude Code and reopen it:
+```
 /exit
+```
+```bash
+claude
 ```
 
 ## Usage
