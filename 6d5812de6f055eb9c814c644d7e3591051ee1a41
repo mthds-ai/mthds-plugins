@@ -1,0 +1,23 @@
+skills/shared/frontmatter.md
+  3452126736df5219 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "6d5812de6f055eb9c814c644d7e3591051ee1a41",
+  "prompts": {
+    "3452126736df5219": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "81288bcd-8601-4d71-9311-4c690250dc99",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 2,
+      "accepted_lines": 10,
+      "overriden_lines": 0
+    }
+  }
+}
