@@ -12,7 +12,7 @@ UV_MIN_VERSION = $(shell grep -m1 'required-version' pyproject.toml | sed -E 's/
 
 .PHONY: \
 	help env check-uv install lock li \
-	gen-skill-docs check agent-check \
+	gen-skill-docs build check agent-check \
 	format lint ruff-format ruff-lint pyright mypy fix-unused-imports fui \
 	test agent-test gha-tests tp \
 	cleanderived cleanenv cleanall reinstall ri
@@ -160,4 +160,3 @@ gen-skill-docs: install ## Generate SKILL.md from .j2 templates
 
 build: gen-skill-docs
 	@echo "Done: built all skill docs from templates"
-	

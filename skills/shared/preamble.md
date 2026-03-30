@@ -1,7 +1,7 @@
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || true
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -33,6 +33,8 @@ Run this command to check toolchain status:
 - `UPGRADE_AVAILABLE ...` → Read [upgrade flow](../shared/upgrade-flow.md) and follow the upgrade prompts before continuing to Step 1.
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
+
+- `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
