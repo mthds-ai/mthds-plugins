@@ -1,0 +1,53 @@
+skills/mthds-inputs/SKILL.md
+  3a6ce65fb8a7c65d 136,139,189-191,614,623,641
+skills/mthds-build/SKILL.md.j2
+  55513b4d48f90de8 338,342-343,348-349,356
+skills/mthds-inputs/SKILL.md.j2
+  3a6ce65fb8a7c65d 87-90,140-142,565,574,592
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "00ef65ccb095b003c2e3f04de7fd0b5e0fa4e118",
+  "prompts": {
+    "3a6ce65fb8a7c65d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "06e2f7c5-bcb1-4190-bc86-2c0ff9b7279a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 35,
+      "total_deletions": 23,
+      "accepted_lines": 18,
+      "overriden_lines": 4
+    },
+    "55513b4d48f90de8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3dd50e52-fe3e-43fd-b48c-afff9004c853",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 7,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    },
+    "8bff3c0f70707ebe": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "57bb6944-b502-4565-8a5b-382ff5f648d8",
+        "model": "gpt-5.4-medium"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
