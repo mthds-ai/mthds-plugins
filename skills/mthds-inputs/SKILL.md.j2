@@ -84,6 +84,10 @@ If data files need to be generated or copied (images, PDFs, etc.), they go in a 
 
 The `/inputs` subdirectory is only created when there are actual data files to store. Paths to these files are referenced from within `inputs.json`.
 
+> **Path resolution rule**: All `url` values in `inputs.json` are resolved **relative to the `inputs.json` file itself** (i.e., relative to the bundle directory), NOT relative to the current working directory. When referencing local files, you MUST either:
+> 1. **Copy files** into `<output_dir>/inputs/` and reference with a path relative to the `inputs.json` file, e.g., `inputs/the_doc.pdf` (preferred — keeps the bundle self-contained), or
+> 2. **Use a URL or absolute path**, e.g., `https://example.com/doc.pdf` or `/Users/alice/data/invoice.pdf`
+
 ### Step 2: Get Input Schema
 
 Extract the input template from the method:
@@ -100,7 +104,7 @@ mthds-agent inputs bundle <bundle.mthds> -L <bundle-dir>/ [--pipe specific_pipe]
   "inputs": {
     "document": {
       "concept": "native.Document",
-      "content": {"url": "url_value"}
+      "content": {"url": "https://mock-xxxxxxxx.invalid/..."}
     },
     "context": {
       "concept": "native.Text",
@@ -128,9 +132,14 @@ Based on the heuristics above and what the user has provided, follow the appropr
 The fastest path. Produces a placeholder `inputs.json` that the user can fill in manually.
 
 1. Take the `inputs` object from Step 2's output
-2. Save it to `<output_dir>/inputs.json` (next to `bundle.mthds`)
-3. Report the saved file path and show the template content
-4. Offer: "To populate this with realistic test data, re-run /mthds-inputs and ask for synthetic data. Or provide your own files."
+2. For `url` fields, replace the mock URLs (e.g., `https://mock-xxxxxxxx.invalid/...`) with descriptive placeholders that explicitly tell the path resolution is relative to inputs.json, e.g:
+  good: `<VARNAME-url-or-path-relative-to-this-inputs-file>` ✅ do this
+  bad:  `<path-to-VARNAME>` ❌ don't do that
+This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
+This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
+3. Save it to `<output_dir>/inputs.json` (next to `bundle.mthds`)
+4. Report the saved file path and show the template content
+5. Offer: "To populate this with realistic test data, re-run /mthds-inputs and ask for synthetic data. Or provide your own files."
 
 ---
 
@@ -553,7 +562,7 @@ mthds-agent run bundle <bundle-dir>/
 ### Image
 ```json
 {
-  "url": "/path/to/image.jpg",
+  "url": "inputs/image.jpg",
   "caption": "Optional description",
   "mime_type": "image/jpeg"
 }
@@ -562,7 +571,7 @@ mthds-agent run bundle <bundle-dir>/
 ### Document
 ```json
 {
-  "url": "/path/to/document.pdf",
+  "url": "inputs/document.pdf",
   "mime_type": "application/pdf"
 }
 ```
@@ -580,7 +589,7 @@ mthds-agent run bundle <bundle-dir>/
 {
   "text": {"text": "Main text content"},
   "images": [
-    {"url": "/path/to/img1.png", "caption": "Figure 1"}
+    {"url": "inputs/img1.png", "caption": "Figure 1"}
   ]
 }
 ```

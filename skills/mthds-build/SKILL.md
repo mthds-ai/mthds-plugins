@@ -384,23 +384,25 @@ Replace `<mthds_file>` and `<output_dir>` with actual paths from the build outpu
 
 After the command succeeds:
 
-1. **Input template**: Show the `inputs` JSON from the inputs command output. Save it to `<output_dir>/inputs.json` for the user to fill in.
+1. **Input schema**: Show the `inputs` JSON from the command output so the user can see what the method expects. **Do NOT save it to `inputs.json`** — input preparation is handled exclusively by `/mthds-inputs`.
 
 2. **Flowchart**: Tell the user that an interactive flowchart (`dry_run.html`) was generated during validation next to the bundle.
 
-3. **Next steps — test with mock inference**: If the method requires inputs, the saved `inputs.json` still contains placeholder values, so suggest a dry run to test with mock inference:
-   > To test this method with mock inference, use /mthds-run or from the terminal:
+3. **Next steps — test with mock inference**: Suggest a dry run to verify the method structure works:
+   > To test this method with mock inference (no real inputs needed):
    > ```
    > mthds-agent run bundle <output_dir>/ --dry-run --mock-inputs
    > ```
 
-4. **Next steps — run with real data**: Explain how to prepare real inputs, then run for real:
-   > To run with real data, use /mthds-inputs to prepare your inputs (provide your own files, or generate synthetic test data), then:
+4. **Next steps — prepare inputs and run**:
+   > To prepare inputs for a real run, use `/mthds-inputs`. It can generate a placeholder template, create synthetic test data, or integrate your own files. Then:
    > ```
    > mthds-agent run bundle <output_dir>/
    > ```
 
    Replace `<output_dir>` with the actual output directory path used throughout the build.
+
+> **NEVER write `inputs.json` manually.** If the user provides files, paths, or asks to run with real data, you MUST invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, file copying, and multiple input strategies. Writing `inputs.json` by hand bypasses all of this and produces broken paths.
 
 ---
 
