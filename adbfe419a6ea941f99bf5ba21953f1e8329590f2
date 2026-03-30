@@ -1,0 +1,35 @@
+README.md
+  8059115a5e3dd0eb 38,43,48,53
+.claude/skills/release/SKILL.md
+  8059115a5e3dd0eb 5-11,16-17,19,21-22,26-34,36,38-40,42-43,45,47,49-50,52,54-56,58-60,62,64,68-69,72,74-76,79-112,114,116,118-136,139,146-147,149-157,161,166,168-174
+tests/unit/test_check.py
+  8059115a5e3dd0eb 11,31-40,191-208
+.claude-plugin/marketplace.json
+  8059115a5e3dd0eb 9
+CHANGELOG.md
+  8059115a5e3dd0eb 1-12
+scripts/check.py
+  8059115a5e3dd0eb 6,42-59,160-171
+.claude-plugin/plugin.json
+  8059115a5e3dd0eb 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "adbfe419a6ea941f99bf5ba21953f1e8329590f2",
+  "prompts": {
+    "8059115a5e3dd0eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8177ad09-b0a1-4d92-b401-fdb24eaa775f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 207,
+      "total_deletions": 49,
+      "accepted_lines": 207,
+      "overriden_lines": 0
+    }
+  }
+}
