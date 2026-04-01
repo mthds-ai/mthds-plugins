@@ -9,7 +9,7 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills plugin fo
 Open Claude Code and paste this. Claude does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is an open language defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude. Then ask if I want to add mthds to the current project so teammates get it too.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is an open language defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude.
 ```
 
 ### Manual install

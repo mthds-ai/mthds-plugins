@@ -8,44 +8,20 @@ Before working, or if there is any doubt about the CLI, check the following in o
 
 ### Tier 1 — Required for all skills (low friction)
 
-These CLIs are needed for building, validating, editing, explaining, fixing, and preparing inputs — no API keys or backend configuration required.
-
-#### 0. Ensure `uv` is installed
+The preamble already confirmed `mthds-agent` is installed and at the required version. Now bootstrap the remaining toolchain (`uv`, `pipelex-agent`, `plxt`) — no API keys or backend configuration required:
 
 ```bash
-uv --version
+mthds-agent bootstrap
 ```
 
-If it fails, ASK the user if they want to install it. If YES:
+**Interpret the output:**
 
-- macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- `BOOTSTRAP_NOT_NEEDED` → All tools already installed. Proceed.
+- `BOOTSTRAP_COMPLETE <json>` → Tools were installed. The JSON shows version transitions (e.g. `{"installed":{"pipelex":"missing->0.22.0"}}`). Announce what was installed, then proceed.
+- `BOOTSTRAP_PARTIAL <json>` → Some tools installed, some failed. Report failures to the user with the JSON details. Proceed with what's available.
+- `BOOTSTRAP_FAILED <json>` → All installs failed. Show the JSON to the user and suggest manual recovery. Do not proceed.
 
-#### 1. Check if `mthds-agent` is installed
-
-```bash
-mthds-agent --version
-```
-
-If it fails, ASK the user if they want to install it. If YES, run `npm install -g mthds`.
-
-#### 2. Check if `pipelex-agent` is installed
-
-```bash
-pipelex-agent --version
-```
-
-If it fails, ASK the user if they want to install it. If YES, run `uv tool install pipelex`.
-
-#### 3. Check if `plxt` is installed
-
-```bash
-plxt --version
-```
-
-If it fails, ASK the user if they want to install it. If YES, run `uv tool install pipelex-tools`.
-
-> **Note**: `pipelex-agent` is needed for validation and building; `plxt` is needed for linting and formatting (accessed via the `mthds-agent plxt` passthrough — see command reference). Neither requires API keys or backend configuration. Users can start building and validating methods right away.
+> **Note**: `pipelex-agent` is needed for validation and building; `plxt` is needed for linting and formatting. Neither requires API keys or backend configuration.
 
 FROM NOW ON, ASSUME THE CLIs ARE INSTALLED AND WORKING, and ONLY USE `mthds-agent` commands (including `mthds-agent plxt lint` / `mthds-agent plxt fmt` for linting and formatting).
 
@@ -70,7 +46,6 @@ These options apply to **all** `mthds-agent` commands and must appear **before**
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
 | `--runner` | `pipelex`, `api` | default runner | Selects which runner to use for the command |
-| `--log-level` | `debug`, `info`, `warning`, `error`, `critical` | `warning` | Controls verbosity of diagnostic output on stderr |
 | `--version` | — | — | Print version and exit |
 
 ### Runner Setup
@@ -99,8 +74,6 @@ Use `--runner` to override the default per-command:
 ```bash
 mthds-agent --runner pipelex validate bundle bundle.mthds -L dir/
 ```
-
-When diagnosing failures, use `--log-level debug` to get additional context — internal resolution steps, model routing details, and validation traces.
 
 ## Building Methods
 
@@ -238,8 +211,6 @@ mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipe
 mthds-agent run bundle mthds-wip/pipeline_01/
 ```
 
-Without `-L` (or directory mode for `run`), commands will load all `.mthds` files in the default search paths, which can cause name collisions between bundles.
-
 ## Package Management
 
 The `mthds-agent package` commands manage MTHDS package manifests (`METHODS.toml`).
@@ -306,5 +277,3 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent config list` | List all config values | `mthds-agent config list` |
 | `mthds-agent plxt lint` | Lint `.mthds`/`.toml` files for TOML syntax and schema errors (passthrough to plxt — raw text output on stderr, not JSON) | `mthds-agent plxt lint <file>.mthds` |
 | `mthds-agent plxt fmt` | Auto-format `.mthds`/`.toml` files (passthrough to plxt — raw text output on stderr, not JSON) | `mthds-agent plxt fmt <file>.mthds` |
-
-> **Note**: All commands accept the `--log-level` global option before the subcommand (see [Global Options](#global-options)).

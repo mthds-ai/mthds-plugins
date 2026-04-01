@@ -4,80 +4,19 @@ Canonical reference for all `mthds-agent` error types, recovery strategies, and 
 
 ## Error Output Format
 
-On failure, `mthds-agent` prints JSON to **stderr** and exits with code 1:
-
-```json
-{
-  "error": true,
-  "error_type": "ValidateBundleError",
-  "message": "Human-readable error description",
-  "hint": "Suggested recovery action",
-  "error_domain": "input",
-  "retryable": false
-}
-```
-
-Fields:
-- `error_type` — error class name for programmatic matching
-- `message` — human-readable description
-- `hint` — (optional) suggested recovery action, auto-added for known error types
-- `error_domain` — classifies the error source (see Error Domains below)
-- `retryable` — (optional, boolean) when `true`, the error may succeed on retry without changes (e.g., transient network issues)
-- Additional fields vary by error type (e.g., `validation_errors`, `pipe_code`, `model_handle`, `fallback_list`, `pipe_stack`)
-
-## User-Requested Verbosity
-
-When the user's message includes keywords like **"verbose"**, **"debug"**, **"more logs"**, or **"with logs"**, apply the corresponding log level to **every** `mthds-agent` invocation for the remainder of the task — not just on errors:
-
-- "verbose" / "debug" / "more logs" / "with logs" → `--log-level debug` on all commands
-
-When user-requested verbosity is active:
-1. Add `--log-level <level>` before the subcommand on every `mthds-agent` call
-2. Show the full stderr output inline in the conversation (do not swallow it)
-3. Visually separate log output from the main result (use a "Logs:" label or similar)
-4. Continue using the elevated log level for all subsequent commands until the task completes
-
-This is independent of the error-triggered escalation below — user-requested verbosity applies proactively, while the Debugging Tip applies reactively after errors.
-
-## Debugging Tip
-
-When retrying a command after an error, increase the log level to capture diagnostic output in stderr:
-
-```bash
-# Debug output for troubleshooting
-mthds-agent --log-level debug validate bundle bundle.mthds -L dir/
-```
-
-`--log-level debug` adds context on what the CLI is doing — internal resolution steps, model routing details, and validation traces — without overwhelming output.
+On failure, `mthds-agent` prints JSON to **stderr** and exits with code 1 and outputs error details.
 
 ## Error Domains
 
 | Domain | Meaning | Who Fixes |
 |--------|---------|-----------|
 | `input` | Bad .mthds, wrong CLI args, bad JSON | Agent can fix directly |
-| `config` | Missing API keys, wrong model routing, environment issues | Environment/config changes needed |
+| `config` | Missing API keys, wrong model routing, environment issues | Environment/config changes needed with the user's consent or assistance |
 | `runtime` | Pipeline execution failure, transient errors | Depends on cause |
 
 ## Validation Errors
 
-When `mthds-agent validate bundle` reports a `ValidateBundleError`, the JSON includes a `validation_errors` array:
-
-```json
-{
-  "error": true,
-  "error_type": "ValidateBundleError",
-  "message": "Bundle validation failed",
-  "hint": "Check the 'validation_errors' array for specific issues to fix",
-  "error_domain": "input",
-  "validation_errors": [
-    {
-      "error_type": "missing_input_variable",
-      "pipe_code": "summarize_document",
-      "message": "Missing input variable(s): context."
-    }
-  ]
-}
-```
+When `mthds-agent validate bundle` reports a list of errors.
 
 ### Validation Error Types
 
@@ -104,20 +43,6 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 |------------|---------|----------|
 | `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent doctor` — check routing configuration |
 | `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Run `mthds-agent doctor` — verify API keys and model availability |
-
-Example output:
-```json
-{
-  "error": true,
-  "error_type": "PipeOperatorModelChoiceError",
-  "error_domain": "config",
-  "message": "No model found for preset '$writing-creative'",
-  "hint": "Run 'mthds-agent doctor' to check available models and routing configuration",
-  "pipe_code": "summarize",
-  "model_type": "llm",
-  "model_choice": "$writing-creative"
-}
-```
 
 ## Runtime Errors
 

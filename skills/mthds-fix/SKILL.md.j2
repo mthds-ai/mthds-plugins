@@ -107,12 +107,6 @@ On the **final successful** validation, re-run with `--graph` to generate a flow
 mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph
 ```
 
-If the fix-validate loop gets stuck or errors are unclear, re-run with `--log-level debug` for additional context:
-
-```bash
-mthds-agent --log-level debug validate bundle <file>.mthds -L <bundle-directory>/
-```
-
 ### Step 5: Report Results
 
 - List all changes made (which pipes were modified and how)

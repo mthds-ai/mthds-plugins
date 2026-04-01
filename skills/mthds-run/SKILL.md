@@ -269,12 +269,6 @@ else:
 
 ### Step 6: Handle Errors
 
-When encountering runtime errors, re-run with `--log-level debug` for additional context:
-
-```bash
-mthds-agent --log-level debug run bundle <bundle-dir>/ --inputs data.json
-```
-
 For all error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 
 ### Execution Graphs
