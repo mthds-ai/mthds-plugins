@@ -1,7 +1,7 @@
 ---
 name: mthds-pipelex-setup
 description: Set up Pipelex inference configuration — choose backends and configure API keys. Use when user says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", wants to run methods for the first time, or gets a config/credential error when running.
-min_mthds_version: 0.3.0
+min_mthds_version: 0.3.3
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ Guided setup for configuring the Pipelex runtime with inference backends and API
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

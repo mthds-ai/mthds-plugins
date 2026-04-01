@@ -1,7 +1,7 @@
 ---
 name: mthds-publish
-description: Publish MTHDS methods to mthds.sh. Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the mthds.sh hub.
-min_mthds_version: 0.3.0
+description: Publish MTHDS methods to the MTHDS Hub (mthds.sh). Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the Hub.
+min_mthds_version: 0.3.3
 allowed-tools:
   - Bash
   - Read
@@ -12,9 +12,9 @@ allowed-tools:
 
 ---
 
-# Publish MTHDS methods to mthds.sh
+# Publish MTHDS methods to the MTHDS Hub
 
-Register and publish method packages to the mthds.sh hub. No files are written and no runner is installed — this only registers the method for discovery.
+Register and publish method packages to the MTHDS Hub. No files are written and no runner is installed — this only registers the method for discovery.
 
 ## Process
 
@@ -23,7 +23,7 @@ Register and publish method packages to the mthds.sh hub. No files are written a
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -115,7 +115,7 @@ On success, the CLI returns JSON:
 
 Present to the user:
 - Which methods were published
-- The address on mthds.sh
+- The address on the MTHDS Hub
 
 ### Step 4: Offer to Share
 

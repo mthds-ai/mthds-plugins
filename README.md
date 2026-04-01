@@ -4,85 +4,51 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills plugin fo
 
 [MTHDS](https://mthds.ai/latest/) is an open standard for AI methods. Find methods on the hub: [MTHDS Hub](https://mthds.sh). Install the reference python runtime from [Pipelex](https://github.com/Pipelex/pipelex).
 
-## Skills
+## Installation
 
-| Skill&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description |
-|:------|:------------|
-| `/mthds-build` | Build new AI method bundles from scratch. Supports both automated CLI build and guided 10-phase manual construction. |
-| `/mthds-check` | Validate workflow bundles for issues. Reports problems without modifying files (read-only analysis). |
-| `/mthds-edit` | Modify existing workflow bundles — change pipes, update prompts, rename concepts, add or remove steps. |
-| `/mthds-explain` | Explain and document existing workflows. Walk through the execution flow in plain language. |
-| `/mthds-fix` | Automatically fix validation errors in workflow bundles. Applies fixes and re-validates in a loop. |
-| `/mthds-run` | Execute MTHDS methods and interpret their JSON output. Supports dry runs, mock inputs, and graph generation. |
-| `/mthds-inputs` | Prepare inputs for workflows: placeholder templates, synthetic test data, user-provided files, or a mix. |
-| `/mthds-install` | Install method packages from GitHub or local directories. |
-| `/mthds-pkg` | Manage MTHDS packages — initialize, add dependencies, lock, install, update, and validate. |
-| `/mthds-publish` | Publish methods to mthds.sh (telemetry only, no file writes). |
-| `/mthds-share` | Share methods on social media (X, Reddit, LinkedIn). Pick specific platforms with `--platform`. |
+Open Claude Code and paste this. Claude does the rest.
 
+```
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is an open language defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude. Then ask if I want to add mthds to the current project so teammates get it too.
+```
 
-## Installation in Claude Code
-
-Install the `mthds` npm package:
+### Manual install
 
 ```bash
 npm install -g mthds
+mthds-agent bootstrap
+claude plugin marketplace add mthds-ai/mthds-plugins
+claude plugin install mthds@mthds-plugins
 ```
 
-Start Claude Code:
-```bash
-claude
-```
+Restart Claude Code (`/exit`, then `claude`).
 
-Tell Claude to install the MTHDS plugins marketplace:
-```
-/plugin marketplace add mthds-ai/mthds-plugins
-```
+## Skills to use with [MTHDS](https://mthds.ai/latest/)
 
-then install the MTHDS Claude Code plugin:
-```
-/plugin install mthds@mthds-plugins
-```
+| Skill | Description |
+|:------|:------------|
+| `/mthds-upgrade` | Upgrade MTHDS stack to latest version |
+| `/mthds-build` | Build new AI method bundles from scratch |
+| `/mthds-check` | Validate workflow bundles (read-only) |
+| `/mthds-edit` | Modify existing bundles |
+| `/mthds-explain` | Explain and document workflows |
+| `/mthds-fix` | Auto-fix validation errors |
+| `/mthds-run` | Execute methods and interpret output |
+| `/mthds-inputs` | Prepare inputs: templates, synthetic data, files |
+| `/mthds-install` | Install method packages from GitHub or local |
+| `/mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
+| `/mthds-publish` | Publish methods to mthds.sh |
+| `/mthds-share` | Share methods on social media |
 
-then reload plugins:
-```
-/reload-plugins
-```
+## What happens automatically
 
-If that doesn't work, exit Claude Code and reopen it:
-```
-/exit
-```
-```bash
-claude
-```
+The plugin includes a **PostToolUse hook** that fires on every `.mthds` file edit:
 
-## Usage
+1. **Lint** — `plxt lint` validates TOML structure and schema
+2. **Format** — `plxt fmt` auto-formats the file
+3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
 
-To use a skill, type `/mthds-<skill-name>` in Claude Code. For example: `/mthds-build`, `/mthds-run`, `/mthds-check`.
-
-## Project Structure
-
-```
-skills/
-├── mthds-build/        # Build skill + reference docs
-│   └── references/     # Manual build phases, talent/preset mappings
-├── mthds-check/        # Validate workflows
-├── mthds-edit/         # Edit workflows
-├── mthds-explain/      # Explain workflows
-├── mthds-fix/          # Fix validation errors
-├── mthds-run/          # Run pipelines
-├── mthds-inputs/       # Prepare inputs (template, synthetic, user data)
-├── mthds-install/      # Install method packages
-├── mthds-pkg/          # Package management
-├── mthds-publish/      # Publish methods to mthds.sh
-├── mthds-share/        # Share methods on social media
-└── shared/             # Shared references across all skills
-    ├── prerequisites.md
-    ├── error-handling.md
-    ├── mthds-agent-guide.md
-    └── mthds-reference.md
-```
+Errors block the edit. Warnings are shown but don't block. This runs silently when the tools aren't installed yet.
 
 ## License
 
