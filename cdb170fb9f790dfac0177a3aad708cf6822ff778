@@ -1,0 +1,40 @@
+tests/unit/test_check.py
+  c34549fcb30cff98 18
+skills/mthds-publish/SKILL.md.j2
+  7dec631ecebffcdd 3,7,9,69
+skills/shared/mthds-agent-guide.md
+  c34549fcb30cff98 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "cdb170fb9f790dfac0177a3aad708cf6822ff778",
+  "prompts": {
+    "7dec631ecebffcdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "98c19745-a254-4899-84fd-bc568e683e1e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "c34549fcb30cff98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ee50177d-f506-4361-8308-3595c22e6aa2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
