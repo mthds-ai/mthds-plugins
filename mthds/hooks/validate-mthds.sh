@@ -4,23 +4,33 @@
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
 #   3. mthds-agent validate bundle — semantic validation (blocks or warns)
-# Blocks if jq, plxt, or mthds-agent is not installed. Passes silently if file is not .mthds.
+# Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
+# Uses Node.js for JSON parsing (guaranteed on PATH since mthds-agent requires it).
 
 set -euo pipefail
 
 # --- Read stdin (PostToolUse JSON) and extract file path ---
 INPUT=$(cat)
 
-# --- Require jq before any JSON parsing ---
-if ! command -v jq &>/dev/null; then
-  # Can't parse input without jq — check for .mthds via bash pattern
+# --- Require Node.js for JSON parsing (guaranteed by mthds-agent dependency) ---
+if ! command -v node &>/dev/null; then
   if [[ "$INPUT" == *".mthds"* ]]; then
-    printf '{"decision":"block","reason":"Missing required CLI tool: jq (install via your package manager)"}\n'
+    printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
   fi
   exit 0
 fi
 
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# --- JSON helpers (Node.js) ---
+# Extract a value from JSON. $1=json_string, $2=JS expression using `d` as the parsed object.
+# NOTE: $2 is interpolated into the JS code — must be a trusted literal, never user input.
+_jv() { node -e "let d;try{d=JSON.parse(process.argv[1])}catch{d=null};const r=d?($2):undefined;process.stdout.write(r==null?'':String(r))" "$1"; }
+# Output a {"decision":"block","reason":...} JSON object. $1=reason string.
+_block() {
+  node -e "process.stdout.write(JSON.stringify({decision:'block',reason:process.argv[1]})+'\n')" "$1" \
+    || printf '{"decision":"block","reason":"Hook error: could not format block reason"}\n'
+}
+
+FILE_PATH=$(_jv "$INPUT" "d.tool_input?.file_path")
 
 # Guard: no file path or not a .mthds file → pass silently
 if [[ -z "$FILE_PATH" || "$FILE_PATH" != *.mthds || ! -f "$FILE_PATH" ]]; then
@@ -32,8 +42,7 @@ MISSING=""
 command -v plxt &>/dev/null || MISSING="plxt (install via: uv tool install pipelex-tools)"
 command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: npm install -g mthds)"
 if [[ -n "$MISSING" ]]; then
-  jq -n --arg reason "Missing required CLI tool(s): $MISSING" \
-    '{"decision":"block","reason":$reason}'
+  _block "Missing required CLI tool(s): $MISSING"
   exit 0
 fi
 
@@ -52,9 +61,8 @@ if [[ "$LINT_EXIT" -ne 0 ]]; then
   [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT=$(cat "$TMPOUT")
   [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT="lint exited with code $LINT_EXIT (no output)"
 
-  jq -n --arg reason "TOML/schema lint errors in $FILE_PATH:
-$LINT_OUTPUT" \
-    '{"decision":"block","reason":$reason}'
+  _block "TOML/schema lint errors in $FILE_PATH:
+$LINT_OUTPUT"
   exit 0
 fi
 
@@ -81,69 +89,61 @@ if [[ "$EXIT_CODE" -eq 0 ]]; then
   exit 0
 fi
 
-# Error path: parse the stderr JSON
+# Error path: parse stderr JSON and decide in a single Node.js call
 ERR_JSON=$(cat "$TMPERR")
 
-# Check if we got valid JSON with .error key; warn if not (don't block — may be version mismatch)
-if ! echo "$ERR_JSON" | jq -e '.error' &>/dev/null; then
-  echo "[mthds-hook] Warning: mthds-agent validate exited with code $EXIT_CODE but produced unexpected output:" >&2
-  echo "$ERR_JSON" >&2
-  exit 0
-fi
+node -e "
+const file = process.argv[1];
+const exitCode = process.argv[2];
+let d;
+try { d = JSON.parse(process.argv[3]); } catch { d = null; }
 
-ERROR_DOMAIN=$(echo "$ERR_JSON" | jq -r '.error_domain // empty')
-ERROR_TYPE=$(echo "$ERR_JSON" | jq -r '.error_type // empty')
-MESSAGE=$(echo "$ERR_JSON" | jq -r '.message // empty')
-HINT=$(echo "$ERR_JSON" | jq -r '.hint // empty')
-HAS_VALIDATION_ERRORS=$(echo "$ERR_JSON" | jq 'has("validation_errors") and (.validation_errors | length > 0)')
-HAS_DRY_RUN_ERROR=$(echo "$ERR_JSON" | jq 'has("dry_run_error") and (.dry_run_error != null)')
+// No valid JSON or missing .error key → warn and pass
+if (!d || !d.error) {
+  process.stderr.write('[mthds-hook] Warning: mthds-agent validate exited with code ' + exitCode + ' but produced unexpected output:\n');
+  process.stderr.write((process.argv[3] || '') + '\n');
+  process.exit(0);
+}
 
-# --- Decision logic ---
+const domain = d.error_domain || '';
+const errType = d.error_type || '';
+const message = d.message || '';
+const hint = d.hint || '';
+const valErrs = Array.isArray(d.validation_errors) ? d.validation_errors : [];
+const dryRunErr = d.dry_run_error || null;
 
-# Config or runtime domain → WARN only (not fixable by editing .mthds)
-if [[ "$ERROR_DOMAIN" == "config" || "$ERROR_DOMAIN" == "runtime" ]]; then
-  echo "[mthds-hook] Warning: $MESSAGE" >&2
-  if [[ -n "$HINT" ]]; then
-    echo "[mthds-hook] Hint: $HINT" >&2
-  fi
-  exit 0
-fi
+function warn(msg) { process.stderr.write('[mthds-hook] ' + msg + '\n'); }
+function block(reason) { process.stdout.write(JSON.stringify({decision:'block',reason}) + '\n'); }
 
-# Structural validation_errors present → BLOCK
-if [[ "$HAS_VALIDATION_ERRORS" == "true" ]]; then
-  # Build a summary of validation errors for the block reason
-  PIPE_NAMES=$(echo "$ERR_JSON" | jq -r '[.validation_errors[].pipe_code // "unknown"] | unique | join(", ")')
-  ERROR_COUNT=$(echo "$ERR_JSON" | jq '.validation_errors | length')
-  ERROR_DETAILS=$(echo "$ERR_JSON" | jq -r '.validation_errors[] | "- [\(.pipe_code // "unknown")] \(.message)"')
+// Config or runtime domain → WARN only (not fixable by editing .mthds)
+if (domain === 'config' || domain === 'runtime') {
+  warn('Warning: ' + message);
+  if (hint) warn('Hint: ' + hint);
+  process.exit(0);
+}
 
-  REASON=$(jq -n --arg pipe_names "$PIPE_NAMES" \
-                  --arg error_count "$ERROR_COUNT" \
-                  --arg details "$ERROR_DETAILS" \
-                  --arg file "$FILE_PATH" \
-    '$file + " has " + $error_count + " validation error(s) in pipe(s): " + $pipe_names + "\n" + $details')
-  # Remove surrounding quotes from jq -n output
-  REASON=$(echo "$REASON" | sed 's/^"//;s/"$//')
+// Structural validation_errors → BLOCK
+if (valErrs.length > 0) {
+  const pipes = [...new Set(valErrs.map(e => e.pipe_code || 'unknown'))].join(', ');
+  const details = valErrs.map(e => '- [' + (e.pipe_code || 'unknown') + '] ' + e.message).join('\n');
+  block(file + ' has ' + valErrs.length + ' validation error(s) in pipe(s): ' + pipes + '\n' + details);
+  process.exit(0);
+}
 
-  jq -n --arg reason "$REASON" '{"decision":"block","reason":$reason}'
-  exit 0
-fi
+// dry_run_error only (no validation_errors) → WARN
+if (dryRunErr) {
+  warn('Warning (dry-run): ' + message);
+  warn('Dry-run detail: ' + dryRunErr);
+  if (hint) warn('Hint: ' + hint);
+  process.exit(0);
+}
 
-# dry_run_error only (no validation_errors) → WARN
-if [[ "$HAS_DRY_RUN_ERROR" == "true" ]]; then
-  DRY_RUN_MSG=$(echo "$ERR_JSON" | jq -r '.dry_run_error // empty')
-  echo "[mthds-hook] Warning (dry-run): $MESSAGE" >&2
-  if [[ -n "$DRY_RUN_MSG" ]]; then
-    echo "[mthds-hook] Dry-run detail: $DRY_RUN_MSG" >&2
-  fi
-  if [[ -n "$HINT" ]]; then
-    echo "[mthds-hook] Hint: $HINT" >&2
-  fi
-  exit 0
-fi
+// Other input-domain errors → WARN
+warn('Warning: ' + errType + ' — ' + message);
+if (hint) warn('Hint: ' + hint);
+process.exit(0);
+" "$FILE_PATH" "$EXIT_CODE" "$ERR_JSON" || {
+  echo "[mthds-hook] Warning: Stage 3 decision script failed" >&2
+}
 
-# Other input-domain errors without validation_errors → WARN
-echo "[mthds-hook] Warning: $ERROR_TYPE — $MESSAGE" >&2
-if [[ -n "$HINT" ]]; then
-  echo "[mthds-hook] Hint: $HINT" >&2
-fi
 exit 0

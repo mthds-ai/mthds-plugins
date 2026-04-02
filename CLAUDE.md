@@ -97,7 +97,7 @@ The dev target overrides install commands to use local container paths for CCC t
 2. Formats with `plxt fmt` (only if lint passes)
 3. Validates semantically with `mthds-agent validate bundle` (blocks or warns)
 
-Passes silently if `mthds-agent` is not installed or file is not `.mthds`.
+Passes silently if file is not `.mthds`. Blocks if `plxt` or `mthds-agent` is not installed (with install instructions).
 
 ## Prerequisites
 

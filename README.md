@@ -49,7 +49,7 @@ The plugin includes a **PostToolUse hook** that fires on every `.mthds` file edi
 2. **Format** — `plxt fmt` auto-formats the file
 3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
 
-Errors block the edit. Warnings are shown but don't block. Missing tools (`plxt`, `mthds-agent`, `jq`) block `.mthds` edits until installed.
+Errors block the edit. Warnings are shown but don't block. Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
 
 ## License
 
