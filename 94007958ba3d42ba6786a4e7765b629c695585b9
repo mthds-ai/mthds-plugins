@@ -1,0 +1,50 @@
+scripts/check.py
+  c3419367ba7d1835 154-156,181-183
+  54135831772ead65 13-18,22,233-242
+tests/unit/test_gen_skill_docs.py
+  54135831772ead65 9,14-25,35,38-47,107-108,117,136,160
+CLAUDE.md
+  c3419367ba7d1835 19,35
+scripts/gen_skill_docs.py
+  54135831772ead65 2,4-6,193-195,197-204,206-213,417-420,422-425
+  c3419367ba7d1835 29,229-231
+tests/unit/test_check.py
+  54135831772ead65 12,300-323
+docs/build-targets.md
+  c3419367ba7d1835 28,65,73,171,173
+templates/hooks/validate-mthds.sh.j2
+  c3419367ba7d1835 22-23,55-60,78,80-81,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "94007958ba3d42ba6786a4e7765b629c695585b9",
+  "prompts": {
+    "54135831772ead65": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7d9a3f6e-0dd2-485d-8d54-0ead96ad647d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 107,
+      "total_deletions": 41,
+      "accepted_lines": 105,
+      "overriden_lines": 0
+    },
+    "c3419367ba7d1835": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c9a6aa15-a251-490a-a1d3-372683c1fb20",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 32,
+      "total_deletions": 17,
+      "accepted_lines": 29,
+      "overriden_lines": 0
+    }
+  }
+}
