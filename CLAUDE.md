@@ -5,62 +5,86 @@ Claude Code skills plugin for building, running, validating, and editing AI meth
 ## Repository Structure
 
 ```
+.claude-plugin/
+├── plugin.json                # Prod plugin manifest (name, version)
+└── marketplace.json           # Marketplace listing (all plugins)
+targets/
+├── defaults.toml              # Shared template variable defaults
+├── prod.toml                  # Prod target config (version, identity)
+└── dev.toml                   # Dev target config (version, identity)
 skills/
-├── .claude-plugin/marketplace.json   # Plugin metadata (name, version, skill list)
-├── hooks/
-│   ├── hooks.json                    # PostToolUse hook config (fires on Write|Edit)
-│   └── validate-mthds.sh            # Lint → format → validate .mthds files via mthds-agent
-├── skills/
-│   ├── mthds-build/                  # /mthds-build — create new .mthds bundles from scratch
-│   │   ├── SKILL.md.j2              # Jinja2 template (source of truth)
-│   │   ├── SKILL.md                 # Generated from .j2 (build artifact, checked in)
-│   │   └── references/              # Skill-specific refs (build-phases, model-references)
-│   ├── mthds-check/                  # /mthds-check — validate bundles (read-only)
-│   ├── mthds-edit/                   # /mthds-edit — modify existing bundles
-│   │   └── references/              # Skill-specific refs (model-references)
-│   ├── mthds-explain/                # /mthds-explain — document and explain workflows
-│   ├── mthds-fix/                    # /mthds-fix — auto-fix validation errors
-│   ├── mthds-inputs/                 # /mthds-inputs — prepare inputs (templates, synthetic data)
-│   ├── mthds-install/                # /mthds-install — install method packages
-│   ├── mthds-pipelex-setup/          # /mthds-pipelex-setup — configure backends and API keys
-│   ├── mthds-pkg/                    # /mthds-pkg — MTHDS package management (init, deps, lock)
-│   ├── mthds-publish/                # /mthds-publish — publish methods to mthds.sh
-│   ├── mthds-run/                    # /mthds-run — execute methods and interpret output
-│   ├── mthds-share/                  # /mthds-share — share methods on social media
-│   ├── mthds-upgrade/                # /mthds-upgrade — upgrade MTHDS CLI tools
-│   └── shared/                       # Shared docs (linked via ../shared/ or included via Jinja2)
-│       ├── error-handling.md
-│       ├── mthds-agent-guide.md
-│       ├── mthds-reference.md
-│       ├── native-content-types.md
-│       ├── preamble.md              # Step 0 environment check (included by all .j2 templates)
-│       └── upgrade-flow.md          # Upgrade flow reference (read at runtime by Claude)
-├── Makefile
-└── README.md
+├── mthds-build/               # /mthds-build — create new .mthds bundles
+│   ├── SKILL.md.j2            # Jinja2 template (source of truth)
+│   ├── SKILL.md               # Generated (build artifact, checked in)
+│   └── references/            # Skill-specific refs
+├── mthds-check/               # /mthds-check — validate bundles (read-only)
+├── mthds-edit/                # /mthds-edit — modify existing bundles
+├── mthds-explain/             # /mthds-explain — document and explain workflows
+├── mthds-fix/                 # /mthds-fix — auto-fix validation errors
+├── mthds-inputs/              # /mthds-inputs — prepare inputs
+├── mthds-install/             # /mthds-install — install method packages
+├── mthds-pipelex-setup/       # /mthds-pipelex-setup — configure backends
+├── mthds-pkg/                 # /mthds-pkg — package management
+├── mthds-publish/             # /mthds-publish — publish methods
+├── mthds-run/                 # /mthds-run — execute methods
+├── mthds-share/               # /mthds-share — share methods
+├── mthds-upgrade/             # /mthds-upgrade — upgrade MTHDS CLI tools
+└── shared/                    # Shared docs (Jinja2 includes + runtime refs)
+    ├── frontmatter.md         # Common YAML frontmatter (included by templates)
+    ├── preamble.md            # Step 0 environment check (included by templates)
+    ├── mthds-agent-guide.md.j2  # CLI reference (.j2 template, rendered per target)
+    ├── mthds-agent-guide.md   # Generated (build artifact, checked in)
+    ├── error-handling.md      # Error recovery (runtime ref)
+    ├── mthds-reference.md     # MTHDS language reference (runtime ref)
+    ├── native-content-types.md  # Type documentation (runtime ref)
+    └── upgrade-flow.md        # Upgrade prompts (runtime ref)
+mthds-dev/                     # Dev plugin (generated, checked in)
+├── .claude-plugin/plugin.json # Generated from targets/dev.toml
+├── skills/                    # Rendered SKILL.md files + symlinks
+├── hooks/ -> ../hooks         # Symlink
+└── bin/ -> ../bin             # Symlink
+hooks/
+├── hooks.json                 # PostToolUse hook config
+└── validate-mthds.sh          # .mthds file validator
+scripts/
+├── gen_skill_docs.py          # Template renderer (multi-target)
+└── check.py                   # Validation checks
 ```
 
-Each skill directory contains a `SKILL.md.j2` (Jinja2 template, source of truth) and a `SKILL.md` (generated build artifact). Edit `.j2` files, then run `make gen-skill-docs` to regenerate. Shared docs in `skills/shared/` are included via `{% include 'shared/preamble.md' %}` in templates or linked via `../shared/` relative paths at runtime. Some skills (build, edit) also have a `references/` folder for skill-specific docs.
+## Build System
 
-## Make Targets
+This plugin uses a **multi-target build system**. Templates in `skills/*/SKILL.md.j2` are rendered with variables from TOML config files in `targets/`. Each target produces a separate plugin.
+
+See `docs/build-targets.md` for full architecture details.
+
+### Key commands
 
 ```bash
-make help            # Show available targets
-make gen-skill-docs  # Generate SKILL.md from .j2 templates
-make check           # Verify shared refs, version consistency, template freshness, format, lint, typecheck
-make test            # Run unit tests (sets up venv via uv)
-make env             # Create virtual environment
-make install         # Install dev dependencies
+make build           # Build all targets (prod + dev)
+make check           # Validate everything (versions, freshness, lint, types)
+make test            # Run unit tests
+make gen-skill-docs  # Build default target (prod); use TARGET=dev for others
 ```
 
-**`make gen-skill-docs`** renders all `SKILL.md.j2` templates into `SKILL.md` files using Jinja2. Run this after editing any `.j2` template or shared include.
+### Editing workflow
 
-**`make check`** runs `scripts/check.py` (system `python3`) and `scripts/gen_skill_docs.py --check` (venv) and verifies that:
-1. No SKILL.md files contain stale `references/` paths to shared files (should use `../shared/` instead).
-2. All shared files exist in `skills/shared/`.
-3. All `min_mthds_version` frontmatter values in SKILL.md files match the canonical version in `mthds-agent-guide.md`.
-4. All generated SKILL.md files are fresh (match their `.j2` template output).
+1. Edit `.j2` files (never edit `SKILL.md` directly — they're generated)
+2. Run `make build` to regenerate all targets
+3. Run `make check` to validate
 
-**`make test`** runs pytest against `tests/` using a uv-managed venv.
+### Template variables
+
+Variables are defined in `targets/defaults.toml` and can be overridden per-target in `targets/<name>.toml`. Key variables:
+
+- `min_mthds_version` — minimum required mthds-agent version (source of truth: `defaults.toml`)
+- `marketplace_name` — marketplace name for env-check paths
+
+### Version management
+
+- **Prod plugin version**: source of truth is `targets/prod.toml [plugin].version`. Must match `.claude-plugin/plugin.json`.
+- **Dev plugin version**: source of truth is `targets/dev.toml [plugin].version`. Its `plugin.json` is generated by the build.
+- **Marketplace version**: `.claude-plugin/marketplace.json metadata.version` — independent, bumped on any release.
+- **min_mthds_version**: `targets/defaults.toml [vars].min_mthds_version` — shared across all targets, overridable per target.
 
 ## PostToolUse Hook
 
