@@ -1,0 +1,37 @@
+templates/skills/shared/mthds-reference.md.j2
+  c06f56e9e08961de 557,572,575,577
+bin/install.sh
+  c06f56e9e08961de 107-108,133
+README.md
+  c06f56e9e08961de 12,39,52
+tests/unit/test_check.py
+  c06f56e9e08961de 320-336
+templates/hooks/validate-mthds.sh.j2
+  c06f56e9e08961de 7,13-22,32
+tests/unit/test_gen_skill_docs.py
+  c06f56e9e08961de 9,89-90,93,95-98,168-176,200,206-207,235-255
+scripts/check.py
+  c06f56e9e08961de 231-234,236-259
+scripts/gen_skill_docs.py
+  c06f56e9e08961de 206-210,213-215,298-306,323-325,333-334,341-342,403,415-416
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "0e608b88b7b845a343e0b25ca8bfdefc4cf89c72",
+  "prompts": {
+    "c06f56e9e08961de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bbb40b36-434b-4256-9b7e-f02c04498855",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 138,
+      "total_deletions": 44,
+      "accepted_lines": 136,
+      "overriden_lines": 0
+    }
+  }
+}
