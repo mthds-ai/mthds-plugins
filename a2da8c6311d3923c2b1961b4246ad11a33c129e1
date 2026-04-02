@@ -1,0 +1,23 @@
+Makefile
+  c06f56e9e08961de 104,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "a2da8c6311d3923c2b1961b4246ad11a33c129e1",
+  "prompts": {
+    "c06f56e9e08961de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bbb40b36-434b-4256-9b7e-f02c04498855",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
