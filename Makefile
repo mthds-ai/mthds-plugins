@@ -101,14 +101,14 @@ fui: fix-unused-imports ## Shorthand -> fix-unused-imports
 ##########################################################################################
 
 check: install ## Verify shared refs + version consistency + template freshness + format + lint + typecheck
-	@python3 scripts/check.py
+	@$(VENV_PYTHON) scripts/check.py
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
 	@$(VENV_RUFF) format --check .
 	@$(VENV_RUFF) check .
 	@$(MAKE) --no-print-directory pyright mypy
 
 agent-check: fix-unused-imports format lint ## Full quality check (for AI agents)
-	@python3 scripts/check.py
+	@$(VENV_PYTHON) scripts/check.py
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
 	@$(VENV_RUFF) format --check .
 	@$(VENV_RUFF) check .
