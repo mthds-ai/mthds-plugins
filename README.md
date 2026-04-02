@@ -9,7 +9,7 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills plugin fo
 Open Claude Code and paste this. Claude does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is an open language defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-pipelex-setup, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is an open language defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude.
 ```
 
 ### Manual install
@@ -36,6 +36,7 @@ Restart Claude Code (`/exit`, then `claude`).
 | `/mthds-run` | Execute methods and interpret output |
 | `/mthds-inputs` | Prepare inputs: templates, synthetic data, files |
 | `/mthds-install` | Install method packages from GitHub or local |
+| `/mthds-pipelex-setup` | Set up Pipelex inference configuration |
 | `/mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
 | `/mthds-publish` | Publish methods to mthds.sh |
 | `/mthds-share` | Share methods on social media |
@@ -48,7 +49,7 @@ The plugin includes a **PostToolUse hook** that fires on every `.mthds` file edi
 2. **Format** — `plxt fmt` auto-formats the file
 3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
 
-Errors block the edit. Warnings are shown but don't block. This runs silently when the tools aren't installed yet.
+Errors block the edit. Warnings are shown but don't block. Missing tools (`plxt`, `mthds-agent`, `jq`) block `.mthds` edits until installed.
 
 ## License
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.gen_skill_docs import HOOK_TEMPLATES, SHARED_TEMPLATES, check_freshness, generate, render_templates
+from scripts.gen_skill_docs import EXECUTABLE_OUTPUTS, HOOK_TEMPLATES, SHARED_TEMPLATES, check_freshness, generate, render_templates
 
 DEFAULT_VARS = {"min_mthds_version": "1.0.0", "marketplace_name": "mthds-plugins", "plugin_name": "mthds"}
 
@@ -86,11 +86,16 @@ class TestRenderTemplates:
         assert guide_output in results
         assert "mthds-agent >= 1.0.0" in results[guide_output]
 
-    def test_no_templates(self, tmp_path: Path) -> None:
+    def test_no_skill_templates(self, tmp_path: Path) -> None:
+        """With shared/hook templates but no skill templates, shared and hooks are still rendered."""
         templates_dir = tmp_path / "templates"
         templates_dir.mkdir()
+        _create_required_templates(templates_dir)
         results = render_templates(templates_dir, tmp_path, DEFAULT_VARS)
-        assert results == {}
+        # Shared and hook templates are rendered even without skills
+        assert len(results) > 0
+        output_names = {path.name for path in results}
+        assert "mthds-agent-guide.md" in output_names
 
     def test_preserves_frontmatter(self, template_tree: Path) -> None:
         templates_dir = template_tree / "templates"
@@ -160,6 +165,15 @@ class TestRenderTemplates:
         skill_names = {path.parent.name for path in results if path.parent.name not in ("shared", "hooks")}
         assert skill_names == {"mthds-test"}
 
+    def test_empty_skill_filter_still_renders_shared_and_hooks(self, template_tree: Path) -> None:
+        """When include_skills matches no skills, shared and hook templates are still rendered."""
+        templates_dir = template_tree / "templates"
+        results = render_templates(templates_dir, template_tree, DEFAULT_VARS, include_skills=["nonexistent-skill"])
+        # No skill templates, but shared and hooks should be present
+        output_names = {path.name for path in results}
+        assert "mthds-agent-guide.md" in output_names
+        assert "hooks.json" in output_names
+
     def test_template_vars_injected(self, template_tree: Path) -> None:
         """Custom template variables are accessible in templates."""
         templates_dir = template_tree / "templates"
@@ -183,13 +197,14 @@ class TestGenerate:
         assert "Preamble content here." in content
 
     def test_no_templates_fails(self, tmp_path: Path) -> None:
+        """Missing shared/hook template files cause a clear SystemExit."""
         (tmp_path / "templates").mkdir()
         targets_dir = tmp_path / "targets"
         targets_dir.mkdir()
         (targets_dir / "defaults.toml").write_text('[vars]\nmin_mthds_version = "1.0.0"\n')
         (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "./"\n')
-        result = generate(tmp_path, "prod")
-        assert result == 1
+        with pytest.raises(SystemExit, match="shared template not found"):
+            generate(tmp_path, "prod")
 
 
 class TestCheckFreshness:
@@ -215,5 +230,26 @@ class TestCheckFreshness:
         orphan_dir = template_tree / "skills" / "mthds-orphan"
         orphan_dir.mkdir()
         (orphan_dir / "SKILL.md").write_text("orphaned content\n")
+        result = check_freshness(template_tree, "prod")
+        assert result == 1
+
+    def test_dry_run_no_side_effects(self, template_tree: Path) -> None:
+        """check_freshness with a non-root target must not create output directories."""
+        targets_dir = template_tree / "targets"
+        (targets_dir / "dev.toml").write_text('[plugin]\nname = "mthds-dev"\nversion = "0.1.0"\ndescription = "dev"\nsource = "mthds-dev/"\n')
+        dev_dir = template_tree / "mthds-dev"
+        assert not dev_dir.exists()
+        check_freshness(template_tree, "dev")
+        assert not dev_dir.exists(), "check_freshness should not create output directories"
+
+    def test_detects_non_executable_hook(self, template_tree: Path) -> None:
+        """A non-executable hook script is detected as stale."""
+        generate(template_tree, "prod")
+        # Find the generated executable file and remove its exec bit
+        for exec_name in EXECUTABLE_OUTPUTS:
+            hook_path = template_tree / "hooks" / exec_name
+            if hook_path.is_file():
+                hook_path.chmod(0o644)
+                break
         result = check_freshness(template_tree, "prod")
         assert result == 1

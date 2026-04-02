@@ -185,15 +185,6 @@ def render_templates(
         keep_trailing_newline=True,
     )
 
-    # Collect skill templates (templates/skills/*/SKILL.md.j2)
-    j2_paths = sorted(templates_dir.glob("skills/*/SKILL.md.j2"))
-    if include_skills is not None:
-        j2_paths = [path for path in j2_paths if path.parent.name in include_skills]
-
-    # If no skill templates found, nothing to render
-    if not j2_paths:
-        return {}
-
     # Collect shared templates (must all exist — fail loudly if missing)
     shared_j2_paths: list[Path] = []
     for name in SHARED_TEMPLATES:
@@ -212,7 +203,16 @@ def render_templates(
             raise SystemExit(msg)
         hook_j2_paths.append(path)
 
+    # Collect skill templates (templates/skills/*/SKILL.md.j2)
+    j2_paths = sorted(templates_dir.glob("skills/*/SKILL.md.j2"))
+    if include_skills is not None:
+        j2_paths = [path for path in j2_paths if path.parent.name in include_skills]
+
     all_j2_paths = j2_paths + shared_j2_paths + hook_j2_paths
+
+    # No templates at all (no skills found and no shared/hook templates)
+    if not all_j2_paths:
+        return {}
 
     results: dict[Path, str] = {}
     for j2_path in all_j2_paths:
@@ -295,8 +295,15 @@ def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, includ
             refs_dst.symlink_to(_relative_symlink_target(refs_dst, refs_src))
 
 
-def build_target(base_dir: Path, config: TargetConfig) -> BuildResult:
-    """Build a single target: render templates, set up output directory."""
+def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False) -> BuildResult:
+    """Build a single target: render templates, set up output directory.
+
+    Args:
+        base_dir: Repository root.
+        config: Target configuration.
+        dry_run: If True, compute expected files without creating directories,
+            symlinks, or writing anything to disk.
+    """
     templates_dir = base_dir / TEMPLATES_DIR_NAME
     output_dir = resolve_output_dir(base_dir, config.source)
     is_root = config.is_root
@@ -313,8 +320,9 @@ def build_target(base_dir: Path, config: TargetConfig) -> BuildResult:
         result.files = rendered
     else:
         # Non-root target: write to output directory
-        output_dir.mkdir(parents=True, exist_ok=True)
-        setup_symlinks(base_dir, output_dir, templates_dir, config.include_skills)
+        if not dry_run:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            setup_symlinks(base_dir, output_dir, templates_dir, config.include_skills)
 
         for src_path, content in rendered.items():
             # Map base_dir-relative output to target output dir
@@ -322,14 +330,16 @@ def build_target(base_dir: Path, config: TargetConfig) -> BuildResult:
             # e.g. base_dir/hooks/validate-mthds.sh -> output_dir/hooks/validate-mthds.sh
             rel = src_path.relative_to(base_dir)
             dst_path = output_dir / rel
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            if not dry_run:
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
             result.files[dst_path] = content
 
         # Generate plugin.json
         plugin_json = make_plugin_json(base_dir, config)
         result.plugin_json = plugin_json
         plugin_dir = output_dir / ".claude-plugin"
-        plugin_dir.mkdir(parents=True, exist_ok=True)
+        if not dry_run:
+            plugin_dir.mkdir(parents=True, exist_ok=True)
         plugin_json_path = plugin_dir / "plugin.json"
         result.files[plugin_json_path] = json.dumps(plugin_json, indent=2) + "\n"
 
@@ -390,7 +400,7 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
 
     for name in target_names:
         config = load_target_config(targets_dir, name, defaults)
-        result = build_target(base_dir, config)
+        result = build_target(base_dir, config, dry_run=True)
 
         if not result.files:
             all_stale.append(f"  [{name}] No templates found.")
@@ -402,6 +412,8 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
                 all_stale.append(f"  MISSING: {rel}")
             elif output_path.read_text(encoding="utf-8") != rendered:
                 all_stale.append(f"  STALE: {rel}")
+            elif output_path.name in EXECUTABLE_OUTPUTS and not os.access(output_path, os.X_OK):
+                all_stale.append(f"  NOT EXECUTABLE: {rel}")
 
         # Detect orphaned SKILL.md files with no corresponding template (root target only)
         skills_dir = base_dir / "skills"

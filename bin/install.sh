@@ -104,8 +104,8 @@ add_marketplace() {
 }
 
 install_plugin() {
-  # Check if already installed
-  if claude plugin list 2>/dev/null | grep -q "mthds"; then
+  # Check if already installed (exact match — avoid matching mthds-dev)
+  if claude plugin list 2>/dev/null | grep -qE '(^|[[:space:]])mthds([[:space:]]|$)'; then
     ok "Plugin already installed"
     return 0
   fi
@@ -130,7 +130,7 @@ verify_install() {
     all_ok=1
   fi
 
-  if claude plugin list 2>/dev/null | grep -q "mthds"; then
+  if claude plugin list 2>/dev/null | grep -qE '(^|[[:space:]])mthds([[:space:]]|$)'; then
     ok "mthds plugin registered"
   else
     fail "mthds plugin not found in Claude Code"

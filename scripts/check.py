@@ -228,18 +228,35 @@ def check_shared_files_exist(base_dir: Path) -> list[str]:
 
 
 def check_no_templates_in_output(base_dir: Path) -> list[str]:
-    """Check: No .j2 files should exist in skills/ or hooks/ (they belong in templates/)."""
+    """Check: No .j2 files should exist in output directories (they belong in templates/).
+
+    Scans root skills/ and hooks/, plus output directories of all non-root targets.
+    """
     errors: list[str] = []
-    skills_dir = base_dir / "skills"
-    if skills_dir.is_dir():
-        for j2_file in sorted(skills_dir.rglob("*.j2")):
-            rel = j2_file.relative_to(base_dir)
-            errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
-    hooks_dir = base_dir / "hooks"
-    if hooks_dir.is_dir():
-        for j2_file in sorted(hooks_dir.rglob("*.j2")):
-            rel = j2_file.relative_to(base_dir)
-            errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
+
+    def _scan_dir(directory: Path) -> None:
+        if directory.is_dir():
+            for j2_file in sorted(directory.rglob("*.j2")):
+                rel = j2_file.relative_to(base_dir)
+                errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
+
+    # Scan root output directories
+    _scan_dir(base_dir / "skills")
+    _scan_dir(base_dir / "hooks")
+
+    # Scan non-root target output directories
+    try:
+        configs = load_target_configs(base_dir)
+    except ValueError:
+        return errors
+    for _target_name, config in configs.items():
+        source = config.get("plugin", {}).get("source", "./")
+        if source == "./":
+            continue
+        output_dir = base_dir / source.rstrip("/")
+        _scan_dir(output_dir / "skills")
+        _scan_dir(output_dir / "hooks")
+
     return errors
 
 

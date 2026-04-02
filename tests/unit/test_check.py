@@ -317,6 +317,23 @@ class TestNoTemplatesInOutput:
         assert len(errors) == 1
         assert "hooks" in errors[0]
 
+    def test_detects_leaked_j2_in_target_dir(self, skill_tree: Path) -> None:
+        """Leaked .j2 files in non-root target output dirs are detected."""
+        _write_target_configs(
+            skill_tree,
+            {
+                "prod": {"name": "mthds", "version": "0.6.3"},
+                "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
+            },
+        )
+        target_skills = skill_tree / "mthds-dev" / "skills" / "mthds-test"
+        target_skills.mkdir(parents=True)
+        (target_skills / "SKILL.md.j2").write_text("leaked\n")
+        errors = check_no_templates_in_output(skill_tree)
+        assert len(errors) == 1
+        assert "mthds-dev" in errors[0]
+        assert "LEAKED TEMPLATE" in errors[0]
+
     def test_missing_dirs_no_crash(self, tmp_path: Path) -> None:
         """No crash when skills/ or hooks/ directories don't exist."""
         errors = check_no_templates_in_output(tmp_path)

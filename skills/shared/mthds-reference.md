@@ -554,7 +554,7 @@ description = "Full invoice processing pipeline"
 inputs = { document = "Document" }
 output = "InvoiceData"
 steps = [
-    { pipe = "extract_from_pdf", result = "pages" },
+    { pipe = "extract_from_document", result = "pages" },
     { pipe = "analyze_invoice", result = "invoice_data" }
 ]
 
@@ -569,11 +569,11 @@ model = "@default-text-from-pdf"
 [pipe.analyze_invoice]
 type = "PipeLLM"
 description = "Extract invoice data from text"
-inputs = { page = "Page" }
+inputs = { pages = "Page[]" }
 output = "InvoiceData"
 prompt = """
-Extract invoice information from this document:
+Extract invoice information from these pages:
 
-@page
+@pages
 """
 ```

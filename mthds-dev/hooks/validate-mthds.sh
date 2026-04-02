@@ -4,12 +4,22 @@
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
 #   3. mthds-agent validate bundle — semantic validation (blocks or warns)
-# Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
+# Blocks if jq, plxt, or mthds-agent is not installed. Passes silently if file is not .mthds.
 
 set -euo pipefail
 
 # --- Read stdin (PostToolUse JSON) and extract file path ---
 INPUT=$(cat)
+
+# --- Require jq before any JSON parsing ---
+if ! command -v jq &>/dev/null; then
+  # Can't parse input without jq — check for .mthds via bash pattern
+  if [[ "$INPUT" == *".mthds"* ]]; then
+    printf '{"decision":"block","reason":"Missing required CLI tool: jq (install via your package manager)"}\n'
+  fi
+  exit 0
+fi
+
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 # Guard: no file path or not a .mthds file → pass silently
@@ -19,8 +29,7 @@ fi
 
 # --- Require plxt and mthds-agent on PATH ---
 MISSING=""
-command -v jq &>/dev/null || MISSING="jq (install via your package manager)"
-command -v plxt &>/dev/null || MISSING="${MISSING:+$MISSING, }plxt (install via: uv tool install /workspace/vscode-pipelex/)"
+command -v plxt &>/dev/null || MISSING="plxt (install via: uv tool install /workspace/vscode-pipelex/)"
 command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: npm install -g /build-src/mthds-js/)"
 if [[ -n "$MISSING" ]]; then
   jq -n --arg reason "Missing required CLI tool(s): $MISSING" \
