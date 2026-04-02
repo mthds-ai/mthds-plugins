@@ -1,7 +1,7 @@
 ---
 name: mthds-run
 description: Run MTHDS methods and interpret results. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", or wants to execute any MTHDS method bundle and see its output.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Run MTHDS methods
@@ -12,7 +12,7 @@ Execute MTHDS method bundles and interpret their JSON output.
 
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

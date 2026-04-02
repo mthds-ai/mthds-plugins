@@ -308,7 +308,7 @@ total = { from = "order.total" }
 
 #### Template Shorthand Syntax
 
-| Shorthand | Jinja2 Expansion | Use |
+{% raw %}| Shorthand | Jinja2 Expansion | Use |
 |-----------|-----------------|-----|
 | `$variable` | `{{ variable|format() }}` | Inline substitution within a sentence |
 | `@variable` | `{{ variable|tag("variable") }}` | Block insertion as a standalone tagged block |
@@ -317,7 +317,7 @@ total = { from = "order.total" }
 - Dotted paths: `$user.name`, `@doc.summary`, `@?extra.notes`
 - Dollar amounts (`$100`) are NOT matched — must start with a letter/underscore
 - Trailing dots treated as punctuation: `$amount.` → `{{ amount|format() }}.`
-- Raw Jinja2 (`{{ }}`, `{% %}`) always available alongside shorthands
+- Raw Jinja2 (`{{ }}`, `{% %}`) always available alongside shorthands{% endraw %}
 
 #### Template Categories
 

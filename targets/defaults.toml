@@ -4,3 +4,11 @@
 [vars]
 min_mthds_version = "0.3.3"
 marketplace_name = "mthds-plugins"
+
+# Install/upgrade commands (prod defaults — registry packages)
+mthds_install_cmd = "npm install -g mthds"
+mthds_upgrade_cmd = "npm install -g mthds@latest"
+pipelex_install_cmd = "uv tool install pipelex"
+pipelex_upgrade_cmd = "uv tool install --upgrade pipelex"
+plxt_install_cmd = "uv tool install pipelex-tools"
+plxt_upgrade_cmd = "uv tool install --upgrade pipelex-tools"

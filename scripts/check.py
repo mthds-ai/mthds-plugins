@@ -10,16 +10,16 @@ import tomllib
 from pathlib import Path
 from typing import Any, cast
 
-# Shared files that must exist in skills/shared/ (source of truth).
-# Note: mthds-agent-guide.md is generated from .j2, so it may not exist
-# until after a build. We check the .j2 source instead.
-SHARED_FILES = [
-    "error-handling.md",
+# Template source files that must exist in templates/skills/shared/.
+# All shared files are now .j2 templates rendered by the build system.
+SHARED_TEMPLATE_FILES = [
+    "error-handling.md.j2",
+    "frontmatter.md.j2",
     "mthds-agent-guide.md.j2",
-    "mthds-reference.md",
-    "native-content-types.md",
-    "preamble.md",
-    "upgrade-flow.md",
+    "mthds-reference.md.j2",
+    "native-content-types.md.j2",
+    "preamble.md.j2",
+    "upgrade-flow.md.j2",
 ]
 
 # Stale reference patterns — shared file stems that should use ../shared/ not references/
@@ -217,12 +217,24 @@ def check_stale_references(base_dir: Path) -> list[str]:
 
 
 def check_shared_files_exist(base_dir: Path) -> list[str]:
-    """Check: All expected shared files must be present."""
-    shared_dir = base_dir / "skills" / "shared"
+    """Check: All expected shared template source files must be present in templates/."""
+    shared_dir = base_dir / "templates" / "skills" / "shared"
     errors: list[str] = []
-    for name in SHARED_FILES:
+    for name in SHARED_TEMPLATE_FILES:
         if not (shared_dir / name).is_file():
-            errors.append(f"MISSING: skills/shared/{name}")
+            errors.append(f"MISSING: templates/skills/shared/{name}")
+    return errors
+
+
+def check_no_templates_in_output(base_dir: Path) -> list[str]:
+    """Check: No .j2 files should exist in skills/ or hooks/ (they belong in templates/)."""
+    errors: list[str] = []
+    for j2_file in sorted((base_dir / "skills").rglob("*.j2")):
+        rel = j2_file.relative_to(base_dir)
+        errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
+    for j2_file in sorted((base_dir / "hooks").rglob("*.j2")):
+        rel = j2_file.relative_to(base_dir)
+        errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
     return errors
 
 
@@ -307,16 +319,27 @@ def main() -> int:
     else:
         print("  No stale references found.")
 
-    # Check 2: shared files exist
-    print("Checking all shared files exist...")
+    # Check 2: shared template source files exist
+    print("Checking all shared template files exist...")
     errors = check_shared_files_exist(base_dir)
     if errors:
         for error in errors:
             print(f"  {error}")
-        print("FAIL: Some shared files are missing.")
+        print("FAIL: Some shared template files are missing.")
         failed = True
     else:
-        print("  All shared files present.")
+        print("  All shared template files present.")
+
+    # Check 2b: no .j2 files leaked into output directories
+    print("Checking for leaked .j2 files in output directories...")
+    errors = check_no_templates_in_output(base_dir)
+    if errors:
+        for error in errors:
+            print(f"  {error}")
+        print("FAIL: Found .j2 template files in output directories (should be in templates/).")
+        failed = True
+    else:
+        print("  No leaked templates found.")
 
     # Check 3: frontmatter version consistency (per-target)
     print("Checking min_mthds_version consistency...")

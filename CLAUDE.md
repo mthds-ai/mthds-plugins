@@ -11,41 +11,37 @@ Claude Code skills plugin for building, running, validating, and editing AI meth
 targets/
 ├── defaults.toml              # Shared template variable defaults
 ├── prod.toml                  # Prod target config (version, identity)
-└── dev.toml                   # Dev target config (version, identity)
-skills/
-├── mthds-build/               # /mthds-build — create new .mthds bundles
-│   ├── SKILL.md.j2            # Jinja2 template (source of truth)
-│   ├── SKILL.md               # Generated (build artifact, checked in)
-│   └── references/            # Skill-specific refs
-├── mthds-check/               # /mthds-check — validate bundles (read-only)
-├── mthds-edit/                # /mthds-edit — modify existing bundles
-├── mthds-explain/             # /mthds-explain — document and explain workflows
-├── mthds-fix/                 # /mthds-fix — auto-fix validation errors
-├── mthds-inputs/              # /mthds-inputs — prepare inputs
-├── mthds-install/             # /mthds-install — install method packages
-├── mthds-pipelex-setup/       # /mthds-pipelex-setup — configure backends
-├── mthds-pkg/                 # /mthds-pkg — package management
-├── mthds-publish/             # /mthds-publish — publish methods
-├── mthds-run/                 # /mthds-run — execute methods
-├── mthds-share/               # /mthds-share — share methods
-├── mthds-upgrade/             # /mthds-upgrade — upgrade MTHDS CLI tools
-└── shared/                    # Shared docs (Jinja2 includes + runtime refs)
-    ├── frontmatter.md         # Common YAML frontmatter (included by templates)
-    ├── preamble.md            # Step 0 environment check (included by templates)
-    ├── mthds-agent-guide.md.j2  # CLI reference (.j2 template, rendered per target)
-    ├── mthds-agent-guide.md   # Generated (build artifact, checked in)
-    ├── error-handling.md      # Error recovery (runtime ref)
-    ├── mthds-reference.md     # MTHDS language reference (runtime ref)
-    ├── native-content-types.md  # Type documentation (runtime ref)
-    └── upgrade-flow.md        # Upgrade prompts (runtime ref)
+└── dev.toml                   # Dev target config (version, identity, local install paths)
+templates/                     # SOURCE OF TRUTH — all .j2 templates live here
+├── skills/
+│   ├── mthds-build/SKILL.md.j2   # Jinja2 template for each skill
+│   ├── mthds-check/SKILL.md.j2
+│   ├── ... (13 skills total)
+│   └── shared/
+│       ├── frontmatter.md.j2      # Common YAML frontmatter (included by templates)
+│       ├── preamble.md.j2         # Step 0 environment check (included by templates)
+│       ├── mthds-agent-guide.md.j2  # CLI reference (rendered per target)
+│       ├── error-handling.md.j2   # Error recovery (rendered per target)
+│       ├── mthds-reference.md.j2  # MTHDS language reference (rendered per target)
+│       ├── native-content-types.md.j2  # Type documentation (rendered per target)
+│       └── upgrade-flow.md.j2    # Upgrade prompts (rendered per target)
+└── hooks/
+    ├── hooks.json.j2              # PostToolUse hook config
+    └── validate-mthds.sh.j2       # .mthds file validator
+skills/                        # GENERATED OUTPUT — never edit directly
+├── mthds-build/
+│   ├── SKILL.md               # Generated from templates/skills/mthds-build/SKILL.md.j2
+│   └── references/            # Static skill-specific refs (not generated)
+├── ... (13 skills)
+└── shared/                    # Generated from templates/skills/shared/*.j2
+hooks/                         # GENERATED OUTPUT — never edit directly
+├── hooks.json                 # Generated from templates/hooks/hooks.json.j2
+└── validate-mthds.sh          # Generated from templates/hooks/validate-mthds.sh.j2
 mthds-dev/                     # Dev plugin (generated, checked in)
 ├── .claude-plugin/plugin.json # Generated from targets/dev.toml
-├── skills/                    # Rendered SKILL.md files + symlinks
-├── hooks/ -> ../hooks         # Symlink
+├── skills/                    # Rendered with dev variables (local install paths)
+├── hooks/                     # Rendered with dev variables
 └── bin/ -> ../bin             # Symlink
-hooks/
-├── hooks.json                 # PostToolUse hook config
-└── validate-mthds.sh          # .mthds file validator
 scripts/
 ├── gen_skill_docs.py          # Template renderer (multi-target)
 └── check.py                   # Validation checks
@@ -53,7 +49,7 @@ scripts/
 
 ## Build System
 
-This plugin uses a **multi-target build system**. Templates in `skills/*/SKILL.md.j2` are rendered with variables from TOML config files in `targets/`. Each target produces a separate plugin.
+This plugin uses a **multi-target build system**. Templates in `templates/` are rendered with variables from TOML config files in `targets/`. Each target produces a separate plugin.
 
 See `docs/build-targets.md` for full architecture details.
 
@@ -68,7 +64,7 @@ make gen-skill-docs  # Build default target (prod); use TARGET=dev for others
 
 ### Editing workflow
 
-1. Edit `.j2` files (never edit `SKILL.md` directly — they're generated)
+1. Edit `.j2` files in `templates/` (never edit `skills/*.md` or `hooks/*` directly — they're generated)
 2. Run `make build` to regenerate all targets
 3. Run `make check` to validate
 
@@ -78,6 +74,11 @@ Variables are defined in `targets/defaults.toml` and can be overridden per-targe
 
 - `min_mthds_version` — minimum required mthds-agent version (source of truth: `defaults.toml`)
 - `marketplace_name` — marketplace name for env-check paths
+- `mthds_install_cmd` / `mthds_upgrade_cmd` — mthds-agent install/upgrade commands
+- `pipelex_install_cmd` / `pipelex_upgrade_cmd` — pipelex install/upgrade commands
+- `plxt_install_cmd` / `plxt_upgrade_cmd` — plxt install/upgrade commands
+
+The dev target overrides install commands to use local container paths for CCC testing.
 
 ### Version management
 
@@ -88,7 +89,7 @@ Variables are defined in `targets/defaults.toml` and can be overridden per-targe
 
 ## PostToolUse Hook
 
-`hooks/validate-mthds.sh` runs automatically after every Write or Edit on `.mthds` files. It:
+`hooks/validate-mthds.sh` (generated from `templates/hooks/validate-mthds.sh.j2`) runs automatically after every Write or Edit on `.mthds` files. It:
 1. Lints with `plxt lint` (blocks on errors)
 2. Formats with `plxt fmt` (only if lint passes)
 3. Validates semantically with `mthds-agent validate bundle` (blocks or warns)

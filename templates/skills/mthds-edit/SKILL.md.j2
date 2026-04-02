@@ -1,7 +1,7 @@
 ---
 name: mthds-edit
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Edit MTHDS bundles
@@ -56,7 +56,7 @@ Modify existing MTHDS method bundles.
 
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

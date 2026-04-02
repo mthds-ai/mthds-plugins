@@ -5,18 +5,34 @@ The plugin uses a multi-target build system to produce multiple Claude Code plug
 ## How it works
 
 ```
-targets/defaults.toml       common variable defaults (min_mthds_version, marketplace_name)
+templates/                      source of truth (all .j2 files)
+├── skills/*/SKILL.md.j2        skill templates
+├── skills/shared/*.md.j2       shared includes + runtime refs
+└── hooks/*.j2                  hook templates
        |
        v
-targets/<name>.toml         per-target plugin identity + variable overrides + skill filter
+targets/defaults.toml          common variable defaults
        |
        v
-scripts/gen_skill_docs.py   renders .j2 templates with merged variables
+targets/<name>.toml             per-target plugin identity + variable overrides + skill filter
        |
-       +---> skills/*/SKILL.md                (prod target, in-place)
-       +---> mthds-dev/skills/*/SKILL.md      (dev target, separate directory)
-       +---> mthds-dev/.claude-plugin/plugin.json  (generated from root plugin.json)
+       v
+scripts/gen_skill_docs.py       renders .j2 templates with merged variables
+       |
+       +---> skills/*/SKILL.md                         (prod target, output)
+       +---> skills/shared/*.md                        (prod target, output)
+       +---> hooks/*                                   (prod target, output)
+       +---> mthds-dev/skills/*/SKILL.md               (dev target, output)
+       +---> mthds-dev/skills/shared/*.md               (dev target, output)
+       +---> mthds-dev/hooks/*                          (dev target, output)
+       +---> mthds-dev/.claude-plugin/plugin.json       (generated from root plugin.json)
 ```
+
+## Template vs output directories
+
+**`templates/`** contains all `.j2` source files. Never edit files in `skills/` or `hooks/` directly — they are generated output.
+
+**`skills/`** and **`hooks/`** contain generated output (build artifacts checked into git). The only non-generated content in `skills/` is the `references/` subdirectories which contain static reference docs.
 
 ## Target configuration
 
@@ -28,6 +44,14 @@ Defines variables shared by all targets:
 [vars]
 min_mthds_version = "0.3.3"
 marketplace_name = "mthds-plugins"
+
+# Install/upgrade commands (prod defaults — registry packages)
+mthds_install_cmd = "npm install -g mthds"
+mthds_upgrade_cmd = "npm install -g mthds@latest"
+pipelex_install_cmd = "uv tool install pipelex"
+pipelex_upgrade_cmd = "uv tool install --upgrade pipelex"
+plxt_install_cmd = "uv tool install pipelex-tools"
+plxt_upgrade_cmd = "uv tool install --upgrade pipelex-tools"
 ```
 
 ### Per-target files (prod.toml, dev.toml, ...)
@@ -42,8 +66,10 @@ description = "Development build of MTHDS skills."
 source = "mthds-dev/"     # output directory (use "./" for in-place)
 
 [vars]
-# Override any default variable here. Omitted vars inherit from defaults.toml.
-# min_mthds_version = "0.3.0"   # example: test with older version
+# Override install commands with local container paths for CCC testing.
+mthds_install_cmd = "npm install -g /build-src/mthds-js/"
+pipelex_install_cmd = "uv tool install /workspace/pipelex/"
+plxt_install_cmd = "uv tool install /workspace/vscode-pipelex/"
 
 [skills]
 # Optional: build only a subset of skills. Omit for all skills.
@@ -62,7 +88,7 @@ All variables are available in all `.j2` templates as `{{ variable_name }}`.
 
 ## Output directories
 
-**Root target** (source = `"./"`) writes in-place — generated files land directly in `skills/*/SKILL.md`. This is the prod target's behavior.
+**Root target** (source = `"./"`) writes output directly to `skills/`, `hooks/`, etc.
 
 **Non-root targets** (e.g. source = `"mthds-dev/"`) create a complete plugin directory:
 
@@ -76,16 +102,16 @@ mthds-dev/
 │   │   └── references/ ->     symlink to ../../skills/mthds-build/references
 │   ├── ...
 │   └── shared/
-│       ├── mthds-agent-guide.md   rendered (contains {{ min_mthds_version }})
-│       ├── preamble.md ->         symlink to source
-│       └── ... ->                 symlinks to source
-├── hooks/ ->                  symlink to ../hooks
+│       ├── error-handling.md   rendered (all shared files are rendered per-target)
+│       ├── preamble.md         rendered
+│       └── ...
+├── hooks/
+│   ├── hooks.json             rendered
+│   └── validate-mthds.sh      rendered (executable)
 └── bin/ ->                    symlink to ../bin
 ```
 
-Symlinks avoid file duplication. Git tracks symlinks, so the output directory works when cloned from GitHub.
-
-The `shared/` subdirectory is a real directory (not a symlink) because it contains a mix of generated files (e.g. `mthds-agent-guide.md` with baked-in version) and symlinks to non-template originals.
+Only `bin/` and `references/` are symlinked — everything else is rendered per-target with that target's variables.
 
 ## Commands
 
@@ -110,7 +136,7 @@ python scripts/gen_skill_docs.py --target dev --check  # freshness check
 
 1. Create `targets/<name>.toml` with `[plugin]` section (name, version, description, source)
 2. Add the plugin to `.claude-plugin/marketplace.json` `plugins` array
-3. Run `make build` — the output directory is created with symlinks and generated files
+3. Run `make build` — the output directory is created with rendered files and symlinks
 4. Run `make check` — validates consistency
 
 ## Version management
@@ -125,17 +151,25 @@ Each target has its own version in `targets/<name>.toml [plugin].version`.
 
 ## Template variables
 
-Variables used in `.j2` templates and shared includes:
+Variables used in `.j2` templates:
 
 | Variable | Defined in | Used in |
 |----------|-----------|---------|
-| `min_mthds_version` | `defaults.toml` | `frontmatter.md`, `preamble.md`, `mthds-agent-guide.md.j2`, `mthds-check/SKILL.md.j2` |
-| `marketplace_name` | `defaults.toml` | `preamble.md` (env-check script path) |
+| `min_mthds_version` | `defaults.toml` | `frontmatter.md.j2`, `preamble.md.j2`, `mthds-agent-guide.md.j2`, `mthds-check/SKILL.md.j2` |
+| `marketplace_name` | `defaults.toml` | `preamble.md.j2` (env-check script path) |
+| `mthds_install_cmd` | `defaults.toml` | `preamble.md.j2`, `validate-mthds.sh.j2` |
+| `mthds_upgrade_cmd` | `defaults.toml` | `preamble.md.j2`, `upgrade-flow.md.j2` |
+| `pipelex_install_cmd` | `defaults.toml` | `error-handling.md.j2` |
+| `pipelex_upgrade_cmd` | `defaults.toml` | `upgrade-flow.md.j2` |
+| `plxt_install_cmd` | `defaults.toml` | `validate-mthds.sh.j2` |
+| `plxt_upgrade_cmd` | `defaults.toml` | `upgrade-flow.md.j2` |
 | `plugin_name` | Derived from `[plugin].name` | Available but not currently used in templates |
 
 ### Shared template files
 
-Some shared files contain `{{ }}` variables. How they're processed depends on how they're used:
+All shared files in `templates/skills/shared/` are `.j2` templates. They are processed in two ways:
 
-- **Included via `{% include %}`** (e.g. `preamble.md`, `frontmatter.md`): Jinja2 resolves variables in the including template's context. These stay as plain `.md` files.
-- **Linked at runtime** (e.g. `mthds-agent-guide.md`): Not processed by Jinja2 include. These become `.md.j2` templates rendered by the build script directly. Listed in `SHARED_TEMPLATES` in `gen_skill_docs.py`.
+- **Included via `{% include %}`** (e.g. `frontmatter.md.j2`, `preamble.md.j2`): Jinja2 resolves variables in the including template's context.
+- **Rendered directly** (all other shared files): Listed in `SHARED_TEMPLATES` in `gen_skill_docs.py`, rendered per-target and written to `skills/shared/`.
+
+Hook templates in `templates/hooks/` are rendered per-target and written to `hooks/`.

@@ -3,7 +3,7 @@
 When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble reports `MTHDS_AGENT_OUTDATED`, follow this flow.
 
 **Two upgrade paths exist:**
-- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `npm install -g /build-src/mthds-js/` (Claude runs this directly, not via mthds-agent).
+- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `{{ mthds_upgrade_cmd }}` (Claude runs this directly, not via mthds-agent).
 - **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
 
 ## Step 1 — Check auto-upgrade config
@@ -31,7 +31,7 @@ The `UPGRADE_AVAILABLE` output from `mthds-agent update-check` includes which bi
 **For the `mthds` npm package (`mthds-agent` CLI):**
 
 ```bash
-npm install -g /build-src/mthds-js/
+{{ mthds_upgrade_cmd }}
 ```
 
 Claude runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
@@ -51,8 +51,8 @@ After running `mthds-agent upgrade`, interpret the stdout line:
 - `UPGRADE_COMPLETE <json>` → All targets upgraded successfully. The JSON contains `{"upgraded":{"binary":"old->new",...}}`. Report which tools were upgraded with their version transitions. Proceed to Step 4.
 
 - `UPGRADE_PARTIAL <json>` → Some targets upgraded, some failed. The JSON contains `{"upgraded":{...},"failed":{...}}`. Report which tools upgraded successfully and which failed. For each failure, provide the manual install command:
-  - `pipelex-agent` or `pipelex`: `uv tool install --upgrade /workspace/pipelex/`
-  - `plxt`: `uv tool install --upgrade /workspace/vscode-pipelex/`
+  - `pipelex-agent` or `pipelex`: `{{ pipelex_upgrade_cmd }}`
+  - `plxt`: `{{ plxt_upgrade_cmd }}`
 
   Proceed to Step 4 with current versions (partial success is still usable).
 

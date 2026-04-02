@@ -30,10 +30,28 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound, TemplateSynt
 
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
+TEMPLATES_DIR_NAME = "templates"
 
-# Shared template files that are rendered per target (contain {{ }} variables
-# but are not {% include %}-ed — they are read at runtime by Claude via links).
-SHARED_TEMPLATES = ["shared/mthds-agent-guide.md.j2"]
+# All shared files are templates rendered per target.
+# Paths are relative to the templates/ directory.
+SHARED_TEMPLATES = [
+    "skills/shared/error-handling.md.j2",
+    "skills/shared/frontmatter.md.j2",
+    "skills/shared/mthds-agent-guide.md.j2",
+    "skills/shared/mthds-reference.md.j2",
+    "skills/shared/native-content-types.md.j2",
+    "skills/shared/preamble.md.j2",
+    "skills/shared/upgrade-flow.md.j2",
+]
+
+# Hook templates rendered per target.
+HOOK_TEMPLATES = [
+    "hooks/hooks.json.j2",
+    "hooks/validate-mthds.sh.j2",
+]
+
+# Files that should be made executable after rendering.
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh"}
 
 
 @dataclass
@@ -138,44 +156,53 @@ def resolve_output_dir(base_dir: Path, source: str) -> Path:
 
 
 def render_templates(
-    skills_dir: Path,
+    templates_dir: Path,
+    base_dir: Path,
     template_vars: dict[str, str],
     include_skills: list[str] | None = None,
 ) -> dict[Path, str]:
     """Render all .j2 templates and return {output_path: rendered_content}.
 
+    Templates live in templates/ and output goes to the repo root (skills/, hooks/).
+    The output path is derived by stripping the templates/ prefix and removing the
+    .j2 suffix.
+
     Args:
-        skills_dir: Path to the skills/ directory containing templates.
+        templates_dir: Path to the templates/ directory (Jinja2 FileSystemLoader root).
+        base_dir: Repository root — output paths are relative to this.
         template_vars: Variables to inject into all templates.
-        include_skills: If set, only render templates in these skill directories.
+        include_skills: If set, only render skill templates in these directories.
 
     Raises:
         SystemExit: On missing include files or template syntax errors.
     """
-    if not skills_dir.is_dir():
-        msg = f"Skills directory not found: {skills_dir}"
+    if not templates_dir.is_dir():
+        msg = f"Templates directory not found: {templates_dir}"
         raise SystemExit(msg)
 
     env = Environment(
-        loader=FileSystemLoader(str(skills_dir)),
+        loader=FileSystemLoader(str(templates_dir)),
         keep_trailing_newline=True,
     )
 
-    # Collect skill templates
-    j2_paths = sorted(skills_dir.glob("*/SKILL.md.j2"))
+    # Collect skill templates (templates/skills/*/SKILL.md.j2)
+    j2_paths = sorted(templates_dir.glob("skills/*/SKILL.md.j2"))
     if include_skills is not None:
         j2_paths = [path for path in j2_paths if path.parent.name in include_skills]
 
-    # Also collect shared templates (e.g. mthds-agent-guide.md.j2)
-    shared_j2_paths = [skills_dir / template_name for template_name in SHARED_TEMPLATES if (skills_dir / template_name).is_file()]
+    # Collect shared templates
+    shared_j2_paths = [templates_dir / name for name in SHARED_TEMPLATES if (templates_dir / name).is_file()]
 
-    all_j2_paths = j2_paths + shared_j2_paths
+    # Collect hook templates
+    hook_j2_paths = [templates_dir / name for name in HOOK_TEMPLATES if (templates_dir / name).is_file()]
+
+    all_j2_paths = j2_paths + shared_j2_paths + hook_j2_paths
     if not all_j2_paths:
         return {}
 
     results: dict[Path, str] = {}
     for j2_path in all_j2_paths:
-        template_name = j2_path.relative_to(skills_dir).as_posix()
+        template_name = j2_path.relative_to(templates_dir).as_posix()
         try:
             template = env.get_template(template_name)
             rendered = template.render(**template_vars)
@@ -185,7 +212,11 @@ def render_templates(
         except TemplateSyntaxError as exc:
             msg = f"{template_name}: syntax error at line {exc.lineno}: {exc.message}"
             raise SystemExit(msg) from exc
-        output_path = j2_path.with_suffix("")  # .md.j2 -> .md
+        # Map template path to output path:
+        # templates/skills/X/SKILL.md.j2 -> skills/X/SKILL.md
+        # templates/hooks/X.sh.j2 -> hooks/X.sh
+        output_rel = j2_path.relative_to(templates_dir).with_suffix("")  # strip .j2
+        output_path = base_dir / output_rel
         results[output_path] = rendered
 
     return results
@@ -214,49 +245,30 @@ def _relative_symlink_target(link_location: Path, real_target: Path) -> Path:
     return Path(os.path.relpath(real_target, link_location.parent))
 
 
-def setup_symlinks(base_dir: Path, output_dir: Path, skills_dir: Path, include_skills: list[str] | None) -> None:
-    """Create symlinks in the output directory for shared assets.
+def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
+    """Create symlinks in the output directory for static assets.
 
     For non-root targets, symlinks point back to the source-of-truth files.
-    The shared/ directory is a real directory (not a symlink) because it
-    contains a mix of generated files and symlinks to non-template originals.
+    Only static assets (bin/, references/) are symlinked — skills/, shared/,
+    and hooks/ are all generated per-target by the template renderer.
     """
-    # Symlink top-level directories
-    for dirname in ["hooks", "bin"]:
-        src = base_dir / dirname
-        dst = output_dir / dirname
-        if src.is_dir() and not dst.exists():
-            dst.symlink_to(_relative_symlink_target(dst, src))
+    # Symlink bin/ (static, not a template)
+    bin_src = base_dir / "bin"
+    bin_dst = output_dir / "bin"
+    if bin_src.is_dir() and not bin_dst.exists():
+        bin_dst.symlink_to(_relative_symlink_target(bin_dst, bin_src))
 
     # Determine which skills to link
     if include_skills is not None:
         skill_names = include_skills
     else:
-        skill_names = sorted(path.parent.name for path in skills_dir.glob("*/SKILL.md.j2"))
+        skill_names = sorted(path.parent.name for path in templates_dir.glob("skills/*/SKILL.md.j2"))
 
     output_skills_dir = output_dir / "skills"
     output_skills_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create shared/ as a real directory with symlinks to non-template files.
-    # Template-generated files (e.g. mthds-agent-guide.md) are written directly
-    # by the build step, not symlinked.
-    shared_src = skills_dir / "shared"
-    shared_dst = output_skills_dir / "shared"
-    shared_dst.mkdir(parents=True, exist_ok=True)
-    shared_template_outputs = {Path(template_name).with_suffix("").name for template_name in SHARED_TEMPLATES}
-    if shared_src.is_dir():
-        for src_file in sorted(shared_src.iterdir()):
-            # Skip .j2 templates (their output is written by the build)
-            if src_file.suffix == ".j2":
-                continue
-            # Skip files that are generated from templates
-            if src_file.name in shared_template_outputs:
-                continue
-            dst_file = shared_dst / src_file.name
-            if not dst_file.exists():
-                dst_file.symlink_to(_relative_symlink_target(dst_file, src_file))
-
-    # Create skill subdirectories and symlink references/
+    # Create skill subdirectories and symlink references/ (static assets)
+    skills_dir = base_dir / "skills"
     for skill_name in skill_names:
         skill_output = output_skills_dir / skill_name
         skill_output.mkdir(parents=True, exist_ok=True)
@@ -268,30 +280,31 @@ def setup_symlinks(base_dir: Path, output_dir: Path, skills_dir: Path, include_s
 
 def build_target(base_dir: Path, config: TargetConfig) -> BuildResult:
     """Build a single target: render templates, set up output directory."""
-    skills_dir = base_dir / "skills"
+    templates_dir = base_dir / TEMPLATES_DIR_NAME
     output_dir = resolve_output_dir(base_dir, config.source)
     is_root = config.is_root
 
     result = BuildResult()
 
-    # Render templates
-    rendered = render_templates(skills_dir, config.template_vars, config.include_skills)
+    # Render templates — output paths are relative to base_dir
+    rendered = render_templates(templates_dir, base_dir, config.template_vars, config.include_skills)
     if not rendered:
         return result
 
     if is_root:
-        # Root target: write in place
+        # Root target: write in place (output paths already point to base_dir/...)
         result.files = rendered
     else:
         # Non-root target: write to output directory
         output_dir.mkdir(parents=True, exist_ok=True)
-        setup_symlinks(base_dir, output_dir, skills_dir, config.include_skills)
+        setup_symlinks(base_dir, output_dir, templates_dir, config.include_skills)
 
-        output_skills_dir = output_dir / "skills"
         for src_path, content in rendered.items():
-            # Map source path to output path
-            rel = src_path.relative_to(skills_dir)
-            dst_path = output_skills_dir / rel
+            # Map base_dir-relative output to target output dir
+            # e.g. base_dir/skills/X/SKILL.md -> output_dir/skills/X/SKILL.md
+            # e.g. base_dir/hooks/validate-mthds.sh -> output_dir/hooks/validate-mthds.sh
+            rel = src_path.relative_to(base_dir)
+            dst_path = output_dir / rel
             dst_path.parent.mkdir(parents=True, exist_ok=True)
             result.files[dst_path] = content
 
@@ -327,7 +340,11 @@ def generate(base_dir: Path, target_name: str = "prod") -> int:
             continue
 
         for output_path, content in result.files.items():
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(content, encoding="utf-8")
+            # Make hook scripts executable
+            if output_path.name in EXECUTABLE_OUTPUTS:
+                output_path.chmod(0o755)
             rel = output_path.relative_to(base_dir)
             print(f"  [{name}] Generated {rel}")
 
@@ -345,7 +362,6 @@ def generate(base_dir: Path, target_name: str = "prod") -> int:
 def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
     """Verify that all generated files match their template output."""
     targets_dir = base_dir / TARGETS_DIR_NAME
-    skills_dir = base_dir / "skills"
 
     if target_name == "all":
         target_names = list_targets(targets_dir)
@@ -370,13 +386,24 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
             elif output_path.read_text(encoding="utf-8") != rendered:
                 all_stale.append(f"  STALE: {rel}")
 
-        # Detect orphaned .md files (only for root target)
+        # Detect orphaned SKILL.md files with no corresponding template (root target only)
+        skills_dir = base_dir / "skills"
         if config.is_root:
-            rendered_parents = {path.parent for path in result.files if path.parent.parent == skills_dir}
+            rendered_skill_parents = {path.parent for path in result.files if path.name == "SKILL.md"}
             for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
-                if skill_md.parent not in rendered_parents:
+                if skill_md.parent not in rendered_skill_parents:
                     rel = skill_md.relative_to(base_dir)
                     all_stale.append(f"  ORPHAN: {rel} (no corresponding .j2 template)")
+
+        # Detect leaked .j2 files in output directories (should only be in templates/)
+        if config.is_root:
+            for j2_file in sorted(skills_dir.rglob("*.j2")):
+                rel = j2_file.relative_to(base_dir)
+                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+            hooks_dir = base_dir / "hooks"
+            for j2_file in sorted(hooks_dir.rglob("*.j2")):
+                rel = j2_file.relative_to(base_dir)
+                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
 
     if all_stale:
         for msg in all_stale:

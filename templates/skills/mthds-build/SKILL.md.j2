@@ -1,7 +1,7 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Build AI Method using the MTHDS standard
@@ -60,7 +60,7 @@ Create new MTHDS bundles through an adaptive, phase-based approach. This skill g
 
 ## Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

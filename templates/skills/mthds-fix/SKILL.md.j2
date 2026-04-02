@@ -1,7 +1,7 @@
 ---
 name: mthds-fix
 description: Fix issues in MTHDS bundles. Use when user says "fix this workflow", "fix this method", "repair validation errors", "the pipeline is broken", "fix the .mthds file", after /mthds-check found issues, or when validation reports errors. Automatically applies fixes and re-validates in a loop.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Fix MTHDS bundles
@@ -12,7 +12,7 @@ Automatically fix issues in MTHDS method bundles.
 
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

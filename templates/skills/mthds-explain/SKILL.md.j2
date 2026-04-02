@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Explain MTHDS bundles
@@ -12,7 +12,7 @@ Analyze and explain existing MTHDS method bundles in plain language.
 
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

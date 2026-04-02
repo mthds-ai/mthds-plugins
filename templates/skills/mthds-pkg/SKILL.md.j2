@@ -1,7 +1,7 @@
 ---
 name: mthds-pkg
 description: Manage MTHDS packages — initialize, configure exports, list, and validate. Use when user says "init package", "set up METHODS.toml", "manage packages", "mthds init", "validate package", "list package", or wants to manage MTHDS package manifests.
-{% include "shared/frontmatter.md" %}
+{% include "skills/shared/frontmatter.md.j2" %}
 ---
 
 # Manage MTHDS packages
@@ -12,7 +12,7 @@ Initialize, configure exports, list, and validate MTHDS packages using the `mthd
 
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
-{% include 'shared/preamble.md' %}
+{% include 'skills/shared/preamble.md.j2' %}
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 

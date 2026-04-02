@@ -69,10 +69,22 @@ def _write_marketplace_json(base: Path, version: str, plugins: list[dict[str, st
 @pytest.fixture()
 def skill_tree(tmp_path: Path) -> Path:
     """Create a minimal valid skill directory structure with target configs."""
-    shared = tmp_path / "skills" / "shared"
-    shared.mkdir(parents=True)
-    for name in ["error-handling.md", "mthds-agent-guide.md.j2", "mthds-reference.md", "native-content-types.md", "preamble.md", "upgrade-flow.md"]:
-        (shared / name).write_text("# placeholder\n")
+    # Template source files (checked by check_shared_files_exist)
+    template_shared = tmp_path / "templates" / "skills" / "shared"
+    template_shared.mkdir(parents=True)
+    for name in [
+        "error-handling.md.j2",
+        "frontmatter.md.j2",
+        "mthds-agent-guide.md.j2",
+        "mthds-reference.md.j2",
+        "native-content-types.md.j2",
+        "preamble.md.j2",
+        "upgrade-flow.md.j2",
+    ]:
+        (template_shared / name).write_text("# placeholder\n")
+
+    # Output directories
+    (tmp_path / "skills" / "shared").mkdir(parents=True)
 
     skill_dir = tmp_path / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -241,15 +253,15 @@ class TestSharedFilesExist:
         assert check_shared_files_exist(skill_tree) == []
 
     def test_missing_file(self, skill_tree: Path) -> None:
-        (skill_tree / "skills" / "shared" / "error-handling.md").unlink()
+        (skill_tree / "templates" / "skills" / "shared" / "error-handling.md.j2").unlink()
         errors = check_shared_files_exist(skill_tree)
         assert len(errors) == 1
-        assert "error-handling.md" in errors[0]
+        assert "error-handling.md.j2" in errors[0]
 
     def test_all_missing(self, tmp_path: Path) -> None:
-        (tmp_path / "skills" / "shared").mkdir(parents=True)
+        (tmp_path / "templates" / "skills" / "shared").mkdir(parents=True)
         errors = check_shared_files_exist(tmp_path)
-        assert len(errors) == 6
+        assert len(errors) == 7
 
 
 class TestFrontmatterVersions:
