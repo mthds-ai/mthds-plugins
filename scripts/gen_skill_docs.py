@@ -240,13 +240,13 @@ def render_templates(
 
 
 def make_plugin_json(base_dir: Path, config: TargetConfig) -> dict[str, object]:
-    """Create a plugin.json dict by overlaying target-specific fields on the root plugin.json.
+    """Create a plugin.json dict by overlaying target-specific fields on the base template.
 
-    Uses the root .claude-plugin/plugin.json as a base template so shared fields
-    (author, repository, license) stay in sync without duplication.
+    Uses .claude-plugin/plugin-base.json for shared fields (author, repository, license)
+    that stay in sync without duplication across targets.
     """
-    root_plugin_path = base_dir / ".claude-plugin" / "plugin.json"
-    base: dict[str, object] = json.loads(root_plugin_path.read_text(encoding="utf-8"))
+    base_plugin_path = base_dir / ".claude-plugin" / "plugin-base.json"
+    base: dict[str, object] = json.loads(base_plugin_path.read_text(encoding="utf-8"))
     base["name"] = config.plugin_name
     base["description"] = config.plugin_description
     base["version"] = config.plugin_version
@@ -415,26 +415,26 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
             elif output_path.name in EXECUTABLE_OUTPUTS and not os.access(output_path, os.X_OK):
                 all_stale.append(f"  NOT EXECUTABLE: {rel}")
 
-        # Detect orphaned SKILL.md files with no corresponding template (root target only)
-        skills_dir = base_dir / "skills"
-        if config.is_root:
-            rendered_skill_parents = {path.parent for path in result.files if path.name == "SKILL.md"}
-            for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
+        # Detect orphaned SKILL.md files with no corresponding template
+        output_dir = resolve_output_dir(base_dir, config.source)
+        output_skills_dir = output_dir / "skills"
+        rendered_skill_parents = {path.parent for path in result.files if path.name == "SKILL.md"}
+        if output_skills_dir.is_dir():
+            for skill_md in sorted(output_skills_dir.glob("*/SKILL.md")):
                 if skill_md.parent not in rendered_skill_parents:
                     rel = skill_md.relative_to(base_dir)
                     all_stale.append(f"  ORPHAN: {rel} (no corresponding .j2 template)")
 
         # Detect leaked .j2 files in output directories (should only be in templates/)
-        if config.is_root:
-            if skills_dir.is_dir():
-                for j2_file in sorted(skills_dir.rglob("*.j2")):
-                    rel = j2_file.relative_to(base_dir)
-                    all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
-            hooks_dir = base_dir / "hooks"
-            if hooks_dir.is_dir():
-                for j2_file in sorted(hooks_dir.rglob("*.j2")):
-                    rel = j2_file.relative_to(base_dir)
-                    all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+        if output_skills_dir.is_dir():
+            for j2_file in sorted(output_skills_dir.rglob("*.j2")):
+                rel = j2_file.relative_to(base_dir)
+                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+        output_hooks_dir = output_dir / "hooks"
+        if output_hooks_dir.is_dir():
+            for j2_file in sorted(output_hooks_dir.rglob("*.j2")):
+                rel = j2_file.relative_to(base_dir)
+                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
 
     if all_stale:
         for msg in all_stale:

@@ -189,6 +189,22 @@ def check_marketplace_plugins(base_dir: Path) -> list[str]:
     return errors
 
 
+def _collect_output_dirs(base_dir: Path) -> list[Path]:
+    """Collect output directories from all configured targets."""
+    try:
+        configs = load_target_configs(base_dir)
+    except ValueError:
+        return [base_dir]
+    output_dirs: list[Path] = []
+    for _target_name, config in configs.items():
+        source = config.get("plugin", {}).get("source", "./")
+        if source == "./":
+            output_dirs.append(base_dir)
+        else:
+            output_dirs.append(base_dir / source.rstrip("/"))
+    return output_dirs
+
+
 def check_stale_install_references(base_dir: Path) -> list[str]:
     """Check for stale pip install / curl install references in generated SKILL.md files.
 
@@ -196,24 +212,26 @@ def check_stale_install_references(base_dir: Path) -> list[str]:
     mthds-agent-based install commands instead.
     """
     errors: list[str] = []
-    for skill_md in sorted(base_dir.glob("skills/*/SKILL.md")):
-        for line_num, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
-            for pattern in STALE_INSTALL_PATTERNS:
-                if pattern.search(line):
-                    rel = skill_md.relative_to(base_dir)
-                    errors.append(f"{rel}:{line_num}: stale install reference: {line.strip()}")
-                    break
+    for output_dir in _collect_output_dirs(base_dir):
+        for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
+            for line_num, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
+                for pattern in STALE_INSTALL_PATTERNS:
+                    if pattern.search(line):
+                        rel = skill_md.relative_to(base_dir)
+                        errors.append(f"{rel}:{line_num}: stale install reference: {line.strip()}")
+                        break
     return errors
 
 
 def check_stale_references(base_dir: Path) -> list[str]:
     """Check: No SKILL.md files should reference shared files via references/ paths."""
     errors: list[str] = []
-    for skill_md in sorted(base_dir.glob("skills/*/SKILL.md")):
-        for idx, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
-            if STALE_REF_PATTERN.search(line):
-                rel = skill_md.relative_to(base_dir)
-                errors.append(f"{rel}:{idx}: stale references/ path (should use ../shared/)")
+    for output_dir in _collect_output_dirs(base_dir):
+        for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
+            for idx, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
+                if STALE_REF_PATTERN.search(line):
+                    rel = skill_md.relative_to(base_dir)
+                    errors.append(f"{rel}:{idx}: stale references/ path (should use ../shared/)")
     return errors
 
 
@@ -230,7 +248,7 @@ def check_shared_files_exist(base_dir: Path) -> list[str]:
 def check_no_templates_in_output(base_dir: Path) -> list[str]:
     """Check: No .j2 files should exist in output directories (they belong in templates/).
 
-    Scans root skills/ and hooks/, plus output directories of all non-root targets.
+    Scans root skills/ and hooks/ (for static assets), plus all target output directories.
     """
     errors: list[str] = []
 
@@ -240,20 +258,14 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
                 rel = j2_file.relative_to(base_dir)
                 errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
 
-    # Scan root output directories
+    # Scan root static asset directories
     _scan_dir(base_dir / "skills")
     _scan_dir(base_dir / "hooks")
 
-    # Scan non-root target output directories
-    try:
-        configs = load_target_configs(base_dir)
-    except ValueError:
-        return errors
-    for _target_name, config in configs.items():
-        source = config.get("plugin", {}).get("source", "./")
-        if source == "./":
-            continue
-        output_dir = base_dir / source.rstrip("/")
+    # Scan all target output directories
+    for output_dir in _collect_output_dirs(base_dir):
+        if output_dir == base_dir:
+            continue  # Already scanned root above
         _scan_dir(output_dir / "skills")
         _scan_dir(output_dir / "hooks")
 
@@ -261,27 +273,32 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
 
 
 def check_frontmatter_versions(base_dir: Path, canonical: str) -> list[str]:
-    """Check: All SKILL.md frontmatter min_mthds_version must match canonical."""
+    """Check: All SKILL.md frontmatter min_mthds_version must match canonical.
+
+    Scans all target output directories for SKILL.md files.
+    """
     errors: list[str] = []
-    for skill_md in sorted(base_dir.glob("skills/*/SKILL.md")):
-        text = skill_md.read_text(encoding="utf-8")
-        rel = skill_md.relative_to(base_dir)
 
-        # Extract frontmatter (between first two --- lines)
-        parts = text.split("---", 2)
-        if len(parts) < 3:
-            errors.append(f"{rel}: no frontmatter found")
-            continue
+    for output_dir in _collect_output_dirs(base_dir):
+        for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
+            text = skill_md.read_text(encoding="utf-8")
+            rel = skill_md.relative_to(base_dir)
 
-        frontmatter = parts[1]
-        match = FRONTMATTER_VERSION_PATTERN.search(frontmatter)
-        if not match:
-            errors.append(f"{rel}: no min_mthds_version in frontmatter")
-            continue
+            # Extract frontmatter (between first two --- lines)
+            parts = text.split("---", 2)
+            if len(parts) < 3:
+                errors.append(f"{rel}: no frontmatter found")
+                continue
 
-        version = match.group(1).strip()
-        if version != canonical:
-            errors.append(f"{rel}: has {version}, expected {canonical}")
+            frontmatter = parts[1]
+            match = FRONTMATTER_VERSION_PATTERN.search(frontmatter)
+            if not match:
+                errors.append(f"{rel}: no min_mthds_version in frontmatter")
+                continue
+
+            version = match.group(1).strip()
+            if version != canonical:
+                errors.append(f"{rel}: has {version}, expected {canonical}")
 
     return errors
 

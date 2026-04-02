@@ -84,16 +84,16 @@ def skill_tree(tmp_path: Path) -> Path:
     ]:
         (template_shared / name).write_text("# placeholder\n")
 
-    # Output directories
-    (tmp_path / "skills" / "shared").mkdir(parents=True)
+    # Output directories (prod target outputs to mthds/)
+    (tmp_path / "mthds" / "skills" / "shared").mkdir(parents=True)
 
-    skill_dir = tmp_path / "skills" / "mthds-test"
+    skill_dir = tmp_path / "mthds" / "skills" / "mthds-test"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text(VALID_FRONTMATTER)
 
-    _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3"}})
-    _write_plugin_json(tmp_path, "mthds", "0.6.3")
-    _write_marketplace_json(tmp_path, "0.6.3", [{"name": "mthds", "source": "./"}])
+    _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"}})
+    _write_plugin_json(tmp_path, "mthds", "0.6.3", "mthds")
+    _write_marketplace_json(tmp_path, "0.6.3", [{"name": "mthds", "source": "mthds/"}])
 
     return tmp_path
 
@@ -105,20 +105,20 @@ class TestTargetPluginVersions:
         assert versions == {"prod": "0.6.3"}
 
     def test_version_mismatch(self, skill_tree: Path) -> None:
-        _write_plugin_json(skill_tree, "mthds", "0.6.0")
+        _write_plugin_json(skill_tree, "mthds", "0.6.0", "mthds")
         errors, _versions = check_target_plugin_versions(skill_tree)
         assert len(errors) == 1
         assert "0.6.0" in errors[0]
         assert "0.6.3" in errors[0]
 
     def test_name_mismatch(self, skill_tree: Path) -> None:
-        _write_plugin_json(skill_tree, "wrong-name", "0.6.3")
+        _write_plugin_json(skill_tree, "wrong-name", "0.6.3", "mthds")
         errors, _versions = check_target_plugin_versions(skill_tree)
         assert len(errors) == 1
         assert "wrong-name" in errors[0]
 
     def test_missing_plugin_json(self, tmp_path: Path) -> None:
-        _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3"}})
+        _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"}})
         errors, _versions = check_target_plugin_versions(tmp_path)
         assert len(errors) == 1
         assert "not found" in errors[0]
@@ -128,7 +128,7 @@ class TestTargetPluginVersions:
         _write_target_configs(
             skill_tree,
             {
-                "prod": {"name": "mthds", "version": "0.6.3"},
+                "prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"},
                 "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
             },
         )
@@ -148,7 +148,7 @@ class TestMarketplacePlugins:
         _write_target_configs(
             skill_tree,
             {
-                "prod": {"name": "mthds", "version": "0.6.3"},
+                "prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"},
                 "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
             },
         )
@@ -161,7 +161,7 @@ class TestMarketplacePlugins:
         _write_marketplace_json(
             skill_tree,
             "0.6.3",
-            [{"name": "mthds", "source": "./"}, {"name": "ghost-plugin", "source": "ghost/"}],
+            [{"name": "mthds", "source": "mthds/"}, {"name": "ghost-plugin", "source": "ghost/"}],
         )
         errors = check_marketplace_plugins(skill_tree)
         assert len(errors) == 1
@@ -176,7 +176,9 @@ class TestResolveTargetVar:
     def test_override_value(self, skill_tree: Path) -> None:
         # Add an override in prod.toml
         targets_dir = skill_tree / "targets"
-        (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "0.6.3"\nsource = "./"\n\n[vars]\nmin_mthds_version = "9.9.9"\n')
+        (targets_dir / "prod.toml").write_text(
+            '[plugin]\nname = "mthds"\nversion = "0.6.3"\nsource = "mthds/"\n\n[vars]\nmin_mthds_version = "9.9.9"\n'
+        )
         assert resolve_target_var(skill_tree, "prod", "min_mthds_version") == "9.9.9"
 
     def test_missing_var(self, skill_tree: Path) -> None:
@@ -193,21 +195,21 @@ class TestStaleInstallReferences:
         assert check_stale_install_references(skill_tree) == []
 
     def test_detects_pip_install_pipelex(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nRun `pip install pipelex` to install.\n")
         errors = check_stale_install_references(skill_tree)
         assert len(errors) == 1
         assert "stale install reference" in errors[0]
 
     def test_detects_pip_install_pipelex_tools(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nRun `pip install pipelex-tools` first.\n")
         errors = check_stale_install_references(skill_tree)
         assert len(errors) == 1
         assert "stale install reference" in errors[0]
 
     def test_detects_curl_install_sh(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nRun `curl -sSL https://example.com/install.sh | sh`\n")
         errors = check_stale_install_references(skill_tree)
         assert len(errors) == 1
@@ -215,18 +217,18 @@ class TestStaleInstallReferences:
 
     def test_ignores_pip_install_python_docx(self, skill_tree: Path) -> None:
         """Python library deps like python-docx are legitimate, not toolchain installs."""
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nRun `pip install python-docx` for Word support.\n")
         assert check_stale_install_references(skill_tree) == []
 
     def test_ignores_pip_install_openpyxl(self, skill_tree: Path) -> None:
         """Python library deps like openpyxl are legitimate, not toolchain installs."""
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nRun `pip install openpyxl` for Excel support.\n")
         assert check_stale_install_references(skill_tree) == []
 
     def test_multiple_stale_refs_across_lines(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\n`pip install pipelex`\nSome text\n`pip install pipelex-tools`\n")
         errors = check_stale_install_references(skill_tree)
         assert len(errors) == 2
@@ -237,14 +239,14 @@ class TestStaleReferences:
         assert check_stale_references(skill_tree) == []
 
     def test_detects_stale_ref(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nSee [guide](references/mthds-agent-guide.md)\n")
         errors = check_stale_references(skill_tree)
         assert len(errors) == 1
         assert "stale references/" in errors[0]
 
     def test_ignores_correct_shared_path(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER + "\nSee [guide](../shared/mthds-agent-guide.md)\n")
         assert check_stale_references(skill_tree) == []
 
@@ -270,21 +272,21 @@ class TestFrontmatterVersions:
         assert check_frontmatter_versions(skill_tree, CANONICAL) == []
 
     def test_mismatched_version(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER.replace(CANONICAL, "0.0.1"))
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
         assert "0.0.1" in errors[0]
 
     def test_missing_version_key(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text("---\nname: test\ndescription: test\n---\n\n# Test\n")
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
         assert "no min_mthds_version" in errors[0]
 
     def test_no_frontmatter(self, skill_tree: Path) -> None:
-        skill_md = skill_tree / "skills" / "mthds-test" / "SKILL.md"
+        skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text("# Just a heading\n")
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
@@ -292,7 +294,7 @@ class TestFrontmatterVersions:
 
     def test_multiple_skills(self, skill_tree: Path) -> None:
         """Two skills: one correct, one wrong."""
-        bad_dir = skill_tree / "skills" / "mthds-bad"
+        bad_dir = skill_tree / "mthds" / "skills" / "mthds-bad"
         bad_dir.mkdir()
         (bad_dir / "SKILL.md").write_text(VALID_FRONTMATTER.replace(CANONICAL, "0.0.5"))
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
@@ -304,7 +306,8 @@ class TestNoTemplatesInOutput:
         assert check_no_templates_in_output(skill_tree) == []
 
     def test_detects_leaked_j2_in_skills(self, skill_tree: Path) -> None:
-        (skill_tree / "skills" / "mthds-test" / "SKILL.md.j2").write_text("leaked\n")
+        (skill_tree / "mthds" / "skills" / "mthds-test").mkdir(parents=True, exist_ok=True)
+        (skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md.j2").write_text("leaked\n")
         errors = check_no_templates_in_output(skill_tree)
         assert len(errors) == 1
         assert "LEAKED TEMPLATE" in errors[0]
@@ -322,7 +325,7 @@ class TestNoTemplatesInOutput:
         _write_target_configs(
             skill_tree,
             {
-                "prod": {"name": "mthds", "version": "0.6.3"},
+                "prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"},
                 "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
             },
         )

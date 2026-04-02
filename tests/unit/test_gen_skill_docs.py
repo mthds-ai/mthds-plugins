@@ -50,20 +50,16 @@ def template_tree(tmp_path: Path) -> Path:
     skill_dir.mkdir()
     (skill_dir / "SKILL.md.j2").write_text("---\nname: test\n---\n\n### Step 0\n\n{% include 'skills/shared/preamble.md.j2' %}\nRest of skill.\n")
 
-    # Output directories (will be populated by generate)
-    (tmp_path / "skills" / "shared").mkdir(parents=True)
-    (tmp_path / "hooks").mkdir(parents=True)
-
-    # Root plugin.json (needed for non-root targets)
+    # plugin-base.json (shared fields for all targets)
     plugin_dir = tmp_path / ".claude-plugin"
     plugin_dir.mkdir()
-    (plugin_dir / "plugin.json").write_text('{"name": "mthds", "version": "1.0.0", "description": "test"}\n')
+    (plugin_dir / "plugin-base.json").write_text('{"author": {"name": "test"}, "license": "MIT"}\n')
 
     # Target configs
     targets_dir = tmp_path / "targets"
     targets_dir.mkdir()
     (targets_dir / "defaults.toml").write_text('[vars]\nmin_mthds_version = "1.0.0"\nmarketplace_name = "mthds-plugins"\n')
-    (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "./"\n')
+    (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "mthds/"\n')
 
     return tmp_path
 
@@ -191,7 +187,7 @@ class TestGenerate:
     def test_writes_files(self, template_tree: Path) -> None:
         result = generate(template_tree, "prod")
         assert result == 0
-        output = template_tree / "skills" / "mthds-test" / "SKILL.md"
+        output = template_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         assert output.is_file()
         content = output.read_text()
         assert "Preamble content here." in content
@@ -202,7 +198,7 @@ class TestGenerate:
         targets_dir = tmp_path / "targets"
         targets_dir.mkdir()
         (targets_dir / "defaults.toml").write_text('[vars]\nmin_mthds_version = "1.0.0"\n')
-        (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "./"\n')
+        (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "mthds/"\n')
         with pytest.raises(SystemExit, match="shared template not found"):
             generate(tmp_path, "prod")
 
@@ -215,7 +211,7 @@ class TestCheckFreshness:
 
     def test_stale_fails(self, template_tree: Path) -> None:
         generate(template_tree, "prod")
-        output = template_tree / "skills" / "mthds-test" / "SKILL.md"
+        output = template_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         output.write_text("outdated content\n")
         result = check_freshness(template_tree, "prod")
         assert result == 1
@@ -227,7 +223,7 @@ class TestCheckFreshness:
     def test_orphaned_md_fails(self, template_tree: Path) -> None:
         """A SKILL.md without a corresponding .j2 is detected as orphan."""
         generate(template_tree, "prod")
-        orphan_dir = template_tree / "skills" / "mthds-orphan"
+        orphan_dir = template_tree / "mthds" / "skills" / "mthds-orphan"
         orphan_dir.mkdir()
         (orphan_dir / "SKILL.md").write_text("orphaned content\n")
         result = check_freshness(template_tree, "prod")
@@ -247,7 +243,7 @@ class TestCheckFreshness:
         generate(template_tree, "prod")
         # Find the generated executable file and remove its exec bit
         for exec_name in EXECUTABLE_OUTPUTS:
-            hook_path = template_tree / "hooks" / exec_name
+            hook_path = template_tree / "mthds" / "hooks" / exec_name
             if hook_path.is_file():
                 hook_path.chmod(0o644)
                 break
