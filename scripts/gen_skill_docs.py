@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate SKILL.md from SKILL.md.j2 templates, with multi-target support.
+"""Generate skill docs, shared files, and hooks from Jinja2 templates.
 
-Renders all Jinja2 templates under skills/ and writes the corresponding
-SKILL.md files. Both .j2 (source of truth) and .md (build artifact) are
-checked into git.
+Renders all .j2 templates under templates/ and writes the corresponding
+output files (skills/, hooks/). Templates (.j2) are the source of truth;
+output files are build artifacts checked into git.
 
 Supports multiple build targets (e.g. prod, dev) defined in targets/*.toml.
 Each target can override template variables, filter skills, and write output
@@ -26,7 +26,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound, TemplateSyntaxError
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound, TemplateSyntaxError, UndefinedError
 
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
@@ -190,15 +190,29 @@ def render_templates(
     if include_skills is not None:
         j2_paths = [path for path in j2_paths if path.parent.name in include_skills]
 
-    # Collect shared templates
-    shared_j2_paths = [templates_dir / name for name in SHARED_TEMPLATES if (templates_dir / name).is_file()]
+    # If no skill templates found, nothing to render
+    if not j2_paths:
+        return {}
 
-    # Collect hook templates
-    hook_j2_paths = [templates_dir / name for name in HOOK_TEMPLATES if (templates_dir / name).is_file()]
+    # Collect shared templates (must all exist — fail loudly if missing)
+    shared_j2_paths: list[Path] = []
+    for name in SHARED_TEMPLATES:
+        path = templates_dir / name
+        if not path.is_file():
+            msg = f"Declared shared template not found: {name}"
+            raise SystemExit(msg)
+        shared_j2_paths.append(path)
+
+    # Collect hook templates (must all exist — fail loudly if missing)
+    hook_j2_paths: list[Path] = []
+    for name in HOOK_TEMPLATES:
+        path = templates_dir / name
+        if not path.is_file():
+            msg = f"Declared hook template not found: {name}"
+            raise SystemExit(msg)
+        hook_j2_paths.append(path)
 
     all_j2_paths = j2_paths + shared_j2_paths + hook_j2_paths
-    if not all_j2_paths:
-        return {}
 
     results: dict[Path, str] = {}
     for j2_path in all_j2_paths:
@@ -211,6 +225,9 @@ def render_templates(
             raise SystemExit(msg) from exc
         except TemplateSyntaxError as exc:
             msg = f"{template_name}: syntax error at line {exc.lineno}: {exc.message}"
+            raise SystemExit(msg) from exc
+        except UndefinedError as exc:
+            msg = f"{template_name}: undefined variable: {exc.message} — add it to targets/defaults.toml or the target config"
             raise SystemExit(msg) from exc
         # Map template path to output path:
         # templates/skills/X/SKILL.md.j2 -> skills/X/SKILL.md
@@ -397,13 +414,15 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
 
         # Detect leaked .j2 files in output directories (should only be in templates/)
         if config.is_root:
-            for j2_file in sorted(skills_dir.rglob("*.j2")):
-                rel = j2_file.relative_to(base_dir)
-                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+            if skills_dir.is_dir():
+                for j2_file in sorted(skills_dir.rglob("*.j2")):
+                    rel = j2_file.relative_to(base_dir)
+                    all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
             hooks_dir = base_dir / "hooks"
-            for j2_file in sorted(hooks_dir.rglob("*.j2")):
-                rel = j2_file.relative_to(base_dir)
-                all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+            if hooks_dir.is_dir():
+                for j2_file in sorted(hooks_dir.rglob("*.j2")):
+                    rel = j2_file.relative_to(base_dir)
+                    all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
 
     if all_stale:
         for msg in all_stale:

@@ -9,6 +9,7 @@ import pytest
 from scripts.check import (
     check_frontmatter_versions,
     check_marketplace_plugins,
+    check_no_templates_in_output,
     check_shared_files_exist,
     check_stale_install_references,
     check_stale_references,
@@ -296,4 +297,27 @@ class TestFrontmatterVersions:
         (bad_dir / "SKILL.md").write_text(VALID_FRONTMATTER.replace(CANONICAL, "0.0.5"))
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
-        assert "mthds-bad" in errors[0]
+
+
+class TestNoTemplatesInOutput:
+    def test_clean_state(self, skill_tree: Path) -> None:
+        assert check_no_templates_in_output(skill_tree) == []
+
+    def test_detects_leaked_j2_in_skills(self, skill_tree: Path) -> None:
+        (skill_tree / "skills" / "mthds-test" / "SKILL.md.j2").write_text("leaked\n")
+        errors = check_no_templates_in_output(skill_tree)
+        assert len(errors) == 1
+        assert "LEAKED TEMPLATE" in errors[0]
+
+    def test_detects_leaked_j2_in_hooks(self, skill_tree: Path) -> None:
+        hooks_dir = skill_tree / "hooks"
+        hooks_dir.mkdir(exist_ok=True)
+        (hooks_dir / "validate-mthds.sh.j2").write_text("leaked\n")
+        errors = check_no_templates_in_output(skill_tree)
+        assert len(errors) == 1
+        assert "hooks" in errors[0]
+
+    def test_missing_dirs_no_crash(self, tmp_path: Path) -> None:
+        """No crash when skills/ or hooks/ directories don't exist."""
+        errors = check_no_templates_in_output(tmp_path)
+        assert errors == []

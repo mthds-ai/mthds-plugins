@@ -25,7 +25,7 @@ scripts/gen_skill_docs.py       renders .j2 templates with merged variables
        +---> mthds-dev/skills/*/SKILL.md               (dev target, output)
        +---> mthds-dev/skills/shared/*.md               (dev target, output)
        +---> mthds-dev/hooks/*                          (dev target, output)
-       +---> mthds-dev/.claude-plugin/plugin.json       (generated from root plugin.json)
+       +---> mthds-dev/.claude-plugin/plugin.json       (generated: root plugin.json + target overrides)
 ```
 
 ## Template vs output directories
@@ -62,7 +62,7 @@ Each target defines plugin identity and can override any default variable:
 [plugin]
 name = "mthds-dev"
 version = "0.1.0"
-description = "Development build of MTHDS skills."
+description = "Development build of MTHDS skills — for iteration and testing."
 source = "mthds-dev/"     # output directory (use "./" for in-place)
 
 [vars]
@@ -70,6 +70,7 @@ source = "mthds-dev/"     # output directory (use "./" for in-place)
 mthds_install_cmd = "npm install -g /build-src/mthds-js/"
 pipelex_install_cmd = "uv tool install /workspace/pipelex/"
 plxt_install_cmd = "uv tool install /workspace/vscode-pipelex/"
+# ... upgrade commands also overridden (see targets/dev.toml for full list)
 
 [skills]
 # Optional: build only a subset of skills. Omit for all skills.
@@ -167,9 +168,8 @@ Variables used in `.j2` templates:
 
 ### Shared template files
 
-All shared files in `templates/skills/shared/` are `.j2` templates. They are processed in two ways:
+All shared files in `templates/skills/shared/` are `.j2` templates listed in `SHARED_TEMPLATES` in `gen_skill_docs.py`. They are all rendered per-target and written to `skills/shared/`.
 
-- **Included via `{% include %}`** (e.g. `frontmatter.md.j2`, `preamble.md.j2`): Jinja2 resolves variables in the including template's context.
-- **Rendered directly** (all other shared files): Listed in `SHARED_TEMPLATES` in `gen_skill_docs.py`, rendered per-target and written to `skills/shared/`.
+Some shared files serve a dual role — `frontmatter.md.j2` and `preamble.md.j2` are also included inline by skill templates via `{% include %}`. Jinja2 resolves variables in the including template's context.
 
 Hook templates in `templates/hooks/` are rendered per-target and written to `hooks/`.

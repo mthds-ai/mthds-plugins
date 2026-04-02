@@ -6,9 +6,23 @@ from pathlib import Path
 
 import pytest
 
-from scripts.gen_skill_docs import check_freshness, generate, render_templates
+from scripts.gen_skill_docs import HOOK_TEMPLATES, SHARED_TEMPLATES, check_freshness, generate, render_templates
 
 DEFAULT_VARS = {"min_mthds_version": "1.0.0", "marketplace_name": "mthds-plugins", "plugin_name": "mthds"}
+
+
+def _create_required_templates(templates_dir: Path) -> None:
+    """Create all shared and hook template files required by render_templates."""
+    for name in SHARED_TEMPLATES:
+        path = templates_dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text("# placeholder\n")
+    for name in HOOK_TEMPLATES:
+        path = templates_dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text("# placeholder\n")
 
 
 @pytest.fixture()
@@ -18,8 +32,19 @@ def template_tree(tmp_path: Path) -> Path:
     templates_dir = tmp_path / "templates"
     shared = templates_dir / "skills" / "shared"
     shared.mkdir(parents=True)
+    # All declared shared templates must exist (render_templates enforces this)
     (shared / "preamble.md.j2").write_text("Preamble content here.\n")
     (shared / "mthds-agent-guide.md.j2").write_text("Guide: mthds-agent >= {{ min_mthds_version }}\n")
+    (shared / "error-handling.md.j2").write_text("# Error Handling\n")
+    (shared / "frontmatter.md.j2").write_text("min_mthds_version: {{ min_mthds_version }}\n")
+    (shared / "mthds-reference.md.j2").write_text("# MTHDS Reference\n")
+    (shared / "native-content-types.md.j2").write_text("# Native Content Types\n")
+    (shared / "upgrade-flow.md.j2").write_text("# Upgrade Flow\n")
+    # Hook templates must also exist
+    hooks_tmpl = templates_dir / "hooks"
+    hooks_tmpl.mkdir()
+    (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
+    (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -79,7 +104,8 @@ class TestRenderTemplates:
         templates_dir = tmp_path / "templates"
         skill_dir = templates_dir / "skills" / "mthds-test"
         skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md.j2").write_text("{% include 'skills/shared/preamble.md.j2' %}\n")
+        _create_required_templates(templates_dir)
+        (skill_dir / "SKILL.md.j2").write_text("{% include 'skills/shared/nonexistent.md.j2' %}\n")
         with pytest.raises(SystemExit, match="include file not found"):
             render_templates(templates_dir, tmp_path, DEFAULT_VARS)
 
@@ -88,6 +114,7 @@ class TestRenderTemplates:
         templates_dir = tmp_path / "templates"
         skill_dir = templates_dir / "skills" / "mthds-test"
         skill_dir.mkdir(parents=True)
+        _create_required_templates(templates_dir)
         (skill_dir / "SKILL.md.j2").write_text("{% if %}\n")
         with pytest.raises(SystemExit, match="syntax error"):
             render_templates(templates_dir, tmp_path, DEFAULT_VARS)
@@ -106,7 +133,7 @@ class TestRenderTemplates:
         (second / "SKILL.md.j2").write_text("---\nname: second\n---\n\nSecond skill content.\n")
 
         results = render_templates(templates_dir, template_tree, DEFAULT_VARS)
-        skill_names = {path.parent.name for path in results if path.parent.name != "shared"}
+        skill_names = {path.parent.name for path in results if path.parent.name not in ("shared", "hooks")}
         assert skill_names == {"mthds-test", "mthds-second"}
 
     def test_jinja2_escape_rendering(self, template_tree: Path) -> None:
@@ -130,7 +157,7 @@ class TestRenderTemplates:
         (second / "SKILL.md.j2").write_text("---\nname: second\n---\n\nContent.\n")
 
         results = render_templates(templates_dir, template_tree, DEFAULT_VARS, include_skills=["mthds-test"])
-        skill_names = {path.parent.name for path in results if path.parent.name != "shared"}
+        skill_names = {path.parent.name for path in results if path.parent.name not in ("shared", "hooks")}
         assert skill_names == {"mthds-test"}
 
     def test_template_vars_injected(self, template_tree: Path) -> None:

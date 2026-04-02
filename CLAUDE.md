@@ -16,7 +16,7 @@ templates/                     # SOURCE OF TRUTH — all .j2 templates live here
 ├── skills/
 │   ├── mthds-build/SKILL.md.j2   # Jinja2 template for each skill
 │   ├── mthds-check/SKILL.md.j2
-│   ├── ... (13 skills total)
+│   ├── ...
 │   └── shared/
 │       ├── frontmatter.md.j2      # Common YAML frontmatter (included by templates)
 │       ├── preamble.md.j2         # Step 0 environment check (included by templates)
@@ -32,7 +32,7 @@ skills/                        # GENERATED OUTPUT — never edit directly
 ├── mthds-build/
 │   ├── SKILL.md               # Generated from templates/skills/mthds-build/SKILL.md.j2
 │   └── references/            # Static skill-specific refs (not generated)
-├── ... (13 skills)
+├── ...
 └── shared/                    # Generated from templates/skills/shared/*.j2
 hooks/                         # GENERATED OUTPUT — never edit directly
 ├── hooks.json                 # Generated from templates/hooks/hooks.json.j2

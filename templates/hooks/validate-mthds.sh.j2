@@ -19,7 +19,8 @@ fi
 
 # --- Require plxt and mthds-agent on PATH ---
 MISSING=""
-command -v plxt &>/dev/null || MISSING="plxt (install via: {{ plxt_install_cmd }})"
+command -v jq &>/dev/null || MISSING="jq (install via your package manager)"
+command -v plxt &>/dev/null || MISSING="${MISSING:+$MISSING, }plxt (install via: {{ plxt_install_cmd }})"
 command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: {{ mthds_install_cmd }})"
 if [[ -n "$MISSING" ]]; then
   jq -n --arg reason "Missing required CLI tool(s): $MISSING" \
@@ -51,7 +52,12 @@ fi
 # =====================================================================
 # STAGE 2: plxt fmt — auto-format the file in-place (lint passed)
 # =====================================================================
-plxt fmt "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || true
+FMT_EXIT=0
+plxt fmt "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || FMT_EXIT=$?
+if [[ "$FMT_EXIT" -ne 0 ]]; then
+  FMT_ERR=$(cat "$TMPERR")
+  echo "[mthds-hook] Warning: plxt fmt failed (exit $FMT_EXIT): ${FMT_ERR:-no output}" >&2
+fi
 
 # =====================================================================
 # STAGE 3: mthds-agent validate bundle — semantic validation
@@ -69,8 +75,10 @@ fi
 # Error path: parse the stderr JSON
 ERR_JSON=$(cat "$TMPERR")
 
-# Check if we got valid JSON; if not, pass silently (unexpected output)
+# Check if we got valid JSON with .error key; warn if not (don't block — may be version mismatch)
 if ! echo "$ERR_JSON" | jq -e '.error' &>/dev/null; then
+  echo "[mthds-hook] Warning: mthds-agent validate exited with code $EXIT_CODE but produced unexpected output:" >&2
+  echo "$ERR_JSON" >&2
   exit 0
 fi
 
@@ -79,7 +87,7 @@ ERROR_TYPE=$(echo "$ERR_JSON" | jq -r '.error_type // empty')
 MESSAGE=$(echo "$ERR_JSON" | jq -r '.message // empty')
 HINT=$(echo "$ERR_JSON" | jq -r '.hint // empty')
 HAS_VALIDATION_ERRORS=$(echo "$ERR_JSON" | jq 'has("validation_errors") and (.validation_errors | length > 0)')
-HAS_DRY_RUN_ERROR=$(echo "$ERR_JSON" | jq 'has("dry_run_error")')
+HAS_DRY_RUN_ERROR=$(echo "$ERR_JSON" | jq 'has("dry_run_error") and (.dry_run_error != null)')
 
 # --- Decision logic ---
 

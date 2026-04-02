@@ -10,20 +10,17 @@ import tomllib
 from pathlib import Path
 from typing import Any, cast
 
-# Template source files that must exist in templates/skills/shared/.
-# All shared files are now .j2 templates rendered by the build system.
-SHARED_TEMPLATE_FILES = [
-    "error-handling.md.j2",
-    "frontmatter.md.j2",
-    "mthds-agent-guide.md.j2",
-    "mthds-reference.md.j2",
-    "native-content-types.md.j2",
-    "preamble.md.j2",
-    "upgrade-flow.md.j2",
-]
+# Derive the shared template file list from gen_skill_docs.py (single source of truth).
+# SHARED_TEMPLATES contains full relative paths like "skills/shared/error-handling.md.j2".
+# We extract just the filenames for the existence check.
+from scripts.gen_skill_docs import SHARED_TEMPLATES
+
+SHARED_TEMPLATE_FILES = [Path(template_path).name for template_path in SHARED_TEMPLATES]
 
 # Stale reference patterns — shared file stems that should use ../shared/ not references/
-STALE_REF_PATTERN = re.compile(r"references/(?:error-handling|mthds-agent-guide|mthds-reference|native-content-types|preamble|upgrade-flow)")
+STALE_REF_PATTERN = re.compile(
+    r"references/(?:error-handling|frontmatter|mthds-agent-guide|mthds-reference|native-content-types|preamble|upgrade-flow)"
+)
 
 # Frontmatter extraction: min_mthds_version value between --- delimiters
 FRONTMATTER_VERSION_PATTERN = re.compile(r"^min_mthds_version:\s*(.+)$", re.MULTILINE)
@@ -154,8 +151,9 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
         # Also verify plugin name matches
         try:
             actual_name = _read_json_string(plugin_json_path, "name")
-        except ValueError:
-            actual_name = ""
+        except ValueError as exc:
+            errors.append(f"[{target_name}] Cannot read plugin name: {exc}")
+            continue
         if actual_name != plugin_name:
             errors.append(f"[{target_name}] plugin.json name is '{actual_name}', targets/{target_name}.toml has '{plugin_name}'")
 
@@ -180,6 +178,9 @@ def check_marketplace_plugins(base_dir: Path) -> list[str]:
     config_names = {config.get("plugin", {}).get("name", name) for name, config in configs.items()}
 
     errors: list[str] = []
+    for idx, plugin in enumerate(plugins):
+        if "name" not in plugin:
+            errors.append(f"marketplace.json plugins[{idx}] is missing 'name' key")
     for name in config_names - marketplace_names:
         errors.append(f"Target plugin '{name}' missing from marketplace.json plugins array")
     for name in marketplace_names - config_names:
@@ -229,12 +230,16 @@ def check_shared_files_exist(base_dir: Path) -> list[str]:
 def check_no_templates_in_output(base_dir: Path) -> list[str]:
     """Check: No .j2 files should exist in skills/ or hooks/ (they belong in templates/)."""
     errors: list[str] = []
-    for j2_file in sorted((base_dir / "skills").rglob("*.j2")):
-        rel = j2_file.relative_to(base_dir)
-        errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
-    for j2_file in sorted((base_dir / "hooks").rglob("*.j2")):
-        rel = j2_file.relative_to(base_dir)
-        errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
+    skills_dir = base_dir / "skills"
+    if skills_dir.is_dir():
+        for j2_file in sorted(skills_dir.rglob("*.j2")):
+            rel = j2_file.relative_to(base_dir)
+            errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
+    hooks_dir = base_dir / "hooks"
+    if hooks_dir.is_dir():
+        for j2_file in sorted(hooks_dir.rglob("*.j2")):
+            rel = j2_file.relative_to(base_dir)
+            errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
     return errors
 
 
