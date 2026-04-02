@@ -1,0 +1,31 @@
+templates/hooks/validate-mthds.sh.j2
+  ad94b6167c1a56c0 7-8,15-16,18,23-31,33,45,64-65,92,95-147
+CLAUDE.md
+  ad94b6167c1a56c0 100
+tests/unit/test_hook_json_logic.py
+  ad94b6167c1a56c0 1-217
+README.md
+  ad94b6167c1a56c0 52
+tests/integration/test_hook_validate_mthds.py
+  ad94b6167c1a56c0 1-274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "df4e66a1a50dce2e9cccd175df14f6b636e0379b",
+  "prompts": {
+    "ad94b6167c1a56c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0655b5ff-f101-4e9d-9616-18e686b20125",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 556,
+      "total_deletions": 79,
+      "accepted_lines": 566,
+      "overriden_lines": 0
+    }
+  }
+}
