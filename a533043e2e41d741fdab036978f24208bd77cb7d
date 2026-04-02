@@ -1,0 +1,27 @@
+scripts/gen_skill_docs.py
+  1c92d0882d6f89ea 44
+tests/unit/test_check.py
+  1c92d0882d6f89ea 83,268
+tests/unit/test_gen_skill_docs.py
+  1c92d0882d6f89ea 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "a533043e2e41d741fdab036978f24208bd77cb7d",
+  "prompts": {
+    "1c92d0882d6f89ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1645ebe0-c0d4-40ad-bbf2-ce36b3850d50",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 1,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
