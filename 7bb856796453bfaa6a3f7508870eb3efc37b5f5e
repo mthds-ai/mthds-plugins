@@ -1,0 +1,43 @@
+scripts/check.py
+  2168ac813af16d10 2,9,13-15,18,40-41,44,62,67-151,153-159,161-188,209,212,215,220,230,259-260,262,265,270-279,283,286,321,324,327
+.claude-plugin/marketplace.json
+  2168ac813af16d10 9,16-20
+targets/prod.toml
+  2168ac813af16d10 1-12
+scripts/gen_skill_docs.py
+  2168ac813af16d10 2,8-11,13-17,22-23,25-26,31-32,34-36,39-49,51-54,57-69,71-86,88-90,92-99,101-128,130-131,133-137,140-143,147-150,164,166-167,169-170,172-173,177,194-195,197-205,208-214,217-218,220-339,345-347,350-379,381-382,384,387-388,394-414
+.claude-plugin/plugin.json
+  2168ac813af16d10 4
+Makefile
+  2168ac813af16d10 4-5,105,112,160-161,163-165
+tests/unit/test_gen_skill_docs.py
+  2168ac813af16d10 11,16,21,27-31,39-42,47-53,57,62,76,87,93,102-104,113,119-140,145,154-158,164-165,169,172,176,181,185
+targets/defaults.toml
+  2168ac813af16d10 1-6
+targets/dev.toml
+  2168ac813af16d10 1-12
+skills/shared/preamble.md
+  2168ac813af16d10 4
+tests/unit/test_check.py
+  2168ac813af16d10 11,15-16,23-49,51-57,60-61,65-66,71,74,81-84,88-156,159-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "7bb856796453bfaa6a3f7508870eb3efc37b5f5e",
+  "prompts": {
+    "2168ac813af16d10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34c9fca4-fcca-40ef-b3ff-549defba0725",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 820,
+      "total_deletions": 310,
+      "accepted_lines": 748,
+      "overriden_lines": 3
+    }
+  }
+}
