@@ -269,26 +269,26 @@ class TestSharedFilesExist:
 
 class TestFrontmatterVersions:
     def test_matching_version(self, skill_tree: Path) -> None:
-        assert check_frontmatter_versions(skill_tree, CANONICAL) == []
+        assert check_frontmatter_versions(skill_tree, CANONICAL, "prod") == []
 
     def test_mismatched_version(self, skill_tree: Path) -> None:
         skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text(VALID_FRONTMATTER.replace(CANONICAL, "0.0.1"))
-        errors = check_frontmatter_versions(skill_tree, CANONICAL)
+        errors = check_frontmatter_versions(skill_tree, CANONICAL, "prod")
         assert len(errors) == 1
         assert "0.0.1" in errors[0]
 
     def test_missing_version_key(self, skill_tree: Path) -> None:
         skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text("---\nname: test\ndescription: test\n---\n\n# Test\n")
-        errors = check_frontmatter_versions(skill_tree, CANONICAL)
+        errors = check_frontmatter_versions(skill_tree, CANONICAL, "prod")
         assert len(errors) == 1
         assert "no min_mthds_version" in errors[0]
 
     def test_no_frontmatter(self, skill_tree: Path) -> None:
         skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
         skill_md.write_text("# Just a heading\n")
-        errors = check_frontmatter_versions(skill_tree, CANONICAL)
+        errors = check_frontmatter_versions(skill_tree, CANONICAL, "prod")
         assert len(errors) == 1
         assert "no frontmatter" in errors[0]
 
@@ -297,7 +297,7 @@ class TestFrontmatterVersions:
         bad_dir = skill_tree / "mthds" / "skills" / "mthds-bad"
         bad_dir.mkdir()
         (bad_dir / "SKILL.md").write_text(VALID_FRONTMATTER.replace(CANONICAL, "0.0.5"))
-        errors = check_frontmatter_versions(skill_tree, CANONICAL)
+        errors = check_frontmatter_versions(skill_tree, CANONICAL, "prod")
         assert len(errors) == 1
 
 

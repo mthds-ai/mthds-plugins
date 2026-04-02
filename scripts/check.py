@@ -272,33 +272,47 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
     return errors
 
 
-def check_frontmatter_versions(base_dir: Path, canonical: str) -> list[str]:
-    """Check: All SKILL.md frontmatter min_mthds_version must match canonical.
+def _resolve_target_output_dir(base_dir: Path, target_name: str) -> Path:
+    """Resolve the output directory for a specific target."""
+    configs = load_target_configs(base_dir)
+    if target_name not in configs:
+        msg = f"Target '{target_name}' not found in targets/"
+        raise ValueError(msg)
+    source: str = configs[target_name].get("plugin", {}).get("source", "./")
+    if source == "./":
+        return base_dir
+    return base_dir / source.rstrip("/")
 
-    Scans all target output directories for SKILL.md files.
+
+def check_frontmatter_versions(base_dir: Path, canonical: str, target_name: str) -> list[str]:
+    """Check: SKILL.md frontmatter min_mthds_version must match canonical.
+
+    Scans only the specified target's output directory for SKILL.md files.
+    Dev targets may intentionally override min_mthds_version, so only prod
+    is validated by default.
     """
     errors: list[str] = []
+    output_dir = _resolve_target_output_dir(base_dir, target_name)
 
-    for output_dir in _collect_output_dirs(base_dir):
-        for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
-            text = skill_md.read_text(encoding="utf-8")
-            rel = skill_md.relative_to(base_dir)
+    for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
+        text = skill_md.read_text(encoding="utf-8")
+        rel = skill_md.relative_to(base_dir)
 
-            # Extract frontmatter (between first two --- lines)
-            parts = text.split("---", 2)
-            if len(parts) < 3:
-                errors.append(f"{rel}: no frontmatter found")
-                continue
+        # Extract frontmatter (between first two --- lines)
+        parts = text.split("---", 2)
+        if len(parts) < 3:
+            errors.append(f"{rel}: no frontmatter found")
+            continue
 
-            frontmatter = parts[1]
-            match = FRONTMATTER_VERSION_PATTERN.search(frontmatter)
-            if not match:
-                errors.append(f"{rel}: no min_mthds_version in frontmatter")
-                continue
+        frontmatter = parts[1]
+        match = FRONTMATTER_VERSION_PATTERN.search(frontmatter)
+        if not match:
+            errors.append(f"{rel}: no min_mthds_version in frontmatter")
+            continue
 
-            version = match.group(1).strip()
-            if version != canonical:
-                errors.append(f"{rel}: has {version}, expected {canonical}")
+        version = match.group(1).strip()
+        if version != canonical:
+            errors.append(f"{rel}: has {version}, expected {canonical}")
 
     return errors
 
@@ -389,7 +403,7 @@ def main() -> int:
         print("FAIL: Cannot determine canonical min_mthds_version.")
         return 1
 
-    errors = check_frontmatter_versions(base_dir, canonical)
+    errors = check_frontmatter_versions(base_dir, canonical, "prod")
     if errors:
         for error in errors:
             print(f"  MISMATCH: {error}")

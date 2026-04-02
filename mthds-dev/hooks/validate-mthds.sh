@@ -14,7 +14,7 @@ INPUT=$(cat)
 
 # --- Require Node.js for JSON parsing (guaranteed by mthds-agent dependency) ---
 if ! command -v node &>/dev/null; then
-  if [[ "$INPUT" == *".mthds"* ]]; then
+  if [[ "$INPUT" =~ \"file_path\"[[:space:]]*:[[:space:]]*\"[^\"]*\.mthds\" ]]; then
     printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
   fi
   exit 0
