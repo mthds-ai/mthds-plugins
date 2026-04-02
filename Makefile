@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
+TARGET ?= prod
+
 VIRTUAL_ENV := $(CURDIR)/.venv
 VENV_PYTHON := "$(VIRTUAL_ENV)/bin/python"
 VENV_PYTEST := "$(VIRTUAL_ENV)/bin/pytest"
@@ -100,14 +102,14 @@ fui: fix-unused-imports ## Shorthand -> fix-unused-imports
 
 check: install ## Verify shared refs + version consistency + template freshness + format + lint + typecheck
 	@python3 scripts/check.py
-	@$(VENV_PYTHON) scripts/gen_skill_docs.py --check
+	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
 	@$(VENV_RUFF) format --check .
 	@$(VENV_RUFF) check .
 	@$(MAKE) --no-print-directory pyright mypy
 
 agent-check: fix-unused-imports format lint ## Full quality check (for AI agents)
 	@python3 scripts/check.py
-	@$(VENV_PYTHON) scripts/gen_skill_docs.py --check
+	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
 	@$(VENV_RUFF) format --check .
 	@$(VENV_RUFF) check .
 	@$(MAKE) --no-print-directory pyright mypy
@@ -155,8 +157,9 @@ help: ## Show this help
 ### BUILD
 ##########################################################################################
 
-gen-skill-docs: install ## Generate SKILL.md from .j2 templates
-	@$(VENV_PYTHON) scripts/gen_skill_docs.py
+gen-skill-docs: install ## Generate SKILL.md from .j2 templates (use TARGET=name to build one target)
+	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target $(TARGET)
 
-build: gen-skill-docs
-	@echo "Done: built all skill docs from templates"
+build: install ## Build all targets (prod + dev)
+	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all
+	@echo "Done: built all targets"

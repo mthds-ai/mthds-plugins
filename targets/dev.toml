@@ -1,0 +1,12 @@
+[plugin]
+name = "mthds-dev"
+version = "0.1.0"
+description = "Development build of MTHDS skills — for iteration and testing."
+source = "mthds-dev/"
+
+[vars]
+# Inherits all defaults from defaults.toml.
+# Override any variable here to change it for this target only.
+
+# [skills]
+# include = ["mthds-build", "mthds-check"]  # build only a subset

@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
-"""Validate shared references, shared files, and version consistency across skills."""
+"""Validate shared references, shared files, and version consistency across skills and targets."""
 
 from __future__ import annotations
 
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any, cast
 
-# Shared files that must exist in skills/shared/
+# Shared files that must exist in skills/shared/ (source of truth).
+# Note: mthds-agent-guide.md is generated from .j2, so it may not exist
+# until after a build. We check the .j2 source instead.
 SHARED_FILES = [
     "error-handling.md",
-    "mthds-agent-guide.md",
+    "mthds-agent-guide.md.j2",
     "mthds-reference.md",
     "native-content-types.md",
     "preamble.md",
     "upgrade-flow.md",
 ]
 
-# Pattern that extracts the canonical version from mthds-agent-guide.md
-CANONICAL_VERSION_PATTERN = re.compile(r"mthds-agent >= (\d+\.\d+\.\d+)")
-
 # Stale reference patterns — shared file stems that should use ../shared/ not references/
 STALE_REF_PATTERN = re.compile(r"references/(?:error-handling|mthds-agent-guide|mthds-reference|native-content-types|preamble|upgrade-flow)")
 
 # Frontmatter extraction: min_mthds_version value between --- delimiters
 FRONTMATTER_VERSION_PATTERN = re.compile(r"^min_mthds_version:\s*(.+)$", re.MULTILINE)
-
-SEMVER_PATTERN = re.compile(r"\d+\.\d+\.\d+")
 
 # Stale install patterns — toolchain install instructions that should have been replaced
 # by mthds-agent-based install commands. Excludes legitimate Python library deps
@@ -39,29 +37,11 @@ STALE_INSTALL_PATTERNS = [
     re.compile(r"curl.*install\.sh"),
 ]
 
-
-def check_plugin_version_sync(base_dir: Path) -> tuple[list[str], str, str]:
-    """Check that plugin.json and marketplace.json have the same version.
-
-    Returns:
-        A tuple of (errors, plugin_version, marketplace_version).
-
-    Raises:
-        ValueError: If either file is missing, malformed, or lacks the expected key.
-    """
-    plugin_path = base_dir / ".claude-plugin" / "plugin.json"
-    marketplace_path = base_dir / ".claude-plugin" / "marketplace.json"
-
-    plugin_version = _read_json_version(plugin_path, "version")
-    marketplace_version = _read_json_version(marketplace_path, "metadata", "version")
-
-    errors: list[str] = []
-    if plugin_version != marketplace_version:
-        errors.append(f"plugin.json has {plugin_version}, marketplace.json has {marketplace_version}")
-    return errors, plugin_version, marketplace_version
+TARGETS_DIR_NAME = "targets"
+DEFAULTS_FILE = "defaults.toml"
 
 
-def _read_json_version(path: Path, *keys: str) -> str:
+def _read_json_string(path: Path, *keys: str) -> str:
     """Read a nested key from a JSON file, raising ValueError on any problem."""
     rel = path.name
     if not path.is_file():
@@ -79,9 +59,133 @@ def _read_json_version(path: Path, *keys: str) -> str:
             raise ValueError(msg)
         value = cast(dict[str, Any], value)[key]
     if not isinstance(value, str):
-        msg = f"{rel} version is not a string"
+        msg = f"{rel} key '{'.'.join(keys)}' is not a string"
         raise ValueError(msg)
     return value
+
+
+def load_target_configs(base_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load all target configs from targets/ directory.
+
+    Returns a dict mapping target name to its parsed TOML content.
+    """
+    targets_dir = base_dir / TARGETS_DIR_NAME
+    if not targets_dir.is_dir():
+        msg = f"Targets directory not found: {targets_dir}"
+        raise ValueError(msg)
+
+    configs: dict[str, dict[str, Any]] = {}
+    for toml_path in sorted(targets_dir.glob("*.toml")):
+        if toml_path.name == DEFAULTS_FILE:
+            continue
+        raw = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+        configs[toml_path.stem] = raw
+    return configs
+
+
+def load_defaults_vars(base_dir: Path) -> dict[str, str]:
+    """Load default template variables from defaults.toml."""
+    defaults_path = base_dir / TARGETS_DIR_NAME / DEFAULTS_FILE
+    if not defaults_path.is_file():
+        msg = f"Defaults file not found: {defaults_path}"
+        raise ValueError(msg)
+    raw = tomllib.loads(defaults_path.read_text(encoding="utf-8"))
+    defaults: dict[str, str] = {}
+    if "vars" in raw:
+        for key, value in raw["vars"].items():
+            defaults[key] = str(value)
+    return defaults
+
+
+def resolve_target_var(base_dir: Path, target_name: str, var_name: str) -> str:
+    """Resolve a template variable for a target (target override > default)."""
+    defaults = load_defaults_vars(base_dir)
+    configs = load_target_configs(base_dir)
+    if target_name not in configs:
+        msg = f"Target '{target_name}' not found in targets/"
+        raise ValueError(msg)
+    target_vars = configs[target_name].get("vars", {})
+    value = target_vars.get(var_name, defaults.get(var_name))
+    if value is None:
+        msg = f"Variable '{var_name}' not defined for target '{target_name}'"
+        raise ValueError(msg)
+    return str(value)
+
+
+def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, str]]:
+    """Check that each target's plugin.json version matches its target config.
+
+    For root targets (source="./"): checks .claude-plugin/plugin.json.
+    For non-root targets: checks <source>/.claude-plugin/plugin.json.
+
+    Returns:
+        A tuple of (errors, {target_name: version}).
+    """
+    configs = load_target_configs(base_dir)
+    errors: list[str] = []
+    versions: dict[str, str] = {}
+
+    for target_name, config in configs.items():
+        plugin_section = config.get("plugin", {})
+        config_version = plugin_section.get("version", "")
+        source = plugin_section.get("source", "./")
+        plugin_name = plugin_section.get("name", target_name)
+
+        if source == "./":
+            plugin_json_path = base_dir / ".claude-plugin" / "plugin.json"
+        else:
+            plugin_json_path = base_dir / source.rstrip("/") / ".claude-plugin" / "plugin.json"
+
+        if not plugin_json_path.is_file():
+            errors.append(f"[{target_name}] plugin.json not found at {plugin_json_path.relative_to(base_dir)}")
+            continue
+
+        try:
+            actual_version = _read_json_string(plugin_json_path, "version")
+        except ValueError as exc:
+            errors.append(f"[{target_name}] {exc}")
+            continue
+
+        versions[target_name] = actual_version
+
+        if actual_version != config_version:
+            errors.append(f"[{target_name}] plugin.json has {actual_version}, targets/{target_name}.toml has {config_version}")
+
+        # Also verify plugin name matches
+        try:
+            actual_name = _read_json_string(plugin_json_path, "name")
+        except ValueError:
+            actual_name = ""
+        if actual_name != plugin_name:
+            errors.append(f"[{target_name}] plugin.json name is '{actual_name}', targets/{target_name}.toml has '{plugin_name}'")
+
+    return errors, versions
+
+
+def check_marketplace_plugins(base_dir: Path) -> list[str]:
+    """Check that marketplace.json plugins array matches target configs."""
+    marketplace_path = base_dir / ".claude-plugin" / "marketplace.json"
+    if not marketplace_path.is_file():
+        return ["marketplace.json not found"]
+
+    try:
+        raw = json.loads(marketplace_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return ["marketplace.json is not valid JSON"]
+
+    plugins = raw.get("plugins", [])
+    marketplace_names = {plugin["name"] for plugin in plugins if "name" in plugin}
+
+    configs = load_target_configs(base_dir)
+    config_names = {config.get("plugin", {}).get("name", name) for name, config in configs.items()}
+
+    errors: list[str] = []
+    for name in config_names - marketplace_names:
+        errors.append(f"Target plugin '{name}' missing from marketplace.json plugins array")
+    for name in marketplace_names - config_names:
+        errors.append(f"marketplace.json lists plugin '{name}' with no matching target config")
+
+    return errors
 
 
 def check_stale_install_references(base_dir: Path) -> list[str]:
@@ -102,18 +206,18 @@ def check_stale_install_references(base_dir: Path) -> list[str]:
 
 
 def check_stale_references(base_dir: Path) -> list[str]:
-    """Check 1: No SKILL.md files should reference shared files via references/ paths."""
+    """Check: No SKILL.md files should reference shared files via references/ paths."""
     errors: list[str] = []
     for skill_md in sorted(base_dir.glob("skills/*/SKILL.md")):
-        for i, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
+        for idx, line in enumerate(skill_md.read_text(encoding="utf-8").splitlines(), start=1):
             if STALE_REF_PATTERN.search(line):
                 rel = skill_md.relative_to(base_dir)
-                errors.append(f"{rel}:{i}: stale references/ path (should use ../shared/)")
+                errors.append(f"{rel}:{idx}: stale references/ path (should use ../shared/)")
     return errors
 
 
 def check_shared_files_exist(base_dir: Path) -> list[str]:
-    """Check 2: All expected shared files must be present."""
+    """Check: All expected shared files must be present."""
     shared_dir = base_dir / "skills" / "shared"
     errors: list[str] = []
     for name in SHARED_FILES:
@@ -122,40 +226,8 @@ def check_shared_files_exist(base_dir: Path) -> list[str]:
     return errors
 
 
-def get_canonical_version(base_dir: Path) -> str:
-    """Extract the canonical mthds-agent version from mthds-agent-guide.md.
-
-    The canonical version comes from the first 'mthds-agent >= X.Y.Z' match.
-    Also validates that all semver strings on line 3 match the canonical version.
-    """
-    guide = base_dir / "skills" / "shared" / "mthds-agent-guide.md"
-    if not guide.is_file():
-        raise ValueError(f"File not found: {guide.relative_to(base_dir)}")
-    text = guide.read_text(encoding="utf-8")
-
-    match = CANONICAL_VERSION_PATTERN.search(text)
-    if not match:
-        raise ValueError(f"Cannot extract canonical version from {guide.relative_to(base_dir)}")
-
-    canonical = match.group(1)
-
-    # Validate line 3 consistency (all semver strings on that line must match)
-    lines = text.splitlines()
-    if len(lines) < 3:
-        raise ValueError(f"{guide.relative_to(base_dir)} has only {len(lines)} line(s), expected at least 3")
-
-    line3_versions = SEMVER_PATTERN.findall(lines[2])
-    if not line3_versions:
-        raise ValueError(f"Cannot extract version(s) from line 3 of {guide.relative_to(base_dir)}")
-    for v in line3_versions:
-        if v != canonical:
-            raise ValueError(f"{guide.relative_to(base_dir)} line 3 has {v}, expected {canonical}")
-
-    return canonical
-
-
 def check_frontmatter_versions(base_dir: Path, canonical: str) -> list[str]:
-    """Check 3: All SKILL.md frontmatter min_mthds_version must match canonical."""
+    """Check: All SKILL.md frontmatter min_mthds_version must match canonical."""
     errors: list[str] = []
     for skill_md in sorted(base_dir.glob("skills/*/SKILL.md")):
         text = skill_md.read_text(encoding="utf-8")
@@ -184,22 +256,34 @@ def main() -> int:
     base_dir = Path(__file__).resolve().parent.parent
     failed = False
 
-    # Check 0: plugin.json and marketplace.json version sync
-    print("Checking plugin version sync...")
+    # Check 0: Target plugin versions (each target's plugin.json matches its config)
+    print("Checking target plugin versions...")
     try:
-        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(base_dir)
+        errors, versions = check_target_plugin_versions(base_dir)
     except ValueError as exc:
         print(f"  {exc}")
-        print("FAIL: Cannot read plugin version files.")
+        print("FAIL: Cannot read target configs.")
         return 1
     if errors:
         for error in errors:
             print(f"  MISMATCH: {error}")
-        print("FAIL: plugin.json and marketplace.json versions are out of sync.")
+        print("FAIL: Target plugin versions are inconsistent.")
         failed = True
     else:
-        print(f"  plugin.json: {plugin_ver}, marketplace.json: {marketplace_ver}")
-        print("  Versions in sync.")
+        for target_name, version in versions.items():
+            print(f"  [{target_name}] version: {version}")
+        print("  All target plugin versions consistent.")
+
+    # Check 0b: Marketplace plugins match target configs
+    print("Checking marketplace plugin entries...")
+    errors = check_marketplace_plugins(base_dir)
+    if errors:
+        for error in errors:
+            print(f"  MISMATCH: {error}")
+        print("FAIL: marketplace.json plugins are inconsistent with target configs.")
+        failed = True
+    else:
+        print("  Marketplace plugins match target configs.")
 
     # Check 1a: stale install references (pip install pipelex, curl install.sh)
     print("Checking for stale install references in SKILL.md files...")
@@ -234,13 +318,13 @@ def main() -> int:
     else:
         print("  All shared files present.")
 
-    # Check 3: frontmatter version consistency
+    # Check 3: frontmatter version consistency (per-target)
     print("Checking min_mthds_version consistency...")
     try:
-        canonical = get_canonical_version(base_dir)
+        canonical = resolve_target_var(base_dir, "prod", "min_mthds_version")
     except ValueError as exc:
         print(f"  {exc}")
-        print("FAIL: Cannot determine canonical version.")
+        print("FAIL: Cannot determine canonical min_mthds_version.")
         return 1
 
     errors = check_frontmatter_versions(base_dir, canonical)

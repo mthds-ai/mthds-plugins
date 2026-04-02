@@ -1,0 +1,6 @@
+# Default template variables shared by all build targets.
+# Per-target .toml files can override any variable defined here.
+
+[vars]
+min_mthds_version = "0.3.3"
+marketplace_name = "mthds-plugins"

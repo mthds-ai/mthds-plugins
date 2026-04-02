@@ -8,51 +8,171 @@ import pytest
 
 from scripts.check import (
     check_frontmatter_versions,
-    check_plugin_version_sync,
+    check_marketplace_plugins,
     check_shared_files_exist,
     check_stale_install_references,
     check_stale_references,
-    get_canonical_version,
+    check_target_plugin_versions,
+    resolve_target_var,
 )
 
 CANONICAL = "0.3.3"
 
-GUIDE_CONTENT = (
-    "# MTHDS Agent Guide\n"
-    "\n"
-    f"All skills in this plugin require `mthds-agent >= {CANONICAL}`. "
-    "The Step 0 CLI Check in each skill enforces this — "
-    "parse the output of `mthds-agent --version` and block execution "
-    f"if the version is below `{CANONICAL}`.\n"
-)
-
 VALID_FRONTMATTER = f"---\nname: mthds-test\nmin_mthds_version: {CANONICAL}\ndescription: Test skill\n---\n\n# Test Skill\n"
 
-PLUGIN_JSON_TEMPLATE = '{{\n  "name": "mthds",\n  "version": "{version}"\n}}'
-MARKETPLACE_JSON_TEMPLATE = '{{\n  "name": "mthds-plugins",\n  "metadata": {{\n    "version": "{version}"\n  }}\n}}'
+PLUGIN_JSON_TEMPLATE = '{{\n  "name": "{name}",\n  "version": "{version}"\n}}'
+MARKETPLACE_JSON_TEMPLATE = """\
+{{
+  "name": "mthds-plugins",
+  "metadata": {{
+    "version": "{version}"
+  }},
+  "plugins": {plugins_json}
+}}"""
 
 
-def _write_plugin_files(base: Path, plugin_version: str, marketplace_version: str) -> None:
+def _write_target_configs(
+    base: Path,
+    targets: dict[str, dict[str, str]],
+    defaults_vars: dict[str, str] | None = None,
+) -> None:
+    """Write targets/ directory with defaults and per-target configs."""
+    targets_dir = base / "targets"
+    targets_dir.mkdir(parents=True, exist_ok=True)
+
+    if defaults_vars is None:
+        defaults_vars = {"min_mthds_version": CANONICAL, "marketplace_name": "mthds-plugins"}
+    vars_lines = "\n".join(f'{key} = "{value}"' for key, value in defaults_vars.items())
+    (targets_dir / "defaults.toml").write_text(f"[vars]\n{vars_lines}\n")
+
+    for target_name, target_info in targets.items():
+        (targets_dir / f"{target_name}.toml").write_text(
+            f'[plugin]\nname = "{target_info["name"]}"\nversion = "{target_info["version"]}"\nsource = "{target_info.get("source", "./")}"\n'
+        )
+
+
+def _write_plugin_json(base: Path, name: str, version: str, subdir: str = ".") -> None:
+    plugin_dir = base / subdir / ".claude-plugin"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "plugin.json").write_text(PLUGIN_JSON_TEMPLATE.format(name=name, version=version))
+
+
+def _write_marketplace_json(base: Path, version: str, plugins: list[dict[str, str]]) -> None:
+    import json
+
     plugin_dir = base / ".claude-plugin"
     plugin_dir.mkdir(parents=True, exist_ok=True)
-    (plugin_dir / "plugin.json").write_text(PLUGIN_JSON_TEMPLATE.format(version=plugin_version))
-    (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version=marketplace_version))
+    plugins_json = json.dumps(plugins)
+    (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version=version, plugins_json=plugins_json))
 
 
 @pytest.fixture()
 def skill_tree(tmp_path: Path) -> Path:
-    """Create a minimal valid skill directory structure."""
+    """Create a minimal valid skill directory structure with target configs."""
     shared = tmp_path / "skills" / "shared"
     shared.mkdir(parents=True)
-    for name in ["error-handling.md", "mthds-agent-guide.md", "mthds-reference.md", "native-content-types.md", "preamble.md", "upgrade-flow.md"]:
+    for name in ["error-handling.md", "mthds-agent-guide.md.j2", "mthds-reference.md", "native-content-types.md", "preamble.md", "upgrade-flow.md"]:
         (shared / name).write_text("# placeholder\n")
-    (shared / "mthds-agent-guide.md").write_text(GUIDE_CONTENT)
 
     skill_dir = tmp_path / "skills" / "mthds-test"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text(VALID_FRONTMATTER)
 
+    _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3"}})
+    _write_plugin_json(tmp_path, "mthds", "0.6.3")
+    _write_marketplace_json(tmp_path, "0.6.3", [{"name": "mthds", "source": "./"}])
+
     return tmp_path
+
+
+class TestTargetPluginVersions:
+    def test_versions_consistent(self, skill_tree: Path) -> None:
+        errors, versions = check_target_plugin_versions(skill_tree)
+        assert errors == []
+        assert versions == {"prod": "0.6.3"}
+
+    def test_version_mismatch(self, skill_tree: Path) -> None:
+        _write_plugin_json(skill_tree, "mthds", "0.6.0")
+        errors, _versions = check_target_plugin_versions(skill_tree)
+        assert len(errors) == 1
+        assert "0.6.0" in errors[0]
+        assert "0.6.3" in errors[0]
+
+    def test_name_mismatch(self, skill_tree: Path) -> None:
+        _write_plugin_json(skill_tree, "wrong-name", "0.6.3")
+        errors, _versions = check_target_plugin_versions(skill_tree)
+        assert len(errors) == 1
+        assert "wrong-name" in errors[0]
+
+    def test_missing_plugin_json(self, tmp_path: Path) -> None:
+        _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3"}})
+        errors, _versions = check_target_plugin_versions(tmp_path)
+        assert len(errors) == 1
+        assert "not found" in errors[0]
+
+    def test_multi_target(self, skill_tree: Path) -> None:
+        """Multiple targets with different versions."""
+        _write_target_configs(
+            skill_tree,
+            {
+                "prod": {"name": "mthds", "version": "0.6.3"},
+                "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
+            },
+        )
+        dev_dir = skill_tree / "mthds-dev"
+        dev_dir.mkdir()
+        _write_plugin_json(skill_tree, "mthds-dev", "0.1.0", "mthds-dev")
+        errors, versions = check_target_plugin_versions(skill_tree)
+        assert errors == []
+        assert versions == {"prod": "0.6.3", "dev": "0.1.0"}
+
+
+class TestMarketplacePlugins:
+    def test_matching(self, skill_tree: Path) -> None:
+        assert check_marketplace_plugins(skill_tree) == []
+
+    def test_missing_from_marketplace(self, skill_tree: Path) -> None:
+        _write_target_configs(
+            skill_tree,
+            {
+                "prod": {"name": "mthds", "version": "0.6.3"},
+                "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
+            },
+        )
+        errors = check_marketplace_plugins(skill_tree)
+        assert len(errors) == 1
+        assert "mthds-dev" in errors[0]
+        assert "missing from marketplace" in errors[0]
+
+    def test_extra_in_marketplace(self, skill_tree: Path) -> None:
+        _write_marketplace_json(
+            skill_tree,
+            "0.6.3",
+            [{"name": "mthds", "source": "./"}, {"name": "ghost-plugin", "source": "ghost/"}],
+        )
+        errors = check_marketplace_plugins(skill_tree)
+        assert len(errors) == 1
+        assert "ghost-plugin" in errors[0]
+        assert "no matching target" in errors[0]
+
+
+class TestResolveTargetVar:
+    def test_default_value(self, skill_tree: Path) -> None:
+        assert resolve_target_var(skill_tree, "prod", "min_mthds_version") == CANONICAL
+
+    def test_override_value(self, skill_tree: Path) -> None:
+        # Add an override in prod.toml
+        targets_dir = skill_tree / "targets"
+        (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "0.6.3"\nsource = "./"\n\n[vars]\nmin_mthds_version = "9.9.9"\n')
+        assert resolve_target_var(skill_tree, "prod", "min_mthds_version") == "9.9.9"
+
+    def test_missing_var(self, skill_tree: Path) -> None:
+        with pytest.raises(ValueError, match="not defined"):
+            resolve_target_var(skill_tree, "prod", "nonexistent_var")
+
+    def test_missing_target(self, skill_tree: Path) -> None:
+        with pytest.raises(ValueError, match="not found"):
+            resolve_target_var(skill_tree, "nonexistent", "min_mthds_version")
 
 
 class TestStaleInstallReferences:
@@ -132,29 +252,6 @@ class TestSharedFilesExist:
         assert len(errors) == 6
 
 
-class TestCanonicalVersion:
-    def test_extracts_version(self, skill_tree: Path) -> None:
-        assert get_canonical_version(skill_tree) == CANONICAL
-
-    def test_raises_on_missing_pattern(self, skill_tree: Path) -> None:
-        guide = skill_tree / "skills" / "shared" / "mthds-agent-guide.md"
-        guide.write_text("# No version here\n\nJust some text.\n")
-        with pytest.raises(ValueError, match="Cannot extract canonical version"):
-            get_canonical_version(skill_tree)
-
-    def test_raises_on_truncated_guide(self, skill_tree: Path) -> None:
-        guide = skill_tree / "skills" / "shared" / "mthds-agent-guide.md"
-        guide.write_text(f"# MTHDS Agent Guide\nRequires `mthds-agent >= {CANONICAL}`.\n")
-        with pytest.raises(ValueError, match="only 2 line"):
-            get_canonical_version(skill_tree)
-
-    def test_raises_on_line3_mismatch(self, skill_tree: Path) -> None:
-        guide = skill_tree / "skills" / "shared" / "mthds-agent-guide.md"
-        guide.write_text(f"# MTHDS Agent Guide\n\nRequires `mthds-agent >= {CANONICAL}`. Block if below `0.0.9`.\n")
-        with pytest.raises(ValueError, match=f"has 0.0.9, expected {CANONICAL}"):
-            get_canonical_version(skill_tree)
-
-
 class TestFrontmatterVersions:
     def test_matching_version(self, skill_tree: Path) -> None:
         assert check_frontmatter_versions(skill_tree, CANONICAL) == []
@@ -188,51 +285,3 @@ class TestFrontmatterVersions:
         errors = check_frontmatter_versions(skill_tree, CANONICAL)
         assert len(errors) == 1
         assert "mthds-bad" in errors[0]
-
-
-class TestPluginVersionSync:
-    def test_versions_in_sync(self, tmp_path: Path) -> None:
-        _write_plugin_files(tmp_path, "0.6.0", "0.6.0")
-        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(tmp_path)
-        assert errors == []
-        assert plugin_ver == "0.6.0"
-        assert marketplace_ver == "0.6.0"
-
-    def test_versions_out_of_sync(self, tmp_path: Path) -> None:
-        _write_plugin_files(tmp_path, "0.6.2", "0.6.0")
-        errors, plugin_ver, marketplace_ver = check_plugin_version_sync(tmp_path)
-        assert len(errors) == 1
-        assert "0.6.2" in errors[0]
-        assert "0.6.0" in errors[0]
-        assert plugin_ver == "0.6.2"
-        assert marketplace_ver == "0.6.0"
-
-    def test_missing_plugin_json(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / ".claude-plugin"
-        plugin_dir.mkdir(parents=True)
-        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
-        with pytest.raises(ValueError, match="plugin.json not found"):
-            check_plugin_version_sync(tmp_path)
-
-    def test_missing_marketplace_json(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / ".claude-plugin"
-        plugin_dir.mkdir(parents=True)
-        (plugin_dir / "plugin.json").write_text(PLUGIN_JSON_TEMPLATE.format(version="0.6.0"))
-        with pytest.raises(ValueError, match="marketplace.json not found"):
-            check_plugin_version_sync(tmp_path)
-
-    def test_malformed_json(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / ".claude-plugin"
-        plugin_dir.mkdir(parents=True)
-        (plugin_dir / "plugin.json").write_text("not json")
-        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
-        with pytest.raises(ValueError, match="not valid JSON"):
-            check_plugin_version_sync(tmp_path)
-
-    def test_missing_version_key(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / ".claude-plugin"
-        plugin_dir.mkdir(parents=True)
-        (plugin_dir / "plugin.json").write_text('{"name": "mthds"}')
-        (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version="0.6.0"))
-        with pytest.raises(ValueError, match="missing key"):
-            check_plugin_version_sync(tmp_path)

@@ -1,0 +1,1 @@
+../../../skills/shared/native-content-types.md
