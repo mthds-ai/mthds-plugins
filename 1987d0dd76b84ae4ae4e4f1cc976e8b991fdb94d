@@ -1,0 +1,47 @@
+CLAUDE.md
+  54135831772ead65 14-39,42-43,52,67,77-79,81,92
+scripts/check.py
+  54135831772ead65 13-17,19-22,220-221,223,225-237,322-323,328,331-339,342
+templates/skills/shared/preamble.md.j2
+  54135831772ead65 14,24,29
+templates/skills/shared/error-handling.md.j2
+  54135831772ead65 56
+templates/skills/shared/mthds-reference.md.j2
+  54135831772ead65 311,320
+tests/unit/test_gen_skill_docs.py
+  54135831772ead65 16-19,21,24,26,28-37,48-50,58-60,65-67,71-73,79-80,82,84,88-89,93,95-99,103-104,108,114-115,119-120,127-128,132,138-139,144-145,159
+templates/hooks/validate-mthds.sh.j2
+  54135831772ead65 22-23
+scripts/gen_skill_docs.py
+  54135831772ead65 33,35-54,159-160,166-169,171-172,174,179-180,184,188-189,193-194,196-197,199,205,215-219,248-249,252-253,255-259,265,270-271,283,289-290,295,300,303-307,343,345-347,389-390,392,394,398-406
+targets/dev.toml
+  54135831772ead65 9-15
+tests/unit/test_check.py
+  54135831772ead65 72-74,76-77,79-81,84-87,256,259,262,264
+docs/build-targets.md
+  54135831772ead65 8-11,14,17,19-28,31-33,35-36,47-54,69-72,91,105-110,114,139,154,158-165,170,172-173,175
+templates/skills/shared/upgrade-flow.md.j2
+  54135831772ead65 6,34,54-55
+targets/defaults.toml
+  54135831772ead65 7-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "1987d0dd76b84ae4ae4e4f1cc976e8b991fdb94d",
+  "prompts": {
+    "54135831772ead65": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7d9a3f6e-0dd2-485d-8d54-0ead96ad647d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 320,
+      "total_deletions": 209,
+      "accepted_lines": 319,
+      "overriden_lines": 1
+    }
+  }
+}
