@@ -39,6 +39,7 @@ def template_tree(tmp_path: Path) -> Path:
     (shared / "frontmatter.md.j2").write_text("min_mthds_version: {{ min_mthds_version }}\n")
     (shared / "mthds-reference.md.j2").write_text("# MTHDS Reference\n")
     (shared / "native-content-types.md.j2").write_text("# Native Content Types\n")
+    (shared / "python-execution.md.j2").write_text("# Python Execution Reference\n")
     (shared / "upgrade-flow.md.j2").write_text("# Upgrade Flow\n")
     # Hook templates must also exist
     hooks_tmpl = templates_dir / "hooks"

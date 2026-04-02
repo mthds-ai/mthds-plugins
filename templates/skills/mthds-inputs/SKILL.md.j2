@@ -381,9 +381,11 @@ Generate test documents based on the document type needed.
 ### PDF Documents
 
 > `reportlab` is a dependency of `pipelex` — always available, no additional installation needed.
+> For how to invoke Python, see [Python Execution Reference](../shared/python-execution.md).
 
 #### Basic PDF (Canvas API)
-```python
+```bash
+"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -399,10 +401,12 @@ c.line(100, height - 140, 400, height - 140)
 
 # Save
 c.save()
+PYEOF
 ```
 
 #### Multi-Page PDF (Platypus)
-```python
+```bash
+"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
@@ -426,10 +430,12 @@ story.append(Paragraph("Content for page 2", styles['Normal']))
 
 # Build PDF
 doc.build(story)
+PYEOF
 ```
 
 #### Professional Reports with Tables
-```python
+```bash
+"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
@@ -465,6 +471,7 @@ table.setStyle(TableStyle([
 elements.append(table)
 
 doc.build(elements)
+PYEOF
 ```
 
 **Last resort** — use a public test PDF URL:
@@ -484,9 +491,9 @@ Use the /docx skill to create a Word document with the following content:
 Save to: <output_dir>/inputs/<filename>.docx
 ```
 
-**If skill is NOT available**, create using Python:
-```python
-# Requires: pip install python-docx
+**If skill is NOT available**, create using Python (see [Python Execution Reference](../shared/python-execution.md)):
+```bash
+uv run --with python-docx python << 'PYEOF'
 from docx import Document
 
 doc = Document()
@@ -494,6 +501,7 @@ doc.add_heading('Test Document', 0)
 doc.add_paragraph('This is synthetic test content for method testing.')
 # Add more content as needed
 doc.save('<output_dir>/inputs/test_document.docx')
+PYEOF
 ```
 
 ### Spreadsheets (XLSX)
@@ -505,9 +513,9 @@ Use the /xlsx skill to create a spreadsheet with the following data:
 Save to: <output_dir>/inputs/<filename>.xlsx
 ```
 
-**If skill is NOT available**, create using Python:
-```python
-# Requires: pip install openpyxl
+**If skill is NOT available**, create using Python (see [Python Execution Reference](../shared/python-execution.md)):
+```bash
+uv run --with openpyxl python << 'PYEOF'
 from openpyxl import Workbook
 
 wb = Workbook()
@@ -517,13 +525,14 @@ ws['B1'] = 'Column2'
 ws['A2'] = 'Value1'
 ws['B2'] = 'Value2'
 wb.save('<output_dir>/inputs/test_spreadsheet.xlsx')
+PYEOF
 ```
 
 ---
 
 **Fallback Strategy:**
-1. For PDFs: use `reportlab` (always available via pipelex) with the patterns above
-2. For DOCX/XLSX: use the `/docx` or `/xlsx` skill (install from the Anthropic example-skills marketplace if not available)
+1. For PDFs: use `reportlab` via pipelex's Python (`"$(uv tool dir)/pipelex/bin/python"`)
+2. For DOCX/XLSX: use the `/docx` or `/xlsx` skill, or `uv run --with <package> python`
 3. For any format: use public test file URLs as fallback
 4. As last resort, ask user to provide test files
 

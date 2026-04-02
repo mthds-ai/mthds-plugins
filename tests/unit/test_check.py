@@ -80,6 +80,7 @@ def skill_tree(tmp_path: Path) -> Path:
         "mthds-reference.md.j2",
         "native-content-types.md.j2",
         "preamble.md.j2",
+        "python-execution.md.j2",
         "upgrade-flow.md.j2",
     ]:
         (template_shared / name).write_text("# placeholder\n")
@@ -264,7 +265,7 @@ class TestSharedFilesExist:
     def test_all_missing(self, tmp_path: Path) -> None:
         (tmp_path / "templates" / "skills" / "shared").mkdir(parents=True)
         errors = check_shared_files_exist(tmp_path)
-        assert len(errors) == 7
+        assert len(errors) == 8
 
 
 class TestFrontmatterVersions:

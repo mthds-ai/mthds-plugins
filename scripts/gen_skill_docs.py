@@ -41,6 +41,7 @@ SHARED_TEMPLATES = [
     "skills/shared/mthds-reference.md.j2",
     "skills/shared/native-content-types.md.j2",
     "skills/shared/preamble.md.j2",
+    "skills/shared/python-execution.md.j2",
     "skills/shared/upgrade-flow.md.j2",
 ]
 
