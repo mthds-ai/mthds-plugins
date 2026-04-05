@@ -1,0 +1,49 @@
+templates/skills/mthds-share/SKILL.md.j2
+  fcd84f23867e0bfd 19,21-30
+templates/skills/mthds-runner-setup/SKILL.md.j2
+  fcd84f23867e0bfd 19,21-25,33,39-44,78,112,115
+  1d9619ae0985b723 1-18,20,26-32,34-38,45-77,79-111,113-114,116-146
+templates/skills/shared/mthds-agent-guide.md.j2
+  1d9619ae0985b723 269
+templates/skills/shared/error-handling.md.j2
+  1d9619ae0985b723 38-43
+templates/skills/mthds-pipelex-setup/SKILL.md.j2
+  1d9619ae0985b723 9-10
+  fcd84f23867e0bfd 31,33-37,43-48,59,61,67,70,73,77,81,92
+templates/skills/mthds-run/SKILL.md.j2
+  fcd84f23867e0bfd 112-119
+  1d9619ae0985b723 227-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "a4b0d691b9f6f1f88c2238d1b1d45794e13a45af",
+  "prompts": {
+    "1d9619ae0985b723": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6e95854-8b30-4046-a664-671e441cb1d4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 160,
+      "total_deletions": 2,
+      "accepted_lines": 142,
+      "overriden_lines": 0
+    },
+    "fcd84f23867e0bfd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c3de72f-fbf1-400b-b884-25cffcab5ba6",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 62,
+      "total_deletions": 47,
+      "accepted_lines": 56,
+      "overriden_lines": 0
+    }
+  }
+}
