@@ -1,6 +1,6 @@
 ---
 name: mthds-runner-setup
-description: First-run onboarding for inference configuration. Use when user gets InferenceSetupRequiredError, when user wants to set up inference for the first time, or when running a method fails with "Inference setup required". Guides through Pipelex Gateway (recommended) or Bring Your Own Key setup.
+description: Set up or reconfigure inference backends and API keys. Use when user gets InferenceSetupRequiredError, wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", or gets a config/credential error when running. Guides through Pipelex Gateway (recommended) or Bring Your Own Key setup.
 min_mthds_version: 0.3.3
 allowed-tools:
   - Bash
@@ -169,13 +169,12 @@ When 2+ backends are selected without `pipelex_gateway`, `primary_backend` is re
 
 #### 4. Configure credentials
 
-Tell the user to run:
+Guide the user to add their API keys to `~/.pipelex/.env`:
 
-```bash
-! pipelex init inference
-```
+- **OpenAI**: `OPENAI_API_KEY=sk-...`
+- **Anthropic**: `ANTHROPIC_API_KEY=sk-ant-...`
 
-This interactive command lets them enter or verify their API keys.
+If the user prefers an interactive setup, tell them to run `pipelex init inference` in their own terminal (not through Claude Code).
 
 #### 5. Verify
 

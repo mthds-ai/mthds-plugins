@@ -29,7 +29,7 @@ FROM NOW ON, ASSUME THE CLIs ARE INSTALLED AND WORKING, and ONLY USE `mthds-agen
 
 Backend configuration (API keys, model routing) is **only** needed to run methods with live inference. It is **not** needed for: building, validating, editing, explaining, fixing, preparing inputs, or dry-running methods.
 
-When a user needs to run methods with live inference, direct them to `/mthds-pipelex-setup` for guided configuration.
+When a user needs to run methods with live inference, direct them to `/mthds-runner-setup` for guided configuration.
 
 ## Agent CLI
 
@@ -56,7 +56,7 @@ After installing `mthds-agent`, set up the runner you need:
   ```bash
   mthds-agent runner setup pipelex
   ```
-  This installs the Pipelex runner binary (managed by mthds-agent, not installed via uv/pip). To configure backends and API keys for local execution, run `mthds-agent init` afterwards (see `/mthds-pipelex-setup`).
+  This installs the Pipelex runner binary (managed by mthds-agent, not installed via uv/pip). To configure backends and API keys for local execution, run `mthds-agent init` afterwards (see `/mthds-runner-setup`).
 
 - **API runner** (remote execution via the Pipelex API):
   ```bash

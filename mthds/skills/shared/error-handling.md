@@ -59,7 +59,7 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 | `FileNotFoundError` | Bundle file or input file not found | Check file paths are correct |
 | `JSONDecodeError` | Invalid JSON in inputs | Fix JSON syntax |
 | `ArgumentError` | Invalid CLI flag combination | Check command flags (e.g., `--mock-inputs` requires `--dry-run`) |
-| `BinaryNotFoundError` | A required binary (e.g., `pipelex-agent`) is not on PATH | Install: `uv tool install pipelex`. Then use `/mthds-pipelex-setup` to configure backends. |
+| `BinaryNotFoundError` | A required binary (e.g., `pipelex-agent`) is not on PATH | Install: `uv tool install pipelex`. Then use `/mthds-runner-setup` to configure backends. |
 
 ## Cross-Domain Validation & Library Isolation
 

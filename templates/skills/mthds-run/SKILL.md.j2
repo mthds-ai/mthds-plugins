@@ -28,7 +28,7 @@ mthds-agent doctor  # outputs markdown
 
 - **If the doctor reports config issues (missing backends, missing API keys)** AND the user is requesting a **live run** (not `--dry-run`): STOP. Tell the user:
 
-> Pipelex needs to be configured with inference backends before running methods. Use `/mthds-pipelex-setup` for guided configuration.
+> Pipelex needs to be configured with inference backends before running methods. Use `/mthds-runner-setup` for guided configuration.
 
 - **If the user is requesting a dry run** (`--dry-run`): config issues are OK — dry runs work without backend configuration. Proceed.
 
