@@ -158,10 +158,14 @@ Default to `--dry-run --mock-inputs` and inform the user:
 
 > "The inputs for this pipeline contain placeholder values (not real data). I'll do a dry run with mock inputs to validate the pipeline structure."
 
-After the dry run, offer the user these options:
-- **Prepare real inputs** — use `/mthds-inputs` to fill in actual values, then re-run
-- **Provide files** — if the pipeline expects file inputs (documents, images), ask the user to supply file paths
-- **Keep dry run** — accept the dry-run result as-is
+After the dry run, use AskUserQuestion to present next steps:
+
+- **Question**: "What would you like to do next?"
+- **Header**: "Next step"
+- **Options**:
+  1. **Prepare real inputs** — "Use /mthds-inputs to fill in actual values, then re-run."
+  2. **Provide files** — "Supply file paths for document/image inputs."
+  3. **Keep dry run** — "Accept the dry-run result as-is."
 
 #### Run modes reference
 
@@ -269,7 +273,9 @@ else:
 
 ### Step 6: Handle Errors
 
-For all error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
+**If the run returns `InferenceSetupRequiredError` (error_domain: `onboarding`)**: This means inference has never been configured. This is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to guide them through Gateway or BYOK setup, then re-run the method.
+
+For all other error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 
 ### Execution Graphs
 

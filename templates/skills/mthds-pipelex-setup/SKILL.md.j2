@@ -6,6 +6,8 @@ description: Set up Pipelex inference configuration — choose backends and conf
 
 # Set Up Pipelex Inference Configuration
 
+> **First-time setup?** If this is your first time configuring inference (you saw an `InferenceSetupRequiredError`), use `/mthds-runner-setup` instead — it provides a friendlier onboarding experience. This skill is for reconfiguration and advanced setup.
+
 Guided setup for configuring the Pipelex runtime with inference backends and API keys. This is only needed to **run** methods with live inference — building, validating, editing, and dry-running work without any configuration.
 
 ## Process
@@ -26,13 +28,24 @@ Run `mthds-agent doctor` (outputs markdown) to check the current configuration h
 
 ### Step 2 — Choose Backends
 
-Ask the user which backends they want to configure. Two paths:
+Use AskUserQuestion to present the backend choice:
+
+- **Question**: "Which backend would you like to configure?"
+- **Header**: "Backend"
+- **Options**:
+  1. **Pipelex Gateway (Recommended)** — "One API key for all AI models through a single gateway."
+  2. **Bring Your Own Key (BYOK)** — "Use your own API keys from providers like OpenAI or Anthropic."
 
 #### Option A — Pipelex Gateway (simplest)
 
 The Pipelex Gateway provides access to multiple AI models through a single API key.
 
-1. Ask the user: "Do you accept the Pipelex Gateway Terms of Service and Privacy Policy? See: https://www.pipelex.com/privacy-policy"
+1. Use AskUserQuestion to ask about terms acceptance:
+   - **Question**: "Do you accept the Pipelex Gateway Terms of Service and Privacy Policy? See: https://www.pipelex.com/privacy-policy"
+   - **Header**: "Terms"
+   - **Options**:
+     1. **Accept** — "I accept the Terms of Service and Privacy Policy."
+     2. **Decline** — "I'd rather use my own API keys (BYOK) instead."
 2. If they accept: run `mthds-agent login` to log in to Pipelex and configure the `PIPELEX_GATEWAY_API_KEY`. This command handles authentication and key setup automatically.
 3. If they decline: proceed with Option B instead
 
@@ -43,36 +56,29 @@ The user provides their own API keys for individual providers.
 1. Ask which providers they want to enable. Common options: `openai`, `anthropic`. Run `mthds-agent init --help` to discover all available backends.
 2. If 2+ backends are selected, ask which should be the `primary_backend`.
 
-### Step 3 — Telemetry Preference
+### Step 3 — Apply Configuration
 
-Ask the user: "Do you want anonymous telemetry enabled?"
-
-- `"off"` — no telemetry
-- `"anonymous"` — anonymous usage data
-
-### Step 4 — Apply Configuration
-
-**You MUST have all answers from Steps 2-3 before running this command.**
+**You MUST have all answers from Step 2 before running this command.**
 
 Build the JSON config and run:
 
 ```bash
 # Example: Pipelex Gateway (user accepted terms):
-mthds-agent init -g --config '{"backends": ["pipelex_gateway"], "accept_gateway_terms": true, "telemetry_mode": "anonymous"}'
+mthds-agent init -g --config '{"backends": ["pipelex_gateway"], "accept_gateway_terms": true}'
 
 # Example: BYOK with OpenAI only:
-mthds-agent init -g --config '{"backends": ["openai"], "telemetry_mode": "off"}'
+mthds-agent init -g --config '{"backends": ["openai"]}'
 
 # Example: BYOK with multiple backends:
-mthds-agent init -g --config '{"backends": ["openai", "anthropic"], "primary_backend": "anthropic", "telemetry_mode": "off"}'
+mthds-agent init -g --config '{"backends": ["openai", "anthropic"], "primary_backend": "anthropic"}'
 ```
 
 - `-g` targets the global `~/.pipelex/` directory. Without it, targets project-level `.pipelex/` (requires a project root).
-- Config JSON schema: `{"backends": list[str], "primary_backend": str, "accept_gateway_terms": bool, "telemetry_mode": str}`. All fields optional.
+- Config JSON schema: `{"backends": list[str], "primary_backend": str, "accept_gateway_terms": bool}`. All fields optional.
 - When `pipelex_gateway` is in backends, `accept_gateway_terms` must be set.
 - When 2+ backends are selected without `pipelex_gateway`, `primary_backend` is required.
 
-### Step 5 — Set API Keys (BYOK only)
+### Step 4 — Set API Keys (BYOK only)
 
 If the user chose BYOK (Option B), guide them to set environment variables for their chosen backends:
 
@@ -83,7 +89,7 @@ Recommend adding these to their shell profile (`~/.zshrc`, `~/.bashrc`, etc.) fo
 
 After the user confirms they've set the keys, run `mthds-agent doctor` again (outputs markdown) to verify everything is healthy.
 
-### Step 6 — Confirm Success
+### Step 5 — Confirm Success
 
 Once the doctor reports a healthy configuration:
 

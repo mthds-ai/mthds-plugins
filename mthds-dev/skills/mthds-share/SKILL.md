@@ -65,10 +65,18 @@ Run this command to check toolchain status:
 
 ### Step 1: Ask the User
 
-Before sharing, **ask the user**:
+Before sharing, gather two pieces of information:
 
-1. Which method(s) to share (address or local path)
-2. Which platforms they want to share on: **X (Twitter)**, **Reddit**, **LinkedIn** — or all of them
+1. Which method(s) to share (address or local path) — ask as a free-text question if not already known from context.
+
+2. Use AskUserQuestion with multiSelect to ask about platforms:
+   - **Question**: "Which platforms do you want to share on?"
+   - **Header**: "Platforms"
+   - **multiSelect**: true
+   - **Options**:
+     1. **X (Twitter)** — "Share on X with a pre-filled tweet."
+     2. **Reddit** — "Share as a Reddit text post."
+     3. **LinkedIn** — "Share as a LinkedIn post."
 
 Do NOT share automatically. Always confirm the platforms with the user first.
 
