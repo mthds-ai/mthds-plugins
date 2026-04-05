@@ -1,0 +1,18 @@
+[plugin]
+name = "mthds-dev"
+version = "0.1.0"
+description = "Development build of MTHDS skills — for iteration and testing."
+source = "mthds-dev/"
+
+[vars]
+# Inherits all defaults from defaults.toml.
+# Override install commands with local container paths for CCC testing.
+mthds_install_cmd = "npm install -g /build-src/mthds-js/"
+mthds_upgrade_cmd = "npm install -g /build-src/mthds-js/"
+pipelex_install_cmd = "uv tool install /workspace/pipelex/"
+pipelex_upgrade_cmd = "uv tool install --upgrade /workspace/pipelex/"
+plxt_install_cmd = "uv tool install /workspace/vscode-pipelex/"
+plxt_upgrade_cmd = "uv tool install --upgrade /workspace/vscode-pipelex/"
+
+# [skills]
+# include = ["mthds-build", "mthds-check"]  # build only a subset

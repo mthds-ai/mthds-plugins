@@ -1,0 +1,67 @@
+# Upgrade Flow
+
+When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble reports `MTHDS_AGENT_OUTDATED`, follow this flow.
+
+**Two upgrade paths exist:**
+- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `npm install -g /build-src/mthds-js/` (Claude runs this directly, not via mthds-agent).
+- **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
+
+## Step 1 — Check auto-upgrade config
+
+```bash
+mthds-agent config get auto-upgrade
+```
+
+- If `true` → skip to Step 3 (upgrade silently, no prompt).
+- If unset or `false` → proceed to Step 2.
+
+## Step 2 — Ask the user
+
+Use AskUserQuestion with these 4 options:
+
+1. **Yes, upgrade now** → proceed to Step 3
+2. **Always auto-upgrade** → run `mthds-agent config set auto-upgrade true`, then proceed to Step 3
+3. **Not now** → run `mthds-agent update-check --snooze`, then continue with current versions (proceed to Step 1 of the skill)
+4. **Never ask** → run `mthds-agent config set update-check false`, then continue with current versions (proceed to Step 1 of the skill)
+
+## Step 3 — Run upgrade
+
+The `UPGRADE_AVAILABLE` output from `mthds-agent update-check` includes which binaries need upgrading.
+
+**For the `mthds` npm package (`mthds-agent` CLI):**
+
+```bash
+npm install -g /build-src/mthds-js/
+```
+
+Claude runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
+
+**For Python binaries (`pipelex-agent`, `plxt`):**
+
+```bash
+mthds-agent upgrade
+```
+
+This upgrades all outdated Python binaries via `uv tool install --upgrade`.
+
+## Step 3.5 — Interpret upgrade output
+
+After running `mthds-agent upgrade`, interpret the stdout line:
+
+- `UPGRADE_COMPLETE <json>` → All targets upgraded successfully. The JSON contains `{"upgraded":{"binary":"old->new",...}}`. Report which tools were upgraded with their version transitions. Proceed to Step 4.
+
+- `UPGRADE_PARTIAL <json>` → Some targets upgraded, some failed. The JSON contains `{"upgraded":{...},"failed":{...}}`. Report which tools upgraded successfully and which failed. For each failure, provide the manual install command:
+  - `pipelex-agent` or `pipelex`: `uv tool install --upgrade /workspace/pipelex/`
+  - `plxt`: `uv tool install --upgrade /workspace/vscode-pipelex/`
+
+  Proceed to Step 4 with current versions (partial success is still usable).
+
+- `UPGRADE_FAILED <json>` → All targets failed. The JSON contains `{"failed":{...}}`. Report all failures with the manual install commands listed above. Proceed to Step 4 with current versions.
+
+- `UPGRADE_NOT_NEEDED` → All binaries are already up to date. Proceed to Step 4.
+
+- Any other output or error → Something unexpected happened during upgrade. Show the raw output to the user and suggest they try the manual install commands listed above. Do not proceed silently.
+
+## Step 4 — Confirm and continue
+
+After upgrading, the next invocation of `mthds-agent update-check` will report `JUST_UPGRADED` or `UP_TO_DATE`. Announce the result to the user and proceed to Step 1 of the skill.

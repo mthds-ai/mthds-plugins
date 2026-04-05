@@ -1,0 +1,11 @@
+{
+  "author": {
+    "name": "Pipelex staff",
+    "email": "oss@pipelex.com"
+  },
+  "repository": "https://github.com/mthds-ai/mthds-plugins",
+  "license": "MIT",
+  "name": "mthds-dev",
+  "description": "Development build of MTHDS skills \u2014 for iteration and testing.",
+  "version": "0.1.0"
+}
