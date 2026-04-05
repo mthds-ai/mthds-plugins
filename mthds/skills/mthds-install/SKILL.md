@@ -1,7 +1,7 @@
 ---
 name: mthds-install
 description: Install MTHDS method packages from GitHub or local directories. Use when user says "install a method", "install from GitHub", "add a method package", "mthds install", "install method", "set up a method", or wants to install an MTHDS method package for use with an AI agent.
-min_mthds_version: 0.3.3
+min_mthds_version: 0.3.4
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ Install method packages from GitHub or local directories using the `mthds-agent`
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -65,7 +65,7 @@ Run this command to check toolchain status:
 
 Do not attempt manual installation. The CLI handles resolution, file placement, shim generation, and runtime setup.
 
-> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-pipelex-setup` when you're ready.
+> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
 ### Step 1: Identify the Source
 

@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-min_mthds_version: 0.3.3
+min_mthds_version: 0.3.4
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ Analyze and explain existing MTHDS method bundles in plain language.
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -65,7 +65,7 @@ Run this command to check toolchain status:
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
-> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-pipelex-setup` when you're ready.
+> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
 ### Step 1: Read the .mthds File
 

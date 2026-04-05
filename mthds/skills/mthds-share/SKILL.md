@@ -1,7 +1,7 @@
 ---
 name: mthds-share
 description: Share MTHDS methods on social media (X/Twitter, Reddit, LinkedIn). Use when user says "share this method", "post on social media", "share on X", "share on Reddit", "share on LinkedIn", "tweet about this method", or wants to share a published method on social platforms.
-min_mthds_version: 0.3.3
+min_mthds_version: 0.3.4
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ Generate share URLs for method packages and open them in the browser. Supports X
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -65,10 +65,18 @@ Run this command to check toolchain status:
 
 ### Step 1: Ask the User
 
-Before sharing, **ask the user**:
+Before sharing, gather two pieces of information:
 
-1. Which method(s) to share (address or local path)
-2. Which platforms they want to share on: **X (Twitter)**, **Reddit**, **LinkedIn** — or all of them
+1. Which method(s) to share (address or local path) — ask as a free-text question if not already known from context.
+
+2. Use AskUserQuestion with multiSelect to ask about platforms:
+   - **Question**: "Which platforms do you want to share on?"
+   - **Header**: "Platforms"
+   - **multiSelect**: true
+   - **Options**:
+     1. **X (Twitter)** — "Share on X with a pre-filled tweet."
+     2. **Reddit** — "Share as a Reddit text post."
+     3. **LinkedIn** — "Share as a LinkedIn post."
 
 Do NOT share automatically. Always confirm the platforms with the user first.
 

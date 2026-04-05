@@ -1,7 +1,7 @@
 ---
 name: mthds-edit
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
-min_mthds_version: 0.3.3
+min_mthds_version: 0.3.4
 allowed-tools:
   - Bash
   - Read
@@ -67,7 +67,7 @@ Modify existing MTHDS method bundles.
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.3" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.4" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -109,7 +109,7 @@ Run this command to check toolchain status:
 
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
-> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-pipelex-setup` when you're ready.
+> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
 1. **Read the existing .mthds file** — Understand current structure before making changes
 
