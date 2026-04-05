@@ -1,0 +1,36 @@
+targets/defaults.toml
+  39dcea956f7c2ad8 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "29ecb125787befb4d97c1a2a0d960f963bc24c02",
+  "prompts": {
+    "39dcea956f7c2ad8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c142d992-696c-446c-85b7-bbc56d5514bf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "434380d3b2ed1065": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec434043-71a7-4d14-9930-edd8cdbd64eb",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 0,
+      "accepted_lines": 87,
+      "overriden_lines": 0
+    }
+  }
+}
