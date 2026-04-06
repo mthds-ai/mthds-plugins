@@ -30,7 +30,10 @@ _block() {
     || printf '{"decision":"block","reason":"Hook error: could not format block reason"}\n'
 }
 
-FILE_PATH=$(_jv "$INPUT" "d.tool_input?.file_path")
+FILE_PATH=$(_jv "$INPUT" "d.tool_input?.file_path") || {
+  _block "Failed to parse tool input JSON (Node.js error)"
+  exit 0
+}
 
 # Guard: no file path or not a .mthds file → pass silently
 if [[ -z "$FILE_PATH" || "$FILE_PATH" != *.mthds || ! -f "$FILE_PATH" ]]; then
@@ -143,7 +146,7 @@ warn('Warning: ' + errType + ' — ' + message);
 if (hint) warn('Hint: ' + hint);
 process.exit(0);
 " "$FILE_PATH" "$EXIT_CODE" "$ERR_JSON" || {
-  echo "[mthds-hook] Warning: Stage 3 decision script failed" >&2
+  _block "Stage 3 decision script crashed — treating as validation failure for $FILE_PATH"
 }
 
 exit 0

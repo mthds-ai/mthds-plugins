@@ -119,6 +119,7 @@ Analyze this document:
 **Multiple outputs**:
 - `output = "Idea[3]"` - exactly 3 items
 - `output = "Idea[]"` - variable number
+- Nesting is not supported — `Idea[][]` is invalid.
 
 **Vision (images)**:
 ```toml
@@ -471,6 +472,8 @@ inputs = { doc = "Text" }        # Single item
 inputs = { docs = "Text[]" }     # Variable list
 inputs = { pair = "Image[2]" }   # Exactly 2 items
 ```
+
+Nesting is not supported — `Text[][]` is invalid.
 
 ## Cross-Domain References
 

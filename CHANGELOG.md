@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.7.1] - 2026-04-06
+
+### Fixed
+
+- Hook silent failures: Stage 3 Node.js crash now blocks instead of logging a warning; `_jv` helper checks exit code
+- check.py: derive `STALE_REF_PATTERN` from `SHARED_TEMPLATES` (was missing python-execution); remove silent `ValueError` fallback
+
+### Changed
+
+- Bump min_mthds_version from 0.3.4 to 0.3.5
+
 ## [v0.7.0] - 2026-04-02
 
 ### Added

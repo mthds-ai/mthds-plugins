@@ -18,9 +18,9 @@ from scripts.gen_skill_docs import SHARED_TEMPLATES
 SHARED_TEMPLATE_FILES = [Path(template_path).name for template_path in SHARED_TEMPLATES]
 
 # Stale reference patterns — shared file stems that should use ../shared/ not references/
-STALE_REF_PATTERN = re.compile(
-    r"references/(?:error-handling|frontmatter|mthds-agent-guide|mthds-reference|native-content-types|preamble|upgrade-flow)"
-)
+# Derived programmatically from SHARED_TEMPLATES (single source of truth)
+_SHARED_STEMS = [Path(template_path).name.removesuffix(".md.j2") for template_path in SHARED_TEMPLATES]
+STALE_REF_PATTERN = re.compile(r"references/(?:" + "|".join(re.escape(stem) for stem in _SHARED_STEMS) + r")")
 
 # Frontmatter extraction: min_mthds_version value between --- delimiters
 FRONTMATTER_VERSION_PATTERN = re.compile(r"^min_mthds_version:\s*(.+)$", re.MULTILINE)
@@ -191,10 +191,7 @@ def check_marketplace_plugins(base_dir: Path) -> list[str]:
 
 def _collect_output_dirs(base_dir: Path) -> list[Path]:
     """Collect output directories from all configured targets."""
-    try:
-        configs = load_target_configs(base_dir)
-    except ValueError:
-        return [base_dir]
+    configs = load_target_configs(base_dir)
     output_dirs: list[Path] = []
     for _target_name, config in configs.items():
         source = config.get("plugin", {}).get("source", "./")
