@@ -1,0 +1,25 @@
+scripts/check.py
+  ed1a3b1da7c93c3c 22
+tests/unit/test_check.py
+  ed1a3b1da7c93c3c 242-249,251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "09317455a487a214728216d1b410faaddf69be07",
+  "prompts": {
+    "ed1a3b1da7c93c3c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ffa05d6-8126-43a0-b14b-7f9a0b1b222f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 10,
+      "total_deletions": 3,
+      "accepted_lines": 10,
+      "overriden_lines": 0
+    }
+  }
+}
