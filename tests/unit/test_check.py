@@ -338,7 +338,7 @@ class TestNoTemplatesInOutput:
         assert "mthds-dev" in errors[0]
         assert "LEAKED TEMPLATE" in errors[0]
 
-    def test_missing_dirs_no_crash(self, tmp_path: Path) -> None:
-        """No crash when skills/ or hooks/ directories don't exist."""
-        errors = check_no_templates_in_output(tmp_path)
-        assert errors == []
+    def test_missing_targets_dir_raises(self, tmp_path: Path) -> None:
+        """Raises ValueError when targets/ directory is missing."""
+        with pytest.raises(ValueError, match="Targets directory not found"):
+            check_no_templates_in_output(tmp_path)
