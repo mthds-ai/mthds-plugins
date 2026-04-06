@@ -9,7 +9,7 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills plugin fo
 Open Claude Code and paste this. Claude does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins' then tell me the result. If it worked, add a "MTHDS" section to CLAUDE.md that lists the available skills (/mthds-build, /mthds-run, /mthds-check, /mthds-edit, /mthds-explain, /mthds-fix, /mthds-inputs, /mthds-install, /mthds-runner-setup, /mthds-pkg, /mthds-publish, /mthds-share, /mthds-upgrade) and notes that .mthds files are automatically validated when the agent modifies them and that MTHDS is the open language for executable AI methods, defined at mthds.ai. Then tell me to restart Claude Code with /exit and claude.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins'. Then tell me to restart Claude Code.
 ```
 
 ### Manual install
@@ -20,8 +20,6 @@ mthds-agent bootstrap
 claude plugin marketplace add mthds-ai/mthds-plugins
 claude plugin install mthds@mthds-plugins
 ```
-
-Restart Claude Code (`/exit`, then `claude`).
 
 ## Skills to use with [MTHDS](https://mthds.ai/latest/)
 
