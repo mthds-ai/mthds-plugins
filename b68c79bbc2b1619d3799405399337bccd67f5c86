@@ -1,0 +1,23 @@
+templates/skills/shared/mthds-reference.md.j2
+  7e8a887edf6c0a7c 476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "b68c79bbc2b1619d3799405399337bccd67f5c86",
+  "prompts": {
+    "7e8a887edf6c0a7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "de0324cd-56fe-459a-abba-88d17df9b34d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
