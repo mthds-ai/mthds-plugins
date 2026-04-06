@@ -473,7 +473,7 @@ inputs = { docs = "Text[]" }     # Variable list
 inputs = { pair = "Image[2]" }   # Exactly 2 items
 ```
 
-Nesting is not supported — `Text[][]` is invalid. Use a single `[]` only.
+Nesting is not supported — `Text[][]` is invalid.
 
 ## Cross-Domain References
 
