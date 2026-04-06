@@ -19,7 +19,7 @@ SHARED_TEMPLATE_FILES = [Path(template_path).name for template_path in SHARED_TE
 
 # Stale reference patterns — shared file stems that should use ../shared/ not references/
 # Derived programmatically from SHARED_TEMPLATES (single source of truth)
-_SHARED_STEMS = [Path(template_path).stem for template_path in SHARED_TEMPLATES]
+_SHARED_STEMS = [Path(template_path).name.removesuffix(".md.j2") for template_path in SHARED_TEMPLATES]
 STALE_REF_PATTERN = re.compile(r"references/(?:" + "|".join(re.escape(stem) for stem in _SHARED_STEMS) + r")")
 
 # Frontmatter extraction: min_mthds_version value between --- delimiters

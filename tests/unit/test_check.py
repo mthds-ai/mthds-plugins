@@ -239,9 +239,16 @@ class TestStaleReferences:
     def test_no_stale_refs(self, skill_tree: Path) -> None:
         assert check_stale_references(skill_tree) == []
 
-    def test_detects_stale_ref(self, skill_tree: Path) -> None:
+    @pytest.mark.parametrize(
+        "ref_path",
+        [
+            "references/mthds-agent-guide.md",
+            "references/mthds-agent-guide",
+        ],
+    )
+    def test_detects_stale_ref(self, skill_tree: Path, ref_path: str) -> None:
         skill_md = skill_tree / "mthds" / "skills" / "mthds-test" / "SKILL.md"
-        skill_md.write_text(VALID_FRONTMATTER + "\nSee [guide](references/mthds-agent-guide.md)\n")
+        skill_md.write_text(VALID_FRONTMATTER + f"\nSee [guide]({ref_path})\n")
         errors = check_stale_references(skill_tree)
         assert len(errors) == 1
         assert "stale references/" in errors[0]
