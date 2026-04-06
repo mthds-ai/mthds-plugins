@@ -1,0 +1,29 @@
+targets/defaults.toml
+  ed1a3b1da7c93c3c 5
+CHANGELOG.md
+  ed1a3b1da7c93c3c 3-13
+targets/prod.toml
+  ed1a3b1da7c93c3c 3
+.claude-plugin/marketplace.json
+  ed1a3b1da7c93c3c 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "829915dbf3c1d8e2d55c774db8c3d7ecf0b3f43c",
+  "prompts": {
+    "ed1a3b1da7c93c3c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ffa05d6-8126-43a0-b14b-7f9a0b1b222f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 3,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}
