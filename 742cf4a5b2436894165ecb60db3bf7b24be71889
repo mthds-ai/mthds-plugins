@@ -1,0 +1,27 @@
+tests/unit/test_check.py
+  9563946f13c6577a 341-344
+templates/hooks/validate-mthds.sh.j2
+  9563946f13c6577a 33-36,149
+scripts/check.py
+  9563946f13c6577a 21-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "742cf4a5b2436894165ecb60db3bf7b24be71889",
+  "prompts": {
+    "9563946f13c6577a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf354ca2-31e2-4d8f-8b0b-183936629017",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 11,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
