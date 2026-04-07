@@ -1,0 +1,33 @@
+templates/hooks/hooks.json.j2
+  d0fee5f7cee60a21 14-26
+templates/skills/shared/upgrade-flow.md.j2
+  d0fee5f7cee60a21 5,8,48-55
+templates/hooks/session-start.sh.j2
+  d0fee5f7cee60a21 1-52
+targets/defaults.toml
+  d0fee5f7cee60a21 7
+scripts/gen_skill_docs.py
+  d0fee5f7cee60a21 26,53,57,69,86,93,96,100,127,164
+targets/dev.toml
+  d0fee5f7cee60a21 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "07caf93ae2a35d351888e19fe80c4009fc15b144",
+  "prompts": {
+    "d0fee5f7cee60a21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0769cb13-a28e-46dd-9568-5f8201daacd8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 94,
+      "total_deletions": 17,
+      "accepted_lines": 87,
+      "overriden_lines": 0
+    }
+  }
+}
