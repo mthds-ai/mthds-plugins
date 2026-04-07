@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -49,10 +50,11 @@ SHARED_TEMPLATES = [
 HOOK_TEMPLATES = [
     "hooks/hooks.json.j2",
     "hooks/validate-mthds.sh.j2",
+    "hooks/session-start.sh.j2",
 ]
 
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 
 
 @dataclass
@@ -64,7 +66,7 @@ class TargetConfig:
     plugin_version: str
     plugin_description: str
     source: str
-    template_vars: dict[str, str]
+    template_vars: dict[str, str | bool]
     include_skills: list[str] | None = None
 
     @property
@@ -81,21 +83,21 @@ class BuildResult:
     plugin_json: dict[str, object] | None = None
 
 
-def load_defaults(targets_dir: Path) -> dict[str, str]:
+def load_defaults(targets_dir: Path) -> dict[str, str | bool]:
     """Load default template variables from defaults.toml."""
     defaults_path = targets_dir / DEFAULTS_FILE
     if not defaults_path.is_file():
         msg = f"Defaults file not found: {defaults_path}"
         raise SystemExit(msg)
     raw = tomllib.loads(defaults_path.read_text(encoding="utf-8"))
-    defaults: dict[str, str] = {}
+    defaults: dict[str, str | bool] = {}
     if "vars" in raw:
         for key, value in raw["vars"].items():
-            defaults[key] = str(value)
+            defaults[key] = value if isinstance(value, bool) else str(value)
     return defaults
 
 
-def load_target_config(targets_dir: Path, target_name: str, defaults: dict[str, str] | None = None) -> TargetConfig:
+def load_target_config(targets_dir: Path, target_name: str, defaults: dict[str, str | bool] | None = None) -> TargetConfig:
     """Load a target config, merging defaults with target-specific overrides.
 
     Args:
@@ -122,7 +124,7 @@ def load_target_config(targets_dir: Path, target_name: str, defaults: dict[str, 
     template_vars = dict(defaults)
     if "vars" in raw:
         for key, value in raw["vars"].items():
-            template_vars[key] = str(value)
+            template_vars[key] = value if isinstance(value, bool) else str(value)
     template_vars["plugin_name"] = plugin["name"]
 
     include_skills: list[str] | None = None
@@ -159,7 +161,7 @@ def resolve_output_dir(base_dir: Path, source: str) -> Path:
 def render_templates(
     templates_dir: Path,
     base_dir: Path,
-    template_vars: dict[str, str],
+    template_vars: Mapping[str, str | bool],
     include_skills: list[str] | None = None,
 ) -> dict[Path, str]:
     """Render all .j2 templates and return {output_path: rendered_content}.
