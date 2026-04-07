@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart hook: display installed MTHDS tool versions (dev only)
+# SessionStart hook: display installed MTHDS tool versions
 set -uo pipefail
 exec 2>/dev/null
 
@@ -19,7 +19,9 @@ DOCTOR_JSON=$(mthds-agent doctor --format json 2>/dev/null) || {
 
 # Parse with node (guaranteed available since mthds-agent requires it)
 node -e "
-const doc = JSON.parse(process.argv[1]);
+let doc;
+try { doc = JSON.parse(process.argv[1]); }
+catch { console.log('MTHDS stack: mthds-agent $MTHDS_VER'); process.exit(0); }
 const deps = doc.dependencies || [];
 const parts = ['mthds-agent $MTHDS_VER'];
 
