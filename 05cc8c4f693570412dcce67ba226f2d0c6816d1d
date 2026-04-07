@@ -1,0 +1,25 @@
+templates/skills/shared/upgrade-flow.md.j2
+  3aa5f7f5b5904959 8,48,51
+templates/hooks/session-start.sh.j2
+  3aa5f7f5b5904959 2,22-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "05cc8c4f693570412dcce67ba226f2d0c6816d1d",
+  "prompts": {
+    "3aa5f7f5b5904959": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aff6b650-43d8-4702-a93e-e291c399e774",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 5,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
