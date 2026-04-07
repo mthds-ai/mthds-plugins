@@ -46,6 +46,7 @@ def template_tree(tmp_path: Path) -> Path:
     hooks_tmpl.mkdir()
     (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
     (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
+    (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
