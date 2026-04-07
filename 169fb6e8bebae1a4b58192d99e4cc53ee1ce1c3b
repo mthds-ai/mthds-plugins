@@ -1,0 +1,23 @@
+tests/unit/test_gen_skill_docs.py
+  3aa5f7f5b5904959 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "169fb6e8bebae1a4b58192d99e4cc53ee1ce1c3b",
+  "prompts": {
+    "3aa5f7f5b5904959": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aff6b650-43d8-4702-a93e-e291c399e774",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
