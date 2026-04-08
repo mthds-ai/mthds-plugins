@@ -288,7 +288,7 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
     # Codex hooks
     (hooks_tmpl / "codex-hooks.json.j2").write_text('{"hooks":{"Stop":[]}}\n')
-    (hooks_tmpl / "codex-validate-mthds-stop.sh.j2").write_text("#!/bin/bash\n# codex stop hook\n")
+    (hooks_tmpl / "codex-validate-mthds.sh.j2").write_text("#!/bin/bash\n# codex post-tool-use hook\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -358,7 +358,7 @@ class TestCodexTarget:
         results = render_templates(tree / "templates", tree, codex_vars)
         output_names = {path.name for path in results}
         assert "codex-hooks.json" in output_names
-        assert "codex-validate-mthds-stop.sh" in output_names
+        assert "codex-validate-mthds.sh" in output_names
         assert "hooks.json" not in output_names
         assert "validate-mthds.sh" not in output_names
 

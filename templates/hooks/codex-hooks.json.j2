@@ -1,11 +1,12 @@
 {
   "hooks": {
-    "Stop": [
+    "PostToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.codex/hooks/codex-validate-mthds-stop.sh",
+            "command": "~/.codex/hooks/codex-validate-mthds.sh",
             "timeout": 30
           }
         ]

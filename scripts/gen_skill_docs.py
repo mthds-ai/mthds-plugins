@@ -58,12 +58,12 @@ HOOK_TEMPLATES_BY_PLATFORM = {
     "claude": HOOK_TEMPLATES,
     "codex": [
         "hooks/codex-hooks.json.j2",
-        "hooks/codex-validate-mthds-stop.sh.j2",
+        "hooks/codex-validate-mthds.sh.j2",
     ],
 }
 
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds-stop.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds.sh"}
 
 
 @dataclass

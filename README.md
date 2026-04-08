@@ -66,9 +66,9 @@ Both plugins include hooks that validate `.mthds` files automatically:
 2. **Format** — `plxt fmt` auto-formats the file
 3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
 
-**Claude Code:** A PostToolUse hook fires on every `.mthds` file edit. Errors block the edit immediately.
+**Claude Code:** A PostToolUse hook matches Write/Edit and receives the file path directly. Errors block the edit immediately.
 
-**Codex:** A Stop hook fires at the end of every turn. It finds all changed `.mthds` files via `git diff`, validates each one, and tells Codex to continue and fix any errors before finishing.
+**Codex:** A PostToolUse hook matches Bash and parses the command to detect `.mthds` file paths. Same per-edit validation, same immediate feedback.
 
 Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
 

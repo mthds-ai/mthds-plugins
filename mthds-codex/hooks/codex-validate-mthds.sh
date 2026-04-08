@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# PostToolUse hook (Codex): lint, format, and validate .mthds files after Bash commands
+# Reads tool_input JSON from stdin, extracts the Bash command, and checks if any
+# .mthds files were written. If so, runs (in order):
+#   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
+#   2. plxt fmt                   — auto-format the file (only if lint passes)
+#   3. mthds-agent validate bundle — semantic validation (blocks or warns)
+# Blocks if plxt or mthds-agent is not installed. Passes silently if no .mthds file involved.
+# Uses Node.js for JSON parsing (guaranteed on PATH since mthds-agent requires it).
+
+set -euo pipefail
+
+# --- Read stdin (PostToolUse JSON) and extract bash command ---
+INPUT=$(cat)
+
+# --- Require Node.js for JSON parsing ---
+if ! command -v node &>/dev/null; then
+  # Check if the command likely touched a .mthds file before blocking
+  if echo "$INPUT" | grep -q '\.mthds' 2>/dev/null; then
+    printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
+  fi
+  exit 0
+fi
+
+# --- JSON helpers (Node.js) ---
+_jv() { node -e "let d;try{d=JSON.parse(process.argv[1])}catch{d=null};const r=d?($2):undefined;process.stdout.write(r==null?'':String(r))" "$1"; }
+_block() {
+  node -e "process.stdout.write(JSON.stringify({decision:'block',reason:process.argv[1]})+'\n')" "$1" \
+    || printf '{"decision":"block","reason":"Hook error: could not format block reason"}\n'
+}
+
+# --- Extract the bash command from PostToolUse input ---
+BASH_CMD=$(_jv "$INPUT" "d.tool_input?.command") || {
+  exit 0
+}
+
+# Guard: no command → pass silently
+if [[ -z "$BASH_CMD" ]]; then
+  exit 0
+fi
+
+# --- Extract .mthds file paths from the bash command ---
+# Use Node.js to find all tokens ending in .mthds that are real files
+MTHDS_FILES=$(node -e "
+const cmd = process.argv[1];
+// Match tokens that look like file paths ending in .mthds
+const tokens = cmd.match(/[^\s'\"<>|;&]+\.mthds/g) || [];
+// Deduplicate
+const unique = [...new Set(tokens)];
+process.stdout.write(unique.join('\n'));
+" "$BASH_CMD") || true
+
+# Guard: no .mthds files in command → pass silently
+if [[ -z "$MTHDS_FILES" ]]; then
+  exit 0
+fi
+
+# --- Filter to files that actually exist ---
+VALID_FILES=()
+while IFS= read -r file; do
+  [[ -n "$file" && -f "$file" ]] && VALID_FILES+=("$file")
+done <<< "$MTHDS_FILES"
+
+if [[ ${#VALID_FILES[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+# --- Require plxt and mthds-agent on PATH ---
+MISSING=""
+command -v plxt &>/dev/null || MISSING="plxt (install via: uv tool install pipelex-tools)"
+command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: npm install -g mthds)"
+if [[ -n "$MISSING" ]]; then
+  _block "Missing required CLI tool(s): $MISSING"
+  exit 0
+fi
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+trap 'rm -f "$TMPOUT" "$TMPERR"' EXIT
+
+for FILE_PATH in "${VALID_FILES[@]}"; do
+
+  # =====================================================================
+  # STAGE 1: plxt lint — TOML/schema-level linting
+  # =====================================================================
+  LINT_EXIT=0
+  plxt lint --quiet "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || LINT_EXIT=$?
+
+  if [[ "$LINT_EXIT" -ne 0 ]]; then
+    LINT_OUTPUT=$(cat "$TMPERR")
+    [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT=$(cat "$TMPOUT")
+    [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT="lint exited with code $LINT_EXIT (no output)"
+
+    _block "TOML/schema lint errors in $FILE_PATH:
+$LINT_OUTPUT"
+    exit 0
+  fi
+
+  # =====================================================================
+  # STAGE 2: plxt fmt — auto-format the file in-place (lint passed)
+  # =====================================================================
+  FMT_EXIT=0
+  plxt fmt "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || FMT_EXIT=$?
+  if [[ "$FMT_EXIT" -ne 0 ]]; then
+    FMT_ERR=$(cat "$TMPERR")
+    echo "[mthds-hook] Warning: plxt fmt failed (exit $FMT_EXIT): ${FMT_ERR:-no output}" >&2
+  fi
+
+  # =====================================================================
+  # STAGE 3: mthds-agent validate bundle — semantic validation
+  # =====================================================================
+  PARENT_DIR=$(dirname "$FILE_PATH")
+
+  EXIT_CODE=0
+  mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+
+  # --- Parse results ---
+  if [[ "$EXIT_CODE" -eq 0 ]]; then
+    continue
+  fi
+
+  # Error path: parse stderr JSON and decide in a single Node.js call
+  ERR_JSON=$(cat "$TMPERR")
+
+  node -e "
+const file = process.argv[1];
+const exitCode = process.argv[2];
+let d;
+try { d = JSON.parse(process.argv[3]); } catch { d = null; }
+
+// No valid JSON or missing .error key → warn and pass
+if (!d || !d.error) {
+  process.stderr.write('[mthds-hook] Warning: mthds-agent validate exited with code ' + exitCode + ' but produced unexpected output:\n');
+  process.stderr.write((process.argv[3] || '') + '\n');
+  process.exit(0);
+}
+
+const domain = d.error_domain || '';
+const errType = d.error_type || '';
+const message = d.message || '';
+const hint = d.hint || '';
+const valErrs = Array.isArray(d.validation_errors) ? d.validation_errors : [];
+const dryRunErr = d.dry_run_error || null;
+
+function warn(msg) { process.stderr.write('[mthds-hook] ' + msg + '\n'); }
+function block(reason) { process.stdout.write(JSON.stringify({decision:'block',reason}) + '\n'); }
+
+// Config or runtime domain → WARN only (not fixable by editing .mthds)
+if (domain === 'config' || domain === 'runtime') {
+  warn('Warning: ' + message);
+  if (hint) warn('Hint: ' + hint);
+  process.exit(0);
+}
+
+// Structural validation_errors → BLOCK
+if (valErrs.length > 0) {
+  const pipes = [...new Set(valErrs.map(e => e.pipe_code || 'unknown'))].join(', ');
+  const details = valErrs.map(e => '- [' + (e.pipe_code || 'unknown') + '] ' + e.message).join('\n');
+  block(file + ' has ' + valErrs.length + ' validation error(s) in pipe(s): ' + pipes + '\n' + details);
+  process.exit(0);
+}
+
+// dry_run_error only (no validation_errors) → WARN
+if (dryRunErr) {
+  warn('Warning (dry-run): ' + message);
+  warn('Dry-run detail: ' + dryRunErr);
+  if (hint) warn('Hint: ' + hint);
+  process.exit(0);
+}
+
+// Other input-domain errors → WARN
+warn('Warning: ' + errType + ' — ' + message);
+if (hint) warn('Hint: ' + hint);
+process.exit(0);
+" "$FILE_PATH" "$EXIT_CODE" "$ERR_JSON" || {
+    _block "Stage 3 decision script crashed — treating as validation failure for $FILE_PATH"
+  }
+
+done
+
+exit 0
+
