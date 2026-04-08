@@ -11,6 +11,18 @@
           }
         ]
       }
-    ]
+    ]{% if session_start_hook %},
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]{% endif %}
   }
 }

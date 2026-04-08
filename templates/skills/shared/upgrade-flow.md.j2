@@ -2,9 +2,10 @@
 
 When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble reports `MTHDS_AGENT_OUTDATED`, follow this flow.
 
-**Two upgrade paths exist:**
+**Three upgrade paths exist:**
 - **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `{{ mthds_upgrade_cmd }}` (Claude runs this directly, not via mthds-agent).
 - **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
+- **Plugin (Claude Code plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded via `claude plugin install {{ plugin_name }}@{{ marketplace_name }}`.
 
 ## Step 1 — Check auto-upgrade config
 
@@ -43,6 +44,14 @@ mthds-agent upgrade
 ```
 
 This upgrades all outdated Python binaries via `uv tool install --upgrade`.
+
+**For the Claude Code plugin (`{{ plugin_name }}@{{ marketplace_name }}`):**
+
+```bash
+claude plugin install {{ plugin_name }}@{{ marketplace_name }}
+```
+
+Claude runs this directly. After installing, tell the user to restart Claude Code for the new plugin to take effect.
 
 ## Step 3.5 — Interpret upgrade output
 
