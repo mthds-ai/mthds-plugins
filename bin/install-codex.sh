@@ -143,7 +143,7 @@ setup_marketplace() {
   info "Setting up marketplace..."
   mkdir -p "$(dirname "$marketplace_file")"
 
-  cat > "$marketplace_file" << 'MARKETPLACE_EOF'
+  cat > "$marketplace_file" << MARKETPLACE_EOF
 {
   "name": "mthds-plugins",
   "interface": {
@@ -154,7 +154,7 @@ setup_marketplace() {
       "name": "mthds",
       "source": {
         "source": "local",
-        "path": "~/.codex/plugins/mthds"
+        "path": "$HOME/.codex/plugins/mthds"
       },
       "policy": {
         "installation": "AVAILABLE"
@@ -322,7 +322,7 @@ main() {
   echo ""
   printf "${GREEN}${BOLD}Installed.${RESET}\n"
   echo ""
-  printf "${YELLOW}Restart Codex and run /plugins to install mthds.${RESET}\n"
+  printf "${YELLOW}Restart Codex, run /plugins, find MTHDS, and install it.${RESET}\n"
   echo ""
 }
 
