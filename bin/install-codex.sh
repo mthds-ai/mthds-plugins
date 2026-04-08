@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# install-codex.sh — install the MTHDS Codex plugin
+# install-codex.sh — install the MTHDS Codex plugin into the current repo
+#
+# Must be run from inside a project directory. Copies plugin files into
+# $PWD/plugins/mthds/ and creates the marketplace + hooks config.
 #
 # Usage:
-#   bash install-codex.sh          # install (always overwrites)
-#   bash install-codex.sh --check  # verify existing install (no changes)
+#   cd my-project && bash install-codex.sh          # install
+#   cd my-project && bash install-codex.sh --check  # verify (no changes)
 #
 # Exit codes:
 #   0 — success
 #   1 — prerequisite missing or install failed
+#
+# TODO-WHEN-0.119.0:
+#   - Replace repo-local install with `codex marketplace add` when it ships (PR #17087)
+#   - Switch from PostToolUse(Bash) to PostToolUse(Write|Edit) if Codex adds support
+#   - Test if `~/.agents/plugins/marketplace.json` personal install works reliably
+#   - Test if plugin.json `"hooks"` field auto-loads hooks from plugins
 
 set -euo pipefail
 
@@ -107,7 +116,7 @@ install_mthds_cli() {
 }
 
 setup_plugin() {
-  local plugin_dir="$HOME/.codex/plugins/mthds"
+  local plugin_dir="$PWD/plugins/mthds"
 
   info "Setting up plugin files..."
   rm -rf "$plugin_dir"
@@ -138,12 +147,12 @@ setup_plugin() {
 }
 
 setup_marketplace() {
-  local marketplace_file="$HOME/.agents/plugins/marketplace.json"
+  local marketplace_file="$PWD/.agents/plugins/marketplace.json"
 
   info "Setting up marketplace..."
   mkdir -p "$(dirname "$marketplace_file")"
 
-  cat > "$marketplace_file" << MARKETPLACE_EOF
+  cat > "$marketplace_file" << 'MARKETPLACE_EOF'
 {
   "name": "mthds-plugins",
   "interface": {
@@ -154,7 +163,7 @@ setup_marketplace() {
       "name": "mthds",
       "source": {
         "source": "local",
-        "path": "$HOME/.codex/plugins/mthds"
+        "path": "./plugins/mthds"
       },
       "policy": {
         "installation": "AVAILABLE"
@@ -175,19 +184,20 @@ setup_hooks() {
   mkdir -p "$hooks_dir"
 
   # Copy hook script from plugin
-  local plugin_dir="$HOME/.codex/plugins/mthds"
+  local plugin_dir="$PWD/plugins/mthds"
   if [[ -f "$plugin_dir/hooks/codex-validate-mthds.sh" ]]; then
     cp "$plugin_dir/hooks/codex-validate-mthds.sh" "$hooks_dir/codex-validate-mthds.sh"
     chmod +x "$hooks_dir/codex-validate-mthds.sh"
   else
-    fatal "Hook script not found — run setup_plugin first"
+    fatal "Hook script not found in plugin"
   fi
 
   cat > "$hooks_file" << 'HOOKS_EOF'
 {
   "hooks": {
-    "Stop": [
+    "PostToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
@@ -242,14 +252,14 @@ verify_install() {
     all_ok=1
   fi
 
-  if [[ -d "$HOME/.codex/plugins/mthds/.codex-plugin" ]]; then
+  if [[ -d "$PWD/plugins/mthds/.codex-plugin" ]]; then
     ok "Plugin files in place"
   else
     fail "Plugin files not found"
     all_ok=1
   fi
 
-  if [[ -f "$HOME/.agents/plugins/marketplace.json" ]]; then
+  if [[ -f "$PWD/.agents/plugins/marketplace.json" ]]; then
     ok "Marketplace configured"
   else
     fail "Marketplace not configured"
