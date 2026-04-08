@@ -128,10 +128,13 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
         source = plugin_section.get("source", "./")
         plugin_name = plugin_section.get("name", target_name)
 
+        platform = plugin_section.get("platform", config.get("vars", {}).get("platform", "claude"))
+        manifest_dirname = ".codex-plugin" if platform == "codex" else ".claude-plugin"
+
         if source == "./":
-            plugin_json_path = base_dir / ".claude-plugin" / "plugin.json"
+            plugin_json_path = base_dir / manifest_dirname / "plugin.json"
         else:
-            plugin_json_path = base_dir / source.rstrip("/") / ".claude-plugin" / "plugin.json"
+            plugin_json_path = base_dir / source.rstrip("/") / manifest_dirname / "plugin.json"
 
         if not plugin_json_path.is_file():
             errors.append(f"[{target_name}] plugin.json not found at {plugin_json_path.relative_to(base_dir)}")
@@ -175,7 +178,10 @@ def check_marketplace_plugins(base_dir: Path) -> list[str]:
     marketplace_names = {plugin["name"] for plugin in plugins if "name" in plugin}
 
     configs = load_target_configs(base_dir)
-    config_names = {config.get("plugin", {}).get("name", name) for name, config in configs.items()}
+    # Only Claude targets should appear in the Claude marketplace — skip Codex targets
+    config_names = {
+        config.get("plugin", {}).get("name", name) for name, config in configs.items() if config.get("vars", {}).get("platform", "claude") != "codex"
+    }
 
     errors: list[str] = []
     for idx, plugin in enumerate(plugins):
@@ -266,6 +272,29 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
         _scan_dir(output_dir / "skills")
         _scan_dir(output_dir / "hooks")
 
+    return errors
+
+
+def check_codex_no_claude_artifacts(base_dir: Path) -> list[str]:
+    """Check: Codex output directories must not contain .claude-plugin/ or allowed-tools."""
+    errors: list[str] = []
+    configs = load_target_configs(base_dir)
+    for target_name, config in configs.items():
+        if config.get("vars", {}).get("platform", "claude") != "codex":
+            continue
+        source = config.get("plugin", {}).get("source", "./")
+        if source == "./":
+            continue
+        output_dir = base_dir / source.rstrip("/")
+        claude_dir = output_dir / ".claude-plugin"
+        if claude_dir.is_dir():
+            errors.append(f"[{target_name}] .claude-plugin/ found in Codex output {source}")
+        # Check for allowed-tools in Codex skill frontmatter
+        for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
+            text = skill_md.read_text(encoding="utf-8")
+            if "allowed-tools:" in text:
+                rel = skill_md.relative_to(base_dir)
+                errors.append(f"[{target_name}] {rel}: contains 'allowed-tools' (not supported in Codex)")
     return errors
 
 
@@ -408,6 +437,17 @@ def main() -> int:
         failed = True
     else:
         print("  All frontmatter versions consistent.")
+
+    # Check 4: Codex targets must not contain Claude artifacts
+    print("Checking Codex targets for Claude artifacts...")
+    errors = check_codex_no_claude_artifacts(base_dir)
+    if errors:
+        for error in errors:
+            print(f"  {error}")
+        print("FAIL: Codex target contains Claude-specific artifacts.")
+        failed = True
+    else:
+        print("  No Claude artifacts in Codex targets.")
 
     if failed:
         return 1

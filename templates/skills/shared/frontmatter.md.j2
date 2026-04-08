@@ -1,6 +1,7 @@
 {#- Shared frontmatter fields — included by all SKILL.md.j2 templates.
    Place between the opening --- and closing --- of the YAML frontmatter. -#}
 min_mthds_version: {{ min_mthds_version }}
+{% if platform != "codex" -%}
 allowed-tools:
   - Bash
   - Read
@@ -8,3 +9,4 @@ allowed-tools:
   - Edit
   - Grep
   - Glob
+{% endif -%}

@@ -53,8 +53,17 @@ HOOK_TEMPLATES = [
     "hooks/session-start.sh.j2",
 ]
 
+# Hook templates by platform — each platform has its own hook set.
+HOOK_TEMPLATES_BY_PLATFORM = {
+    "claude": HOOK_TEMPLATES,
+    "codex": [
+        "hooks/codex-hooks.json.j2",
+        "hooks/codex-validate-mthds-stop.sh.j2",
+    ],
+}
+
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds-stop.sh"}
 
 
 @dataclass
@@ -73,6 +82,11 @@ class TargetConfig:
     def is_root(self) -> bool:
         """Whether this target writes output to the repo root."""
         return self.source == "./"
+
+    @property
+    def platform(self) -> str:
+        """Target platform: 'claude' or 'codex'."""
+        return str(self.template_vars.get("platform", "claude"))
 
 
 @dataclass
@@ -197,9 +211,11 @@ def render_templates(
             raise SystemExit(msg)
         shared_j2_paths.append(path)
 
-    # Collect hook templates (must all exist — fail loudly if missing)
+    # Collect hook templates (platform-specific — must all exist)
+    platform = str(template_vars.get("platform", "claude"))
+    hook_template_list = HOOK_TEMPLATES_BY_PLATFORM.get(platform, HOOK_TEMPLATES_BY_PLATFORM["claude"])
     hook_j2_paths: list[Path] = []
-    for name in HOOK_TEMPLATES:
+    for name in hook_template_list:
         path = templates_dir / name
         if not path.is_file():
             msg = f"Declared hook template not found: {name}"
@@ -245,10 +261,12 @@ def render_templates(
 def make_plugin_json(base_dir: Path, config: TargetConfig) -> dict[str, object]:
     """Create a plugin.json dict by overlaying target-specific fields on the base template.
 
-    Uses .claude-plugin/plugin-base.json for shared fields (author, repository, license)
-    that stay in sync without duplication across targets.
+    Uses platform-specific plugin-base.json for shared fields:
+    - Claude: .claude-plugin/plugin-base.json
+    - Codex: .codex-plugin/plugin-base.json
     """
-    base_plugin_path = base_dir / ".claude-plugin" / "plugin-base.json"
+    base_dirname = ".codex-plugin" if config.platform == "codex" else ".claude-plugin"
+    base_plugin_path = base_dir / base_dirname / "plugin-base.json"
     base: dict[str, object] = json.loads(base_plugin_path.read_text(encoding="utf-8"))
     base["name"] = config.plugin_name
     base["description"] = config.plugin_description
@@ -340,7 +358,8 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
         # Generate plugin.json
         plugin_json = make_plugin_json(base_dir, config)
         result.plugin_json = plugin_json
-        plugin_dir = output_dir / ".claude-plugin"
+        manifest_dirname = ".codex-plugin" if config.platform == "codex" else ".claude-plugin"
+        plugin_dir = output_dir / manifest_dirname
         if not dry_run:
             plugin_dir.mkdir(parents=True, exist_ok=True)
         plugin_json_path = plugin_dir / "plugin.json"
