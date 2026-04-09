@@ -13,7 +13,7 @@ from typing import Any, cast
 # Derive the shared template file list from gen_skill_docs.py (single source of truth).
 # SHARED_TEMPLATES contains full relative paths like "skills/shared/error-handling.md.j2".
 # We extract just the filenames for the existence check.
-from scripts.gen_skill_docs import SHARED_TEMPLATES
+from scripts.gen_skill_docs import SHARED_TEMPLATES, Platform
 
 SHARED_TEMPLATE_FILES = [Path(template_path).name for template_path in SHARED_TEMPLATES]
 
@@ -128,8 +128,8 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
         source = plugin_section.get("source", "./")
         plugin_name = plugin_section.get("name", target_name)
 
-        platform = plugin_section.get("platform", config.get("vars", {}).get("platform", "claude"))
-        manifest_dirname = ".codex-plugin" if platform == "codex" else ".claude-plugin"
+        platform = plugin_section.get("platform", config.get("vars", {}).get("platform", Platform.CLAUDE))
+        manifest_dirname = ".codex-plugin" if platform == Platform.CODEX else ".claude-plugin"
 
         if source == "./":
             plugin_json_path = base_dir / manifest_dirname / "plugin.json"
@@ -180,7 +180,9 @@ def check_marketplace_plugins(base_dir: Path) -> list[str]:
     configs = load_target_configs(base_dir)
     # Only Claude targets should appear in the Claude marketplace — skip Codex targets
     config_names = {
-        config.get("plugin", {}).get("name", name) for name, config in configs.items() if config.get("vars", {}).get("platform", "claude") != "codex"
+        config.get("plugin", {}).get("name", name)
+        for name, config in configs.items()
+        if config.get("vars", {}).get("platform", Platform.CLAUDE) != Platform.CODEX
     }
 
     errors: list[str] = []
@@ -280,7 +282,7 @@ def check_codex_no_claude_artifacts(base_dir: Path) -> list[str]:
     errors: list[str] = []
     configs = load_target_configs(base_dir)
     for target_name, config in configs.items():
-        if config.get("vars", {}).get("platform", "claude") != "codex":
+        if config.get("vars", {}).get("platform", Platform.CLAUDE) != Platform.CODEX:
             continue
         source = config.get("plugin", {}).get("source", "./")
         if source == "./":
@@ -289,10 +291,12 @@ def check_codex_no_claude_artifacts(base_dir: Path) -> list[str]:
         claude_dir = output_dir / ".claude-plugin"
         if claude_dir.is_dir():
             errors.append(f"[{target_name}] .claude-plugin/ found in Codex output {source}")
-        # Check for allowed-tools in Codex skill frontmatter
+        # Check for allowed-tools in Codex skill frontmatter (scan frontmatter only)
         for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
             text = skill_md.read_text(encoding="utf-8")
-            if "allowed-tools:" in text:
+            parts = text.split("---", 2)
+            frontmatter = parts[1] if len(parts) >= 3 else ""
+            if "allowed-tools:" in frontmatter:
                 rel = skill_md.relative_to(base_dir)
                 errors.append(f"[{target_name}] {rel}: contains 'allowed-tools' (not supported in Codex)")
     return errors

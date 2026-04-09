@@ -44,7 +44,7 @@ version_of() {
 # ── Configuration ──────────────────────────────────────────────────
 
 GITHUB_REPO="mthds-ai/mthds-plugins"
-GITHUB_BRANCH="feature/codex-plugin"
+GITHUB_BRANCH="main"
 PLUGIN_SOURCE_DIR=""
 
 resolve_plugin_source() {
@@ -192,7 +192,13 @@ setup_hooks() {
     fatal "Hook script not found in plugin"
   fi
 
-  cat > "$hooks_file" << 'HOOKS_EOF'
+  if [[ -f "$hooks_file" ]] && grep -q "codex-validate-mthds" "$hooks_file" 2>/dev/null; then
+    ok "Hooks already configured"
+  elif [[ -f "$hooks_file" ]]; then
+    warn "Existing ~/.codex/hooks.json found with other hooks"
+    warn "  Add the mthds Stop hook manually — see: $plugin_dir/hooks/codex-hooks.json"
+  else
+    cat > "$hooks_file" << 'HOOKS_EOF'
 {
   "hooks": {
     "Stop": [
@@ -209,7 +215,8 @@ setup_hooks() {
   }
 }
 HOOKS_EOF
-  ok "Hooks configured"
+    ok "Hooks configured"
+  fi
 }
 
 enable_hooks_feature() {
@@ -224,9 +231,7 @@ enable_hooks_feature() {
       return 0
     fi
     if grep -q "\[features\]" "$config_file" 2>/dev/null; then
-      sed -i.bak '/\[features\]/a\
-codex_hooks = true' "$config_file"
-      rm -f "${config_file}.bak"
+      awk '/\[features\]/{print; print "codex_hooks = true"; next}1' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
     else
       printf '\n[features]\ncodex_hooks = true\n' >> "$config_file"
     fi

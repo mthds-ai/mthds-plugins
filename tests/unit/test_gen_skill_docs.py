@@ -12,6 +12,7 @@ from scripts.gen_skill_docs import (
     HOOK_TEMPLATES,
     HOOK_TEMPLATES_BY_PLATFORM,
     SHARED_TEMPLATES,
+    Platform,
     TargetConfig,
     build_target,
     check_freshness,
@@ -437,5 +438,5 @@ class TestCodexTarget:
         """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms."""
         assert "claude" in HOOK_TEMPLATES_BY_PLATFORM
         assert "codex" in HOOK_TEMPLATES_BY_PLATFORM
-        assert len(HOOK_TEMPLATES_BY_PLATFORM["claude"]) == 3
-        assert len(HOOK_TEMPLATES_BY_PLATFORM["codex"]) == 2
+        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE]) == 3
+        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX]) == 2

@@ -25,9 +25,16 @@ import sys
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, TemplateSyntaxError, UndefinedError
+
+
+class Platform(StrEnum):
+    CLAUDE = "claude"
+    CODEX = "codex"
+
 
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
@@ -55,8 +62,8 @@ HOOK_TEMPLATES = [
 
 # Hook templates by platform — each platform has its own hook set.
 HOOK_TEMPLATES_BY_PLATFORM = {
-    "claude": HOOK_TEMPLATES,
-    "codex": [
+    Platform.CLAUDE: HOOK_TEMPLATES,
+    Platform.CODEX: [
         "hooks/codex-hooks.json.j2",
         "hooks/codex-validate-mthds.sh.j2",
     ],
@@ -84,9 +91,9 @@ class TargetConfig:
         return self.source == "./"
 
     @property
-    def platform(self) -> str:
-        """Target platform: 'claude' or 'codex'."""
-        return str(self.template_vars.get("platform", "claude"))
+    def platform(self) -> Platform:
+        """Target platform: claude or codex."""
+        return Platform(str(self.template_vars.get("platform", Platform.CLAUDE)))
 
 
 @dataclass
@@ -212,8 +219,8 @@ def render_templates(
         shared_j2_paths.append(path)
 
     # Collect hook templates (platform-specific — must all exist)
-    platform = str(template_vars.get("platform", "claude"))
-    hook_template_list = HOOK_TEMPLATES_BY_PLATFORM.get(platform, HOOK_TEMPLATES_BY_PLATFORM["claude"])
+    platform = Platform(str(template_vars.get("platform", Platform.CLAUDE)))
+    hook_template_list = HOOK_TEMPLATES_BY_PLATFORM.get(platform, HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE])
     hook_j2_paths: list[Path] = []
     for name in hook_template_list:
         path = templates_dir / name
@@ -265,7 +272,7 @@ def make_plugin_json(base_dir: Path, config: TargetConfig) -> dict[str, object]:
     - Claude: .claude-plugin/plugin-base.json
     - Codex: .codex-plugin/plugin-base.json
     """
-    base_dirname = ".codex-plugin" if config.platform == "codex" else ".claude-plugin"
+    base_dirname = ".codex-plugin" if config.platform == Platform.CODEX else ".claude-plugin"
     base_plugin_path = base_dir / base_dirname / "plugin-base.json"
     base: dict[str, object] = json.loads(base_plugin_path.read_text(encoding="utf-8"))
     base["name"] = config.plugin_name
@@ -358,7 +365,7 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
         # Generate plugin.json
         plugin_json = make_plugin_json(base_dir, config)
         result.plugin_json = plugin_json
-        manifest_dirname = ".codex-plugin" if config.platform == "codex" else ".claude-plugin"
+        manifest_dirname = ".codex-plugin" if config.platform == Platform.CODEX else ".claude-plugin"
         plugin_dir = output_dir / manifest_dirname
         if not dry_run:
             plugin_dir.mkdir(parents=True, exist_ok=True)

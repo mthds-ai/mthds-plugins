@@ -87,7 +87,7 @@ while IFS= read -r FILE_PATH; do
     LINT_OUTPUT=$(cat "$TMPERR")
     [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT=$(cat "$TMPOUT")
     [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT="lint exited with code $LINT_EXIT (no output)"
-    ALL_ERRORS="${ALL_ERRORS}TOML/schema lint errors in $FILE_PATH:\n$LINT_OUTPUT\n\n"
+    ALL_ERRORS="${ALL_ERRORS}TOML/schema lint errors in $FILE_PATH:\n$LINT_OUTPUT\n\nFix it.\n\n"
     continue
   fi
 
@@ -98,7 +98,7 @@ while IFS= read -r FILE_PATH; do
   plxt fmt "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || FMT_EXIT=$?
   if [[ "$FMT_EXIT" -ne 0 ]]; then
     FMT_ERR=$(cat "$TMPERR")
-    echo "[mthds-hook] Warning: plxt fmt failed (exit $FMT_EXIT): ${FMT_ERR:-no output}" >&2
+    ALL_ERRORS="${ALL_ERRORS}plxt fmt failed on $FILE_PATH (exit $FMT_EXIT):\n${FMT_ERR:-no output}\n\nFix it.\n\n"
   fi
 
   # STAGE 3: mthds-agent validate bundle — DISABLED (sandbox blocks remote config fetch)
