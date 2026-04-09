@@ -32,9 +32,13 @@ Codex's PostToolUse hook only intercepts Bash tool calls. Codex writes files usi
 
 Since the Stop hook doesn't receive file paths, we parse the session transcript (`transcript_path` field in the Stop hook's stdin JSON) to find which `.mthds` files were written. The transcript is a JSONL file where `apply_patch` entries contain `Update File:` or `Add File:` lines with the full file path.
 
-### mthds-agent validate disabled
+### mthds-agent validate temporarily disabled
 
-`mthds-agent validate bundle` fetches remote Pipelex configuration from S3 on startup (`pipelex_remote_config_08.json`). The Codex sandbox blocks this network call, causing the command to hang until timeout. Since the validation itself is local (the remote config is not needed for structural validation), this is a bug in mthds-agent's eager network access. Stage 3 is disabled until mthds-agent supports offline validation.
+`mthds-agent validate bundle` fetches remote Pipelex configuration from S3 on startup (`pipelex_remote_config_08.json`). The Codex sandbox blocks this network call, causing the command to hang until timeout. Since the validation itself is local (the remote config is not needed for structural validation), this is a bug in mthds-agent's eager network access.
+
+**Stage 3 is commented out in the Codex hook** (`codex-validate-mthds.sh`). Only plxt lint + plxt fmt run. Semantic validation is skipped. This means the Codex hook catches TOML syntax and formatting errors but NOT semantic issues like missing pipe inputs, invalid concept references, or broken data flow. The Claude Code hook still runs all three stages.
+
+To re-enable: add offline validation support to `mthds-agent` (in `mthds-js`), then uncomment Stage 3 in the hook template (`templates/hooks/codex-validate-mthds.sh.j2`).
 
 ### plxt lazy HTTP fix
 
