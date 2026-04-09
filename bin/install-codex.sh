@@ -195,9 +195,8 @@ setup_hooks() {
   cat > "$hooks_file" << 'HOOKS_EOF'
 {
   "hooks": {
-    "PostToolUse": [
+    "Stop": [
       {
-        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",

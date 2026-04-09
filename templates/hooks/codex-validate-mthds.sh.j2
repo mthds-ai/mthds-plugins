@@ -1,24 +1,20 @@
 {% raw %}#!/usr/bin/env bash
-# PostToolUse hook (Codex): lint, format, and validate .mthds files after Bash commands
-# Reads tool_input JSON from stdin, extracts the Bash command, and checks if any
-# .mthds files were written. If so, runs (in order):
+# Codex Stop hook: lint, format, and validate all .mthds files in the project
+# Finds all .mthds files under the working directory, then runs (in order):
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
 #   3. mthds-agent validate bundle — semantic validation (blocks or warns)
-# Blocks if plxt or mthds-agent is not installed. Passes silently if no .mthds file involved.
+# Blocks if plxt or mthds-agent is not installed. Passes silently if no .mthds files found.
 # Uses Node.js for JSON parsing (guaranteed on PATH since mthds-agent requires it).
 
 set -euo pipefail
 
-# --- Read stdin (PostToolUse JSON) and extract bash command ---
+# --- Read stdin (Stop hook JSON) — extract cwd ---
 INPUT=$(cat)
 
 # --- Require Node.js for JSON parsing ---
 if ! command -v node &>/dev/null; then
-  # Check if the command likely touched a .mthds file before blocking
-  if echo "$INPUT" | grep -q '\.mthds' 2>/dev/null; then
-    printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
-  fi
+  printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
   exit 0
 fi
 
@@ -29,39 +25,20 @@ _block() {
     || printf '{"decision":"block","reason":"Hook error: could not format block reason"}\n'
 }
 
-# --- Extract the bash command from PostToolUse input ---
-BASH_CMD=$(_jv "$INPUT" "d.tool_input?.command") || {
-  exit 0
-}
-
-# Guard: no command → pass silently
-if [[ -z "$BASH_CMD" ]]; then
-  exit 0
+# --- Get working directory from hook input ---
+CWD=$(_jv "$INPUT" "d.cwd") || true
+if [[ -z "$CWD" ]]; then
+  CWD="$(pwd)"
 fi
 
-# --- Extract .mthds file paths from the bash command ---
-# Use Node.js to find all tokens ending in .mthds that are real files
-MTHDS_FILES=$(node -e "
-const cmd = process.argv[1];
-// Match tokens that look like file paths ending in .mthds
-const tokens = cmd.match(/[^\s'\"<>|;&]+\.mthds/g) || [];
-// Deduplicate
-const unique = [...new Set(tokens)];
-process.stdout.write(unique.join('\n'));
-" "$BASH_CMD") || true
-
-# Guard: no .mthds files in command → pass silently
-if [[ -z "$MTHDS_FILES" ]]; then
-  exit 0
-fi
-
-# --- Filter to files that actually exist ---
-VALID_FILES=()
+# --- Find all .mthds files ---
+MTHDS_FILES=()
 while IFS= read -r file; do
-  [[ -n "$file" && -f "$file" ]] && VALID_FILES+=("$file")
-done <<< "$MTHDS_FILES"
+  [[ -n "$file" ]] && MTHDS_FILES+=("$file")
+done < <(find "$CWD" -name "*.mthds" -type f 2>/dev/null)
 
-if [[ ${#VALID_FILES[@]} -eq 0 ]]; then
+# No .mthds files — pass silently
+if [[ ${#MTHDS_FILES[@]} -eq 0 ]]; then
   exit 0
 fi
 
@@ -80,7 +57,9 @@ TMPOUT=$(mktemp)
 TMPERR=$(mktemp)
 trap 'rm -f "$TMPOUT" "$TMPERR"' EXIT
 
-for FILE_PATH in "${VALID_FILES[@]}"; do
+ALL_ERRORS=""
+
+for FILE_PATH in "${MTHDS_FILES[@]}"; do
 
   # =====================================================================
   # STAGE 1: plxt lint — TOML/schema-level linting
@@ -92,10 +71,8 @@ for FILE_PATH in "${VALID_FILES[@]}"; do
     LINT_OUTPUT=$(cat "$TMPERR")
     [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT=$(cat "$TMPOUT")
     [[ -z "$LINT_OUTPUT" ]] && LINT_OUTPUT="lint exited with code $LINT_EXIT (no output)"
-
-    _block "TOML/schema lint errors in $FILE_PATH:
-$LINT_OUTPUT"
-    exit 0
+    ALL_ERRORS="${ALL_ERRORS}TOML/schema lint errors in $FILE_PATH:\n$LINT_OUTPUT\n\n"
+    continue
   fi
 
   # =====================================================================
@@ -179,6 +156,12 @@ process.exit(0);
   }
 
 done
+
+# --- Report results ---
+if [[ -n "$ALL_ERRORS" ]]; then
+  REASON=$(printf "$ALL_ERRORS" | sed '/^$/d')
+  _block "$REASON"
+fi
 
 exit 0
 {% endraw %}
