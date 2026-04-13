@@ -1,10 +1,10 @@
 # MTHDS Plugins
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills plugin for building, running, validating, and editing AI methods (.mthds bundle files).
+A skills plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenAI Codex](https://developers.openai.com/codex) for building, running, validating, and editing AI methods (.mthds bundle files).
 
 [MTHDS](https://mthds.ai/latest/) is an open standard for AI methods. Find methods on the hub: [MTHDS Hub](https://mthds.sh). Install the reference python runtime from [Pipelex](https://github.com/Pipelex/pipelex).
 
-## Installation
+## Install for Claude Code
 
 Open Claude Code and paste this. Claude does the rest.
 
@@ -12,7 +12,7 @@ Open Claude Code and paste this. Claude does the rest.
 Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins'. Then tell me to restart Claude Code.
 ```
 
-### Manual install
+### Manual install (Claude Code)
 
 ```bash
 npm install -g mthds
@@ -21,33 +21,56 @@ claude plugin marketplace add mthds-ai/mthds-plugins
 claude plugin install mthds@mthds-plugins
 ```
 
-## Skills to use with [MTHDS](https://mthds.ai/latest/)
+## Install for Codex
+
+Open Codex and paste this. Codex does the rest.
+
+```
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && bash <(curl -fsSL https://raw.githubusercontent.com/mthds-ai/mthds-plugins/main/bin/install-codex.sh)'. Then tell me to restart Codex and run /plugins to install mthds.
+```
+
+### Manual install (Codex)
+
+```bash
+npm install -g mthds
+mthds-agent bootstrap
+bash bin/install-codex.sh
+# Restart Codex, then run /plugins to install mthds
+```
+
+## Skills
+
+Skills work identically on both Claude Code (`/skill-name`) and Codex (`$skill-name`).
 
 | Skill | Description |
 |:------|:------------|
-| `/mthds-upgrade` | Upgrade MTHDS stack to latest version |
-| `/mthds-build` | Build new AI method bundles from scratch |
-| `/mthds-check` | Validate workflow bundles (read-only) |
-| `/mthds-edit` | Modify existing bundles |
-| `/mthds-explain` | Explain and document workflows |
-| `/mthds-fix` | Auto-fix validation errors |
-| `/mthds-run` | Execute methods and interpret output |
-| `/mthds-inputs` | Prepare inputs: templates, synthetic data, files |
-| `/mthds-install` | Install method packages from GitHub or local |
-| `/mthds-runner-setup` | Set up inference backends and API keys |
-| `/mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
-| `/mthds-publish` | Publish methods to mthds.sh |
-| `/mthds-share` | Share methods on social media |
+| `mthds-upgrade` | Upgrade MTHDS stack to latest version |
+| `mthds-build` | Build new AI method bundles from scratch |
+| `mthds-check` | Validate workflow bundles (read-only) |
+| `mthds-edit` | Modify existing bundles |
+| `mthds-explain` | Explain and document workflows |
+| `mthds-fix` | Auto-fix validation errors |
+| `mthds-run` | Execute methods and interpret output |
+| `mthds-inputs` | Prepare inputs: templates, synthetic data, files |
+| `mthds-install` | Install method packages from GitHub or local |
+| `mthds-runner-setup` | Set up inference backends and API keys |
+| `mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
+| `mthds-publish` | Publish methods to mthds.sh |
+| `mthds-share` | Share methods on social media |
 
-## What happens automatically
+## Automatic validation
 
-The plugin includes a **PostToolUse hook** that fires on every `.mthds` file edit:
+Both plugins include hooks that validate `.mthds` files automatically:
 
 1. **Lint** — `plxt lint` validates TOML structure and schema
 2. **Format** — `plxt fmt` auto-formats the file
 3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
 
-Errors block the edit. Warnings are shown but don't block. Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
+**Claude Code:** A PostToolUse hook matches Write/Edit and receives the file path directly. Errors block the edit immediately.
+
+**Codex:** A PostToolUse hook matches Bash and parses the command to detect `.mthds` file paths. Same per-edit validation, same immediate feedback.
+
+Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
 
 ## License
 

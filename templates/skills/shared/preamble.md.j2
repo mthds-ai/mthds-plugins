@@ -1,9 +1,14 @@
 Run this command to check toolchain status:
 
+{% if platform == "codex" -%}
+```bash
+mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+```
+{% else -%}
 ```bash
 ~/.claude/plugins/marketplaces/{{ marketplace_name }}/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || ../{{ marketplace_name }}/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
-
+{% endif %}
 **Interpret the output:**
 
 - `MTHDS_AGENT_MISSING` → STOP. Do not proceed. Tell the user:

@@ -1,7 +1,7 @@
 ---
 name: mthds-runner-setup
 description: Set up or reconfigure inference backends and API keys. Use when user gets InferenceSetupRequiredError, wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", or gets a config/credential error when running. Guides through Pipelex Gateway (recommended) or Bring Your Own Key setup.
-min_mthds_version: 0.3.5
+min_mthds_version: 0.4.0
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ You've built a method — now let's run it. Before your first live inference run
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.5" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.5" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.4.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.4.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

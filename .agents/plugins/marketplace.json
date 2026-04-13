@@ -1,0 +1,19 @@
+{
+  "name": "mthds-plugins",
+  "interface": {
+    "displayName": "MTHDS Plugins"
+  },
+  "plugins": [
+    {
+      "name": "mthds",
+      "source": {
+        "source": "local",
+        "path": "./mthds-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

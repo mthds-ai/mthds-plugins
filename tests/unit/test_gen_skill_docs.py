@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
-from scripts.gen_skill_docs import EXECUTABLE_OUTPUTS, HOOK_TEMPLATES, SHARED_TEMPLATES, check_freshness, generate, render_templates
+from scripts.gen_skill_docs import (
+    EXECUTABLE_OUTPUTS,
+    HOOK_TEMPLATES,
+    HOOK_TEMPLATES_BY_PLATFORM,
+    SHARED_TEMPLATES,
+    Platform,
+    TargetConfig,
+    build_target,
+    check_freshness,
+    generate,
+    load_target_config,
+    make_plugin_json,
+    render_templates,
+)
 
 DEFAULT_VARS = {"min_mthds_version": "1.0.0", "marketplace_name": "mthds-plugins", "plugin_name": "mthds"}
 
@@ -251,3 +265,178 @@ class TestCheckFreshness:
                 break
         result = check_freshness(template_tree, "prod")
         assert result == 1
+
+
+def _create_codex_tree(tmp_path: Path) -> Path:
+    """Create a minimal repo with both Claude and Codex targets."""
+    templates_dir = tmp_path / "templates"
+    shared = templates_dir / "skills" / "shared"
+    shared.mkdir(parents=True)
+    (shared / "preamble.md.j2").write_text("Preamble.\n")
+    (shared / "mthds-agent-guide.md.j2").write_text("Guide.\n")
+    (shared / "error-handling.md.j2").write_text("Errors.\n")
+    (shared / "frontmatter.md.j2").write_text('{%- if platform != "codex" -%}\nallowed-tools:\n  - Bash\n{% endif -%}\n')
+    (shared / "mthds-reference.md.j2").write_text("Ref.\n")
+    (shared / "native-content-types.md.j2").write_text("Types.\n")
+    (shared / "python-execution.md.j2").write_text("Python.\n")
+    (shared / "upgrade-flow.md.j2").write_text("Upgrade.\n")
+
+    # Claude hooks
+    hooks_tmpl = templates_dir / "hooks"
+    hooks_tmpl.mkdir()
+    (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
+    (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
+    (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
+    # Codex hooks
+    (hooks_tmpl / "codex-hooks.json.j2").write_text('{"hooks":{"Stop":[]}}\n')
+    (hooks_tmpl / "codex-validate-mthds.sh.j2").write_text("#!/bin/bash\n# codex post-tool-use hook\n")
+
+    skill_dir = templates_dir / "skills" / "mthds-test"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md.j2").write_text("---\nname: test\n{% include 'skills/shared/frontmatter.md.j2' %}---\n\nContent.\n")
+
+    # Claude plugin base
+    claude_plugin = tmp_path / ".claude-plugin"
+    claude_plugin.mkdir()
+    (claude_plugin / "plugin-base.json").write_text('{"author": {"name": "test"}, "license": "MIT"}\n')
+
+    # Codex plugin base
+    codex_plugin = tmp_path / ".codex-plugin"
+    codex_plugin.mkdir()
+    (codex_plugin / "plugin-base.json").write_text(
+        '{"author": {"name": "test"}, "license": "MIT", "skills": "./skills/", "interface": {"displayName": "Test"}}\n'
+    )
+
+    # Target configs
+    targets_dir = tmp_path / "targets"
+    targets_dir.mkdir()
+    (targets_dir / "defaults.toml").write_text('[vars]\nmin_mthds_version = "1.0.0"\nmarketplace_name = "mthds-plugins"\nplatform = "claude"\n')
+    (targets_dir / "prod.toml").write_text('[plugin]\nname = "mthds"\nversion = "1.0.0"\nsource = "mthds/"\n')
+    (targets_dir / "codex.toml").write_text('[plugin]\nname = "mthds"\nversion = "0.1.0"\nsource = "mthds-codex/"\n\n[vars]\nplatform = "codex"\n')
+
+    return tmp_path
+
+
+class TestCodexTarget:
+    """Tests for Codex platform support in the build system."""
+
+    def test_target_config_platform_default(self) -> None:
+        """TargetConfig.platform defaults to 'claude' when not set."""
+        config = TargetConfig(
+            name="test",
+            plugin_name="test",
+            plugin_version="1.0.0",
+            plugin_description="",
+            source="test/",
+            template_vars={"min_mthds_version": "1.0.0"},
+        )
+        assert config.platform == "claude"
+
+    def test_target_config_platform_codex(self) -> None:
+        """TargetConfig.platform returns 'codex' when set."""
+        config = TargetConfig(
+            name="test",
+            plugin_name="test",
+            plugin_version="1.0.0",
+            plugin_description="",
+            source="test/",
+            template_vars={"platform": "codex"},
+        )
+        assert config.platform == "codex"
+
+    def test_load_codex_target_config(self, tmp_path: Path) -> None:
+        """load_target_config loads Codex target with platform='codex'."""
+        tree = _create_codex_tree(tmp_path)
+        config = load_target_config(tree / "targets", "codex")
+        assert config.platform == "codex"
+        assert config.plugin_name == "mthds"
+        assert config.source == "mthds-codex/"
+
+    def test_codex_uses_codex_hook_templates(self, tmp_path: Path) -> None:
+        """Codex platform renders Codex hook templates, not Claude hooks."""
+        tree = _create_codex_tree(tmp_path)
+        codex_vars = {**DEFAULT_VARS, "platform": "codex"}
+        results = render_templates(tree / "templates", tree, codex_vars)
+        output_names = {path.name for path in results}
+        assert "codex-hooks.json" in output_names
+        assert "codex-validate-mthds.sh" in output_names
+        assert "hooks.json" not in output_names
+        assert "validate-mthds.sh" not in output_names
+
+    def test_claude_uses_claude_hook_templates(self, tmp_path: Path) -> None:
+        """Claude platform still renders Claude hook templates (regression)."""
+        tree = _create_codex_tree(tmp_path)
+        claude_vars = {**DEFAULT_VARS, "platform": "claude"}
+        results = render_templates(tree / "templates", tree, claude_vars)
+        output_names = {path.name for path in results}
+        assert "hooks.json" in output_names
+        assert "validate-mthds.sh" in output_names
+        assert "codex-hooks.json" not in output_names
+
+    def test_codex_frontmatter_no_allowed_tools(self, tmp_path: Path) -> None:
+        """Codex skills do not include allowed-tools in frontmatter."""
+        tree = _create_codex_tree(tmp_path)
+        codex_vars = {**DEFAULT_VARS, "platform": "codex"}
+        results = render_templates(tree / "templates", tree, codex_vars)
+        skill_path = tree / "skills" / "mthds-test" / "SKILL.md"
+        assert skill_path in results
+        assert "allowed-tools" not in results[skill_path]
+
+    def test_claude_frontmatter_has_allowed_tools(self, tmp_path: Path) -> None:
+        """Claude skills still include allowed-tools in frontmatter (regression)."""
+        tree = _create_codex_tree(tmp_path)
+        claude_vars = {**DEFAULT_VARS, "platform": "claude"}
+        results = render_templates(tree / "templates", tree, claude_vars)
+        skill_path = tree / "skills" / "mthds-test" / "SKILL.md"
+        assert skill_path in results
+        assert "allowed-tools" in results[skill_path]
+
+    def test_codex_plugin_json_uses_codex_base(self, tmp_path: Path) -> None:
+        """make_plugin_json reads from .codex-plugin/plugin-base.json for Codex."""
+        tree = _create_codex_tree(tmp_path)
+        config = load_target_config(tree / "targets", "codex")
+        plugin_json = make_plugin_json(tree, config)
+        assert plugin_json["name"] == "mthds"
+        assert plugin_json["version"] == "0.1.0"
+        assert "skills" in plugin_json
+        assert "interface" in plugin_json
+
+    def test_claude_plugin_json_uses_claude_base(self, tmp_path: Path) -> None:
+        """make_plugin_json reads from .claude-plugin/plugin-base.json for Claude (regression)."""
+        tree = _create_codex_tree(tmp_path)
+        config = load_target_config(tree / "targets", "prod")
+        plugin_json = make_plugin_json(tree, config)
+        assert plugin_json["name"] == "mthds"
+        assert "skills" not in plugin_json
+        assert "interface" not in plugin_json
+
+    def test_build_codex_target_writes_codex_plugin_dir(self, tmp_path: Path) -> None:
+        """build_target creates .codex-plugin/plugin.json for Codex, not .claude-plugin/."""
+        tree = _create_codex_tree(tmp_path)
+        config = load_target_config(tree / "targets", "codex")
+        result = build_target(tree, config)
+        codex_manifest = tree / "mthds-codex" / ".codex-plugin" / "plugin.json"
+        claude_manifest = tree / "mthds-codex" / ".claude-plugin" / "plugin.json"
+        assert codex_manifest in result.files
+        assert claude_manifest not in result.files
+        # Verify plugin.json content
+        plugin_data = json.loads(result.files[codex_manifest])
+        assert plugin_data["name"] == "mthds"
+        assert "interface" in plugin_data
+
+    def test_build_claude_target_still_writes_claude_plugin_dir(self, tmp_path: Path) -> None:
+        """build_target creates .claude-plugin/plugin.json for Claude (regression)."""
+        tree = _create_codex_tree(tmp_path)
+        config = load_target_config(tree / "targets", "prod")
+        result = build_target(tree, config)
+        claude_manifest = tree / "mthds" / ".claude-plugin" / "plugin.json"
+        codex_manifest = tree / "mthds" / ".codex-plugin" / "plugin.json"
+        assert claude_manifest in result.files
+        assert codex_manifest not in result.files
+
+    def test_hook_templates_by_platform_has_both(self) -> None:
+        """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms."""
+        assert "claude" in HOOK_TEMPLATES_BY_PLATFORM
+        assert "codex" in HOOK_TEMPLATES_BY_PLATFORM
+        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE]) == 3
+        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX]) == 2
