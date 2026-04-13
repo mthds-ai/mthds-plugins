@@ -1,14 +1,9 @@
 Run this command to check toolchain status:
 
-{% if platform == "codex" -%}
 ```bash
-mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+mthds-env-check "0.3.5" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
-{% else -%}
-```bash
-~/.claude/plugins/marketplaces/{{ marketplace_name }}/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || ../{{ marketplace_name }}/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
-```
-{% endif %}
+
 **Interpret the output:**
 
 - `MTHDS_AGENT_MISSING` → STOP. Do not proceed. Tell the user:
@@ -16,7 +11,7 @@ mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_M
 > The `mthds-agent` CLI is required but not installed. Install it with:
 >
 > ```
-> {{ mthds_install_cmd }}
+> npm install -g mthds
 > ```
 >
 > Then re-run this skill.
@@ -26,12 +21,12 @@ mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_M
 > Could not parse the output of `mthds-agent --version`. Your installation may be corrupt. Reinstall with:
 >
 > ```
-> {{ mthds_upgrade_cmd }}
+> npm install -g mthds@latest
 > ```
 >
 > Then re-run this skill.
 
-- `MTHDS_AGENT_OUTDATED <installed> <required>` → The installed `mthds-agent` is too old for this plugin. **Do not hard-stop.** Instead, tell the user their mthds-agent (v\<installed>) is older than the required v\<required>, then follow the [upgrade flow](../shared/upgrade-flow.md) to offer upgrading mthds-agent via `{{ mthds_upgrade_cmd }}`. After the upgrade flow completes (whether the user upgraded or declined), proceed to Step 1. The upgrade flow's "Not now" and "Never ask" options let users continue with current versions.
+- `MTHDS_AGENT_OUTDATED <installed> <required>` → The installed `mthds-agent` is too old for this plugin. **Do not hard-stop.** Instead, tell the user their mthds-agent (v\<installed>) is older than the required v\<required>, then follow the [upgrade flow](../shared/upgrade-flow.md) to offer upgrading mthds-agent via `npm install -g mthds@latest`. After the upgrade flow completes (whether the user upgraded or declined), proceed to Step 1. The upgrade flow's "Not now" and "Never ask" options let users continue with current versions.
 
 - `MTHDS_UPDATE_CHECK_FAILED ...` → WARN. The update check command failed. Show the error output to the user. Suggest checking network connectivity and `mthds-agent` installation. Proceed to Step 1 with current versions.
 
