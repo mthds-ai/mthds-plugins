@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.8.0] - 2026-04-13
+
+### Added
+
+- OpenAI Codex CLI plugin target (`mthds-codex`) — full MTHDS skill set adapted for the Codex agent platform
+- Codex-specific hooks (`codex-hooks.json`, `codex-validate-mthds.sh`) for `.mthds` file validation
+- Codex install script (`bin/install-codex.sh`) for automated plugin setup
+- `.agents/plugins/marketplace.json` for Codex plugin marketplace listing
+- Documentation comparing Codex vs Claude hook systems (`docs/codex-vs-claude-hooks.md`)
+
+### Changed
+
+- Build system extended to support Codex as a third target alongside prod and dev
+- `check.py` updated to validate Codex targets and detect Claude artifacts in Codex output
+- Template frontmatter and preamble adapted for multi-agent platform support
+
 ## [v0.7.1] - 2026-04-06
 
 ### Fixed
