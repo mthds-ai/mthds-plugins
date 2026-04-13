@@ -1,7 +1,7 @@
 ---
 name: mthds-share
 description: Share MTHDS methods on social media (X/Twitter, Reddit, LinkedIn). Use when user says "share this method", "post on social media", "share on X", "share on Reddit", "share on LinkedIn", "tweet about this method", or wants to share a published method on social platforms.
-min_mthds_version: 0.3.5
+min_mthds_version: 0.4.0
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,7 @@ Generate share URLs for method packages and open them in the browser. Supports X
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.3.5" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.3.5" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.4.0" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.4.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

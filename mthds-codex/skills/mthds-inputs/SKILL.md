@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-min_mthds_version: 0.3.5
+min_mthds_version: 0.4.0
 
 ---
 
@@ -66,7 +66,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 Run this command to check toolchain status:
 
 ```bash
-mthds-env-check "0.3.5" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+mthds-env-check "0.4.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
