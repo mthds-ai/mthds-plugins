@@ -2,7 +2,7 @@
 # Per-target .toml files can override any variable defined here.
 
 [vars]
-min_mthds_version = "0.4.0"
+min_mthds_version = "0.4.1"
 marketplace_name = "mthds-plugins"
 platform = "claude"
 session_start_hook = false

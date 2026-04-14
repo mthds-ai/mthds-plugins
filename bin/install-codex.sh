@@ -47,6 +47,11 @@ GITHUB_REPO="mthds-ai/mthds-plugins"
 GITHUB_BRANCH="main"
 PLUGIN_SOURCE_DIR=""
 
+# Minimum mthds-agent version required by this installer. Must match
+# the `min_mthds_version` in mthds-plugins/targets/defaults.toml. Bump
+# together whenever install-codex.sh calls a new mthds-agent subcommand.
+MIN_MTHDS_VERSION="0.4.1"
+
 resolve_plugin_source() {
   # If run from the mthds-plugins repo, use local mthds-codex/ directory
   local script_dir
@@ -97,21 +102,37 @@ check_prereqs() {
 
 # ── Install steps ──────────────────────────────────────────────────
 
+# Returns 0 if $1 >= $2 in semver-ish dotted order, 1 otherwise.
+version_ge() {
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+}
+
 install_mthds_cli() {
   if command_exists mthds-agent; then
     local ver
     ver=$(version_of mthds-agent)
-    if [ -n "$ver" ]; then
-      ok "mthds-agent $ver (already installed)"
+    if [ -n "$ver" ] && version_ge "$ver" "$MIN_MTHDS_VERSION"; then
+      ok "mthds-agent $ver (>= $MIN_MTHDS_VERSION, no install needed)"
       return 0
     fi
+    if [ -n "$ver" ]; then
+      info "mthds-agent $ver is older than $MIN_MTHDS_VERSION — upgrading..."
+    else
+      info "mthds-agent installed but version unknown — reinstalling..."
+    fi
+  else
+    info "Installing mthds npm package globally..."
   fi
 
-  info "Installing mthds npm package globally..."
-  if npm install -g mthds 2>&1; then
-    ok "mthds-agent $(version_of mthds-agent || echo 'installed')"
+  if npm install -g mthds@latest 2>&1; then
+    local new_ver
+    new_ver=$(version_of mthds-agent)
+    if [ -z "$new_ver" ] || ! version_ge "$new_ver" "$MIN_MTHDS_VERSION"; then
+      fatal "mthds-agent $new_ver installed but is still below required $MIN_MTHDS_VERSION"
+    fi
+    ok "mthds-agent $new_ver"
   else
-    fatal "npm install -g mthds failed — check npm permissions"
+    fatal "npm install -g mthds@latest failed — check npm permissions"
   fi
 }
 
@@ -122,17 +143,20 @@ setup_plugin() {
   rm -rf "$plugin_dir"
   mkdir -p "$plugin_dir"
 
+  # Use cp -RL to dereference symlinks (mthds-codex/bin and
+  # mthds-codex/skills/*/references are symlinks into the repo root; preserving
+  # them as symlinks produces dangling links at the install destination).
   if [[ -n "$PLUGIN_SOURCE_DIR" ]]; then
-    cp -R "$PLUGIN_SOURCE_DIR/"* "$plugin_dir/"
-    cp -R "$PLUGIN_SOURCE_DIR/.codex-plugin" "$plugin_dir/"
+    cp -RL "$PLUGIN_SOURCE_DIR/"* "$plugin_dir/"
+    cp -RL "$PLUGIN_SOURCE_DIR/.codex-plugin" "$plugin_dir/"
     ok "Plugin copied from local build"
   else
     local tmp_dir
     tmp_dir=$(mktemp -d)
     if git clone --depth 1 --branch "$GITHUB_BRANCH" "https://github.com/$GITHUB_REPO.git" "$tmp_dir" 2>&1; then
       if [[ -d "$tmp_dir/mthds-codex/.codex-plugin" ]]; then
-        cp -R "$tmp_dir/mthds-codex/"* "$plugin_dir/"
-        cp -R "$tmp_dir/mthds-codex/.codex-plugin" "$plugin_dir/"
+        cp -RL "$tmp_dir/mthds-codex/"* "$plugin_dir/"
+        cp -RL "$tmp_dir/mthds-codex/.codex-plugin" "$plugin_dir/"
         ok "Plugin cloned from GitHub ($GITHUB_BRANCH)"
       else
         rm -rf "$tmp_dir"
@@ -176,8 +200,23 @@ MARKETPLACE_EOF
   ok "Marketplace configured"
 }
 
+install_env_check() {
+  local env_check_dir="$HOME/.codex/bin"
+  local plugin_dir="$PWD/plugins/mthds"
+
+  info "Installing mthds-env-check..."
+  mkdir -p "$env_check_dir"
+
+  if [[ -f "$plugin_dir/bin/mthds-env-check" ]]; then
+    cp "$plugin_dir/bin/mthds-env-check" "$env_check_dir/mthds-env-check"
+    chmod +x "$env_check_dir/mthds-env-check"
+    ok "mthds-env-check installed to ~/.codex/bin/"
+  else
+    fatal "mthds-env-check not found in plugin at $plugin_dir/bin/mthds-env-check"
+  fi
+}
+
 setup_hooks() {
-  local hooks_file="$HOME/.codex/hooks.json"
   local hooks_dir="$HOME/.codex/hooks"
 
   info "Setting up hooks..."
@@ -192,30 +231,14 @@ setup_hooks() {
     fatal "Hook script not found in plugin"
   fi
 
-  if [[ -f "$hooks_file" ]] && grep -q "codex-validate-mthds" "$hooks_file" 2>/dev/null; then
-    ok "Hooks already configured"
-  elif [[ -f "$hooks_file" ]]; then
-    warn "Existing ~/.codex/hooks.json found with other hooks"
-    warn "  Add the mthds Stop hook manually — see: $plugin_dir/hooks/codex-hooks.json"
+  # Delegate JSON merge to mthds-agent — handles idempotency, existing
+  # hooks of other categories, and any hooks.json shape without clobbering.
+  # Requires mthds-agent >= 0.4.1 (shipped via install_mthds_cli above).
+  info "Merging Stop hook into ~/.codex/hooks.json..."
+  if mthds-agent codex install-hook >/dev/null; then
+    ok "Hooks merged into ~/.codex/hooks.json"
   else
-    cat > "$hooks_file" << 'HOOKS_EOF'
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.codex/hooks/codex-validate-mthds.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
-}
-HOOKS_EOF
-    ok "Hooks configured"
+    fatal "mthds-agent codex install-hook failed (see error above)"
   fi
 }
 
@@ -270,10 +293,10 @@ verify_install() {
     all_ok=1
   fi
 
-  if [[ -f "$HOME/.codex/hooks.json" ]]; then
+  if [[ -f "$HOME/.codex/hooks.json" ]] && grep -q "codex-validate-mthds" "$HOME/.codex/hooks.json" 2>/dev/null; then
     ok "Hooks configured"
   else
-    fail "Hooks not configured"
+    fail "Hooks not configured (no codex-validate-mthds entry in ~/.codex/hooks.json)"
     all_ok=1
   fi
 
@@ -281,6 +304,13 @@ verify_install() {
     ok "Hook script in place"
   else
     fail "Hook script not found"
+    all_ok=1
+  fi
+
+  if [[ -x "$HOME/.codex/bin/mthds-env-check" ]]; then
+    ok "mthds-env-check installed"
+  else
+    fail "mthds-env-check not found at ~/.codex/bin/mthds-env-check"
     all_ok=1
   fi
 
@@ -321,6 +351,7 @@ main() {
 
   install_mthds_cli
   setup_plugin
+  install_env_check
   setup_marketplace
   setup_hooks
   enable_hooks_feature

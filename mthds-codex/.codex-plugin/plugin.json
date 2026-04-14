@@ -21,5 +21,5 @@
   },
   "name": "mthds",
   "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
-  "version": "0.1.0"
+  "version": "0.1.1"
 }
