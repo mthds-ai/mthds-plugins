@@ -104,7 +104,17 @@ check_prereqs() {
 
 # Returns 0 if $1 >= $2 in semver-ish dotted order, 1 otherwise.
 version_ge() {
-  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+  # sort -V is GNU-only; use awk for cross-platform semver comparison.
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    n=split(a,A,"."); m=split(b,B,".");
+    max=(n>m)?n:m;
+    for(i=1;i<=max;i++){
+      x=A[i]+0; y=B[i]+0;
+      if(x>y) exit 0;
+      if(x<y) exit 1;
+    }
+    exit 0
+  }'
 }
 
 install_mthds_cli() {
