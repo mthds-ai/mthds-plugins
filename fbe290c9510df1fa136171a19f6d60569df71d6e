@@ -1,0 +1,38 @@
+tests/unit/test_install_codex_version_ge.py
+  8a64d3bc59125f72 1-72
+bin/install-codex.sh
+  8a64d3bc59125f72 107-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fbe290c9510df1fa136171a19f6d60569df71d6e",
+  "prompts": {
+    "6a8841b22581719a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6cff482b-8fd9-42ca-9d9c-a07645b61f3f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    },
+    "8a64d3bc59125f72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "531a0361-8f19-447c-a712-d184077abe8e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 83,
+      "total_deletions": 1,
+      "accepted_lines": 83,
+      "overriden_lines": 0
+    }
+  }
+}
