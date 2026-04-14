@@ -1,0 +1,111 @@
+mthds-codex/skills/mthds-runner-setup/SKILL.md
+  6a8841b22581719a 4,19
+mthds-dev/skills/mthds-build/SKILL.md
+  6a8841b22581719a 4,74
+mthds-dev/skills/mthds-check/SKILL.md
+  6a8841b22581719a 4,23
+mthds-codex/skills/mthds-share/SKILL.md
+  6a8841b22581719a 4,19
+bin/install-codex.sh
+  6a8841b22581719a 50-54,105-109,114-115,118-121,123-124,127-133,135,146-148,150-151,158-159,203-218,234-239,241,296,299,310-313,354
+targets/prod.toml
+  6a8841b22581719a 3
+mthds-dev/skills/mthds-share/SKILL.md
+  6a8841b22581719a 4,26
+mthds-codex/skills/mthds-check/SKILL.md
+  6a8841b22581719a 4,18
+mthds/skills/mthds-pkg/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-runner-setup/SKILL.md
+  6a8841b22581719a 4,26
+targets/defaults.toml
+  6a8841b22581719a 5
+templates/skills/shared/preamble.md.j2
+  6a8841b22581719a 5
+mthds-codex/skills/shared/preamble.md
+  6a8841b22581719a 4
+mthds-dev/skills/mthds-fix/SKILL.md
+  6a8841b22581719a 4,26
+mthds/skills/mthds-share/SKILL.md
+  6a8841b22581719a 4,26
+mthds-codex/skills/mthds-upgrade/SKILL.md
+  6a8841b22581719a 4,19
+mthds/skills/mthds-upgrade/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-upgrade/SKILL.md
+  6a8841b22581719a 4,26
+mthds/skills/mthds-fix/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-install/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-run/SKILL.md
+  6a8841b22581719a 4,26
+mthds/skills/mthds-explain/SKILL.md
+  6a8841b22581719a 4,26
+mthds/skills/mthds-check/SKILL.md
+  6a8841b22581719a 4,23
+mthds-codex/skills/mthds-publish/SKILL.md
+  6a8841b22581719a 4,19
+mthds/skills/mthds-publish/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-inputs/SKILL.md
+  6a8841b22581719a 4,76
+mthds-dev/skills/mthds-pkg/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-publish/SKILL.md
+  6a8841b22581719a 4,26
+mthds-codex/skills/mthds-fix/SKILL.md
+  6a8841b22581719a 4,19
+mthds/skills/mthds-edit/SKILL.md
+  6a8841b22581719a 4,70
+mthds-codex/skills/mthds-install/SKILL.md
+  6a8841b22581719a 4,19
+mthds/skills/mthds-run/SKILL.md
+  6a8841b22581719a 4,26
+mthds-dev/skills/mthds-edit/SKILL.md
+  6a8841b22581719a 4,70
+mthds-codex/skills/mthds-run/SKILL.md
+  6a8841b22581719a 4,19
+mthds/skills/mthds-install/SKILL.md
+  6a8841b22581719a 4,26
+mthds-codex/skills/mthds-explain/SKILL.md
+  6a8841b22581719a 4,19
+mthds-codex/skills/mthds-inputs/SKILL.md
+  6a8841b22581719a 4,69
+mthds-codex/skills/mthds-pkg/SKILL.md
+  6a8841b22581719a 4,19
+targets/codex.toml
+  6a8841b22581719a 3
+mthds/skills/mthds-inputs/SKILL.md
+  6a8841b22581719a 4,76
+mthds/skills/mthds-build/SKILL.md
+  6a8841b22581719a 4,74
+mthds-dev/skills/mthds-explain/SKILL.md
+  6a8841b22581719a 4,26
+mthds/skills/mthds-runner-setup/SKILL.md
+  6a8841b22581719a 4,26
+mthds-codex/skills/mthds-edit/SKILL.md
+  6a8841b22581719a 4,63
+mthds-codex/skills/mthds-build/SKILL.md
+  6a8841b22581719a 4,67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "88cf571fb24172268dc8f37c14764d91340afcbc",
+  "prompts": {
+    "6a8841b22581719a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6cff482b-8fd9-42ca-9d9c-a07645b61f3f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 165,
+      "total_deletions": 190,
+      "accepted_lines": 163,
+      "overriden_lines": 0
+    }
+  }
+}
