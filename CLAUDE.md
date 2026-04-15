@@ -8,10 +8,15 @@ Claude Code skills plugin for building, running, validating, and editing AI meth
 .claude-plugin/
 ├── plugin-base.json           # Shared plugin fields (author, repo, license)
 └── marketplace.json           # Marketplace listing (all plugins)
+.codex-plugin/
+└── plugin-base.json           # Shared Codex plugin manifest fields
+packaging/
+└── codex-marketplace.json     # Canonical Codex marketplace packaging spec
 targets/
 ├── defaults.toml              # Shared template variable defaults
 ├── prod.toml                  # Prod target config (version, identity)
-└── dev.toml                   # Dev target config (version, identity, local install paths)
+├── dev.toml                   # Dev target config (version, identity, local install paths)
+└── codex.toml                 # Codex target config (version, identity)
 templates/                     # SOURCE OF TRUTH — all .j2 templates live here
 ├── skills/
 │   ├── mthds-build/SKILL.md.j2   # Jinja2 template for each skill
@@ -59,8 +64,11 @@ See `docs/build-targets.md` for full architecture details.
 ### Key commands
 
 ```bash
-make build           # Build all targets (prod + dev)
-make check           # Validate everything (versions, freshness, lint, types)
+make build           # Build all targets (prod + dev + codex)
+make check-shared    # Shared repo checks + freshness + lint/type checks
+make check-claude    # Claude marketplace checks
+make check-codex     # Codex packaging checks
+make check           # Run all of the above
 make test            # Run unit tests
 make gen-skill-docs  # Build default target (prod); use TARGET=dev for others
 ```

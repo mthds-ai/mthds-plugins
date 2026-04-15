@@ -46,11 +46,21 @@ version_of() {
 GITHUB_REPO="mthds-ai/mthds-plugins"
 GITHUB_BRANCH="main"
 PLUGIN_SOURCE_DIR=""
+MARKETPLACE_SOURCE_FILE=""
+TMP_REPO_DIR=""
 
 # Minimum mthds-agent version required by this installer. Must match
 # the `min_mthds_version` in mthds-plugins/targets/defaults.toml. Bump
 # together whenever install-codex.sh calls a new mthds-agent subcommand.
 MIN_MTHDS_VERSION="0.4.1"
+
+cleanup_tmp_repo() {
+  if [[ -n "$TMP_REPO_DIR" && -d "$TMP_REPO_DIR" ]]; then
+    rm -rf "$TMP_REPO_DIR"
+  fi
+}
+
+trap cleanup_tmp_repo EXIT
 
 resolve_plugin_source() {
   # If run from the mthds-plugins repo, use local mthds-codex/ directory
@@ -61,6 +71,7 @@ resolve_plugin_source() {
 
   if [[ -d "$repo_dir/mthds-codex/.codex-plugin" ]]; then
     PLUGIN_SOURCE_DIR="$repo_dir/mthds-codex"
+    MARKETPLACE_SOURCE_FILE="$repo_dir/packaging/codex-marketplace.json"
   fi
 }
 
@@ -161,23 +172,55 @@ setup_plugin() {
     cp -RL "$PLUGIN_SOURCE_DIR/.codex-plugin" "$plugin_dir/"
     ok "Plugin copied from local build"
   else
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-    if git clone --depth 1 --branch "$GITHUB_BRANCH" "https://github.com/$GITHUB_REPO.git" "$tmp_dir" 2>&1; then
-      if [[ -d "$tmp_dir/mthds-codex/.codex-plugin" ]]; then
-        cp -RL "$tmp_dir/mthds-codex/"* "$plugin_dir/"
-        cp -RL "$tmp_dir/mthds-codex/.codex-plugin" "$plugin_dir/"
+    TMP_REPO_DIR=$(mktemp -d)
+    if git clone --depth 1 --branch "$GITHUB_BRANCH" "https://github.com/$GITHUB_REPO.git" "$TMP_REPO_DIR" 2>&1; then
+      PLUGIN_SOURCE_DIR="$TMP_REPO_DIR/mthds-codex"
+      MARKETPLACE_SOURCE_FILE="$TMP_REPO_DIR/packaging/codex-marketplace.json"
+      if [[ -d "$PLUGIN_SOURCE_DIR/.codex-plugin" ]]; then
+        cp -RL "$PLUGIN_SOURCE_DIR/"* "$plugin_dir/"
+        cp -RL "$PLUGIN_SOURCE_DIR/.codex-plugin" "$plugin_dir/"
         ok "Plugin cloned from GitHub ($GITHUB_BRANCH)"
       else
-        rm -rf "$tmp_dir"
         fatal "mthds-codex/ not found in repository — build may be needed"
       fi
     else
-      rm -rf "$tmp_dir"
       fatal "Failed to clone mthds-plugins — check network and GitHub access"
     fi
-    rm -rf "$tmp_dir"
   fi
+}
+
+# Rewrites the canonical packaging/codex-marketplace.json (which points at the
+# build-output dir ./mthds-codex) to the on-disk runtime path ./plugins/<name>
+# where this installer copies each plugin. Canonical and runtime paths are
+# intentionally different: the canonical file is validated by scripts/check.py
+# against target configs, the runtime file is what Codex actually reads.
+render_repo_local_marketplace() {
+  local source_file="$1"
+  node - "$source_file" <<'NODE'
+const fs = require("fs");
+
+const [sourceFile] = process.argv.slice(2);
+const payload = JSON.parse(fs.readFileSync(sourceFile, "utf8"));
+
+if (!Array.isArray(payload.plugins)) {
+  throw new Error("marketplace.json missing plugins array");
+}
+
+for (const plugin of payload.plugins) {
+  if (!plugin || typeof plugin !== "object" || typeof plugin.name !== "string" || plugin.name.length === 0) {
+    throw new Error("marketplace.json contains plugin entry without a valid name");
+  }
+  if (!plugin.source || typeof plugin.source !== "object" || plugin.source.source !== "local") {
+    throw new Error(`marketplace.json plugin '${plugin.name}' must use a local source`);
+  }
+  plugin.source = {
+    ...plugin.source,
+    path: `./plugins/${plugin.name}`,
+  };
+}
+
+process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+NODE
 }
 
 setup_marketplace() {
@@ -186,27 +229,14 @@ setup_marketplace() {
   info "Setting up marketplace..."
   mkdir -p "$(dirname "$marketplace_file")"
 
-  cat > "$marketplace_file" << 'MARKETPLACE_EOF'
-{
-  "name": "mthds-plugins",
-  "interface": {
-    "displayName": "MTHDS Plugins"
-  },
-  "plugins": [
-    {
-      "name": "mthds",
-      "source": {
-        "source": "local",
-        "path": "./plugins/mthds"
-      },
-      "policy": {
-        "installation": "AVAILABLE"
-      },
-      "category": "Developer Tools"
-    }
-  ]
-}
-MARKETPLACE_EOF
+  if [[ -z "$MARKETPLACE_SOURCE_FILE" || ! -f "$MARKETPLACE_SOURCE_FILE" ]]; then
+    fatal "Canonical Codex packaging marketplace not found at $MARKETPLACE_SOURCE_FILE"
+  fi
+
+  if ! render_repo_local_marketplace "$MARKETPLACE_SOURCE_FILE" > "$marketplace_file"; then
+    fatal "Failed to render repo-local marketplace.json from $MARKETPLACE_SOURCE_FILE"
+  fi
+
   ok "Marketplace configured"
 }
 

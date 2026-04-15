@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 
 from scripts.check import (
+    check_codex_marketplace_plugins,
     check_frontmatter_versions,
     check_marketplace_plugins,
+    check_matched_target_versions,
     check_no_templates_in_output,
     check_shared_files_exist,
     check_stale_install_references,
@@ -27,6 +29,15 @@ MARKETPLACE_JSON_TEMPLATE = """\
   "name": "mthds-plugins",
   "metadata": {{
     "version": "{version}"
+  }},
+  "plugins": {plugins_json}
+}}"""
+
+CODEX_MARKETPLACE_JSON_TEMPLATE = """\
+{{
+  "name": "mthds-plugins",
+  "interface": {{
+    "displayName": "MTHDS Plugins"
   }},
   "plugins": {plugins_json}
 }}"""
@@ -67,6 +78,15 @@ def _write_marketplace_json(base: Path, version: str, plugins: list[dict[str, st
     (plugin_dir / "marketplace.json").write_text(MARKETPLACE_JSON_TEMPLATE.format(version=version, plugins_json=plugins_json))
 
 
+def _write_codex_marketplace_json(base: Path, plugins: list[dict[str, object]]) -> None:
+    import json
+
+    plugin_dir = base / "packaging"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    plugins_json = json.dumps(plugins)
+    (plugin_dir / "codex-marketplace.json").write_text(CODEX_MARKETPLACE_JSON_TEMPLATE.format(plugins_json=plugins_json))
+
+
 @pytest.fixture()
 def skill_tree(tmp_path: Path) -> Path:
     """Create a minimal valid skill directory structure with target configs."""
@@ -94,7 +114,7 @@ def skill_tree(tmp_path: Path) -> Path:
 
     _write_target_configs(tmp_path, {"prod": {"name": "mthds", "version": "0.6.3", "source": "mthds/"}})
     _write_plugin_json(tmp_path, "mthds", "0.6.3", "mthds")
-    _write_marketplace_json(tmp_path, "0.6.3", [{"name": "mthds", "source": "mthds/"}])
+    _write_marketplace_json(tmp_path, "0.6.3", [{"name": "mthds", "source": "./mthds"}])
 
     return tmp_path
 
@@ -141,6 +161,35 @@ class TestTargetPluginVersions:
         assert versions == {"prod": "0.6.3", "dev": "0.1.0"}
 
 
+class TestMatchedTargetVersions:
+    def test_all_targets_match(self, tmp_path: Path) -> None:
+        _write_target_configs(
+            tmp_path,
+            {
+                "prod": {"name": "mthds", "version": "0.8.2", "source": "mthds/"},
+                "dev": {"name": "mthds-dev", "version": "0.8.2", "source": "mthds-dev/"},
+                "codex": {"name": "mthds", "version": "0.8.2", "source": "mthds-codex/"},
+            },
+        )
+        assert check_matched_target_versions(tmp_path) == []
+
+    def test_drift_between_targets(self, tmp_path: Path) -> None:
+        _write_target_configs(
+            tmp_path,
+            {
+                "prod": {"name": "mthds", "version": "0.8.2", "source": "mthds/"},
+                "dev": {"name": "mthds-dev", "version": "0.1.0", "source": "mthds-dev/"},
+                "codex": {"name": "mthds", "version": "0.1.1", "source": "mthds-codex/"},
+            },
+        )
+        errors = check_matched_target_versions(tmp_path)
+        assert len(errors) == 1
+        assert "lockstep" in errors[0]
+        assert "prod=0.8.2" in errors[0]
+        assert "dev=0.1.0" in errors[0]
+        assert "codex=0.1.1" in errors[0]
+
+
 class TestMarketplacePlugins:
     def test_matching(self, skill_tree: Path) -> None:
         assert check_marketplace_plugins(skill_tree) == []
@@ -156,18 +205,95 @@ class TestMarketplacePlugins:
         errors = check_marketplace_plugins(skill_tree)
         assert len(errors) == 1
         assert "mthds-dev" in errors[0]
-        assert "missing from marketplace" in errors[0]
+        assert "missing from .claude-plugin/marketplace.json plugins array" in errors[0]
 
     def test_extra_in_marketplace(self, skill_tree: Path) -> None:
         _write_marketplace_json(
             skill_tree,
             "0.6.3",
-            [{"name": "mthds", "source": "mthds/"}, {"name": "ghost-plugin", "source": "ghost/"}],
+            [{"name": "mthds", "source": "./mthds"}, {"name": "ghost-plugin", "source": "ghost/"}],
         )
         errors = check_marketplace_plugins(skill_tree)
         assert len(errors) == 1
         assert "ghost-plugin" in errors[0]
-        assert "no matching target" in errors[0]
+        assert "no matching Claude target config" in errors[0]
+
+    def test_marketplace_version_cannot_lag_target_version(self, skill_tree: Path) -> None:
+        _write_target_configs(skill_tree, {"prod": {"name": "mthds", "version": "0.6.4", "source": "mthds/"}})
+        _write_plugin_json(skill_tree, "mthds", "0.6.4", "mthds")
+        errors = check_marketplace_plugins(skill_tree)
+        assert len(errors) == 1
+        assert "metadata.version" in errors[0]
+        assert "lags behind" in errors[0]
+
+    def test_marketplace_source_must_match_target_path(self, skill_tree: Path) -> None:
+        _write_marketplace_json(skill_tree, "0.6.3", [{"name": "mthds", "source": "mthds/"}])
+        errors = check_marketplace_plugins(skill_tree)
+        assert len(errors) == 1
+        assert "expected './mthds'" in errors[0]
+
+
+class TestCodexMarketplacePlugins:
+    def test_matching(self, tmp_path: Path) -> None:
+        _write_target_configs(
+            tmp_path,
+            {"codex": {"name": "mthds", "version": "0.1.0", "source": "mthds-codex/"}},
+            defaults_vars={"min_mthds_version": CANONICAL, "marketplace_name": "mthds-plugins", "platform": "codex"},
+        )
+        _write_codex_marketplace_json(
+            tmp_path,
+            [
+                {
+                    "name": "mthds",
+                    "source": {"source": "local", "path": "./mthds-codex"},
+                    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                    "category": "Developer Tools",
+                }
+            ],
+        )
+        assert check_codex_marketplace_plugins(tmp_path) == []
+
+    def test_missing_authentication(self, tmp_path: Path) -> None:
+        _write_target_configs(
+            tmp_path,
+            {"codex": {"name": "mthds", "version": "0.1.0", "source": "mthds-codex/"}},
+            defaults_vars={"min_mthds_version": CANONICAL, "marketplace_name": "mthds-plugins", "platform": "codex"},
+        )
+        _write_codex_marketplace_json(
+            tmp_path,
+            [
+                {
+                    "name": "mthds",
+                    "source": {"source": "local", "path": "./mthds-codex"},
+                    "policy": {"installation": "AVAILABLE"},
+                    "category": "Developer Tools",
+                }
+            ],
+        )
+        errors = check_codex_marketplace_plugins(tmp_path)
+        assert len(errors) == 1
+        assert "policy.authentication" in errors[0]
+
+    def test_wrong_source_path(self, tmp_path: Path) -> None:
+        _write_target_configs(
+            tmp_path,
+            {"codex": {"name": "mthds", "version": "0.1.0", "source": "mthds-codex/"}},
+            defaults_vars={"min_mthds_version": CANONICAL, "marketplace_name": "mthds-plugins", "platform": "codex"},
+        )
+        _write_codex_marketplace_json(
+            tmp_path,
+            [
+                {
+                    "name": "mthds",
+                    "source": {"source": "local", "path": "./plugins/mthds"},
+                    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                    "category": "Developer Tools",
+                }
+            ],
+        )
+        errors = check_codex_marketplace_plugins(tmp_path)
+        assert len(errors) == 1
+        assert "expected './mthds-codex'" in errors[0]
 
 
 class TestResolveTargetVar:

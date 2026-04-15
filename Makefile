@@ -14,7 +14,7 @@ UV_MIN_VERSION = $(shell grep -m1 'required-version' pyproject.toml | sed -E 's/
 
 .PHONY: \
 	help env check-uv install lock li \
-	gen-skill-docs build check agent-check \
+	gen-skill-docs build check check-shared check-claude check-codex agent-check \
 	format lint ruff-format ruff-lint pyright mypy fix-unused-imports fui \
 	test agent-test gha-tests tp \
 	cleanderived cleanenv cleanall reinstall ri
@@ -100,19 +100,23 @@ fui: fix-unused-imports ## Shorthand -> fix-unused-imports
 ### CHECKS
 ##########################################################################################
 
-check: install ## Verify shared refs + version consistency + template freshness + format + lint + typecheck
-	@$(VENV_PYTHON) scripts/check.py
+check-shared: install ## Verify shared refs + target versions + template freshness + format + lint + typecheck
+	@$(VENV_PYTHON) scripts/check.py --scope shared
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
 	@$(VENV_RUFF) format --check .
 	@$(VENV_RUFF) check .
 	@$(MAKE) --no-print-directory pyright mypy
 
+check-claude: install ## Verify Claude marketplace packaging consistency
+	@$(VENV_PYTHON) scripts/check.py --scope claude
+
+check-codex: install ## Verify Codex packaging consistency (canonical packaging/codex-marketplace.json, not the runtime file install-codex.sh writes)
+	@$(VENV_PYTHON) scripts/check.py --scope codex
+
+check: check-shared check-claude check-codex ## Run shared, Claude, and Codex checks
+
 agent-check: fix-unused-imports format lint ## Full quality check (for AI agents)
-	@$(VENV_PYTHON) scripts/check.py
-	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all --check
-	@$(VENV_RUFF) format --check .
-	@$(VENV_RUFF) check .
-	@$(MAKE) --no-print-directory pyright mypy
+	@$(MAKE) --no-print-directory check
 	@echo "• All checks passed."
 
 ##########################################################################################
@@ -160,6 +164,6 @@ help: ## Show this help
 gen-skill-docs: install ## Generate SKILL.md from .j2 templates (use TARGET=name to build one target)
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target $(TARGET)
 
-build: install ## Build all targets (prod + dev)
+build: install ## Build all targets (prod + dev + codex)
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all
 	@echo "Done: built all targets"

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Validate shared references, shared files, and version consistency across skills and targets."""
+"""Validate shared references, generated artifacts, and marketplace consistency."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -10,24 +11,12 @@ import tomllib
 from pathlib import Path
 from typing import Any, cast
 
-# Derive the shared template file list from gen_skill_docs.py (single source of truth).
-# SHARED_TEMPLATES contains full relative paths like "skills/shared/error-handling.md.j2".
-# We extract just the filenames for the existence check.
 from scripts.gen_skill_docs import SHARED_TEMPLATES, Platform
 
 SHARED_TEMPLATE_FILES = [Path(template_path).name for template_path in SHARED_TEMPLATES]
-
-# Stale reference patterns — shared file stems that should use ../shared/ not references/
-# Derived programmatically from SHARED_TEMPLATES (single source of truth)
 _SHARED_STEMS = [Path(template_path).name.removesuffix(".md.j2") for template_path in SHARED_TEMPLATES]
 STALE_REF_PATTERN = re.compile(r"references/(?:" + "|".join(re.escape(stem) for stem in _SHARED_STEMS) + r")")
-
-# Frontmatter extraction: min_mthds_version value between --- delimiters
 FRONTMATTER_VERSION_PATTERN = re.compile(r"^min_mthds_version:\s*(.+)$", re.MULTILINE)
-
-# Stale install patterns — toolchain install instructions that should have been replaced
-# by mthds-agent-based install commands. Excludes legitimate Python library deps
-# (e.g. `pip install python-docx` in code examples).
 STALE_INSTALL_PATTERNS = [
     re.compile(r"pip install\s+pipelex(?!-)"),
     re.compile(r"pip install\s+pipelex-tools\b"),
@@ -36,6 +25,8 @@ STALE_INSTALL_PATTERNS = [
 
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
+CLAUDE_MARKETPLACE_PATH = Path(".claude-plugin/marketplace.json")
+CODEX_MARKETPLACE_PATH = Path("packaging/codex-marketplace.json")
 
 
 def _read_json_string(path: Path, *keys: str) -> str:
@@ -61,11 +52,17 @@ def _read_json_string(path: Path, *keys: str) -> str:
     return value
 
 
-def load_target_configs(base_dir: Path) -> dict[str, dict[str, Any]]:
-    """Load all target configs from targets/ directory.
+def _parse_version(version: str) -> tuple[int, ...]:
+    """Parse a dotted numeric version string into an ordered tuple."""
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError as exc:
+        msg = f"invalid numeric version {version!r}"
+        raise ValueError(msg) from exc
 
-    Returns a dict mapping target name to its parsed TOML content.
-    """
+
+def load_target_configs(base_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load all target configs from targets/ directory."""
     targets_dir = base_dir / TARGETS_DIR_NAME
     if not targets_dir.is_dir():
         msg = f"Targets directory not found: {targets_dir}"
@@ -109,16 +106,37 @@ def resolve_target_var(base_dir: Path, target_name: str, var_name: str) -> str:
     return str(value)
 
 
-def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, str]]:
-    """Check that each target's plugin.json version matches its target config.
+def _platform_for_config(config: dict[str, Any], defaults: dict[str, str] | None = None) -> Platform:
+    """Resolve a target platform from plugin, target vars, or defaults."""
+    defaults = defaults or {}
+    platform = config.get("plugin", {}).get(
+        "platform",
+        config.get("vars", {}).get("platform", defaults.get("platform", Platform.CLAUDE)),
+    )
+    return Platform(str(platform))
 
-    For root targets (source="./"): checks .claude-plugin/plugin.json.
-    For non-root targets: checks <source>/.claude-plugin/plugin.json.
 
-    Returns:
-        A tuple of (errors, {target_name: version}).
+def check_matched_target_versions(base_dir: Path) -> list[str]:
+    """Check that every target's ``[plugin].version`` is the same.
+
+    Enforces the matched-version lockstep policy documented in
+    ``.claude/skills/release/SKILL.md``: a release bumps all targets to the
+    same version string, so drift between ``targets/*.toml`` is never valid.
     """
     configs = load_target_configs(base_dir)
+    target_versions: dict[str, str] = {name: str(config.get("plugin", {}).get("version", "")) for name, config in configs.items()}
+    unique_versions = set(target_versions.values())
+    if len(unique_versions) <= 1:
+        return []
+
+    drift = ", ".join(f"{name}={version or '<missing>'}" for name, version in sorted(target_versions.items()))
+    return [f"Target versions must be in lockstep: {drift}"]
+
+
+def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, str]]:
+    """Check that each target's plugin.json version and name match its target config."""
+    configs = load_target_configs(base_dir)
+    defaults = load_defaults_vars(base_dir)
     errors: list[str] = []
     versions: dict[str, str] = {}
 
@@ -128,13 +146,13 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
         source = plugin_section.get("source", "./")
         plugin_name = plugin_section.get("name", target_name)
 
-        platform = plugin_section.get("platform", config.get("vars", {}).get("platform", Platform.CLAUDE))
+        platform = _platform_for_config(config, defaults)
         manifest_dirname = ".codex-plugin" if platform == Platform.CODEX else ".claude-plugin"
 
         if source == "./":
             plugin_json_path = base_dir / manifest_dirname / "plugin.json"
         else:
-            plugin_json_path = base_dir / source.rstrip("/") / manifest_dirname / "plugin.json"
+            plugin_json_path = base_dir / str(source).rstrip("/") / manifest_dirname / "plugin.json"
 
         if not plugin_json_path.is_file():
             errors.append(f"[{target_name}] plugin.json not found at {plugin_json_path.relative_to(base_dir)}")
@@ -147,16 +165,15 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
             continue
 
         versions[target_name] = actual_version
-
         if actual_version != config_version:
             errors.append(f"[{target_name}] plugin.json has {actual_version}, targets/{target_name}.toml has {config_version}")
 
-        # Also verify plugin name matches
         try:
             actual_name = _read_json_string(plugin_json_path, "name")
         except ValueError as exc:
             errors.append(f"[{target_name}] Cannot read plugin name: {exc}")
             continue
+
         if actual_name != plugin_name:
             errors.append(f"[{target_name}] plugin.json name is '{actual_name}', targets/{target_name}.toml has '{plugin_name}'")
 
@@ -164,35 +181,170 @@ def check_target_plugin_versions(base_dir: Path) -> tuple[list[str], dict[str, s
 
 
 def check_marketplace_plugins(base_dir: Path) -> list[str]:
-    """Check that marketplace.json plugins array matches target configs."""
-    marketplace_path = base_dir / ".claude-plugin" / "marketplace.json"
+    """Check that the Claude marketplace matches Claude targets and version rules."""
+    marketplace_path = base_dir / CLAUDE_MARKETPLACE_PATH
     if not marketplace_path.is_file():
-        return ["marketplace.json not found"]
+        return [f"{CLAUDE_MARKETPLACE_PATH} not found"]
 
     try:
         raw = json.loads(marketplace_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return ["marketplace.json is not valid JSON"]
+        return [f"{CLAUDE_MARKETPLACE_PATH} is not valid JSON"]
 
     plugins = raw.get("plugins", [])
-    marketplace_names = {plugin["name"] for plugin in plugins if "name" in plugin}
+    if not isinstance(plugins, list):
+        return [f"{CLAUDE_MARKETPLACE_PATH} missing plugins array"]
+    plugins_list = cast(list[object], plugins)
 
     configs = load_target_configs(base_dir)
-    # Only Claude targets should appear in the Claude marketplace — skip Codex targets
-    config_names = {
-        config.get("plugin", {}).get("name", name)
+    defaults = load_defaults_vars(base_dir)
+    claude_targets: dict[str, dict[str, str]] = {
+        config.get("plugin", {}).get("name", name): {
+            "version": str(config.get("plugin", {}).get("version", "")),
+            "path": f"./{str(config.get('plugin', {}).get('source', './')).rstrip('/')}",
+        }
         for name, config in configs.items()
-        if config.get("vars", {}).get("platform", Platform.CLAUDE) != Platform.CODEX
+        if _platform_for_config(config, defaults) != Platform.CODEX
     }
+    marketplace_names: set[str] = set()
+    for plugin in plugins_list:
+        if isinstance(plugin, dict):
+            plugin_dict = cast(dict[str, Any], plugin)
+            name = plugin_dict.get("name")
+            if isinstance(name, str):
+                marketplace_names.add(name)
 
     errors: list[str] = []
-    for idx, plugin in enumerate(plugins):
-        if "name" not in plugin:
-            errors.append(f"marketplace.json plugins[{idx}] is missing 'name' key")
-    for name in config_names - marketplace_names:
-        errors.append(f"Target plugin '{name}' missing from marketplace.json plugins array")
-    for name in marketplace_names - config_names:
-        errors.append(f"marketplace.json lists plugin '{name}' with no matching target config")
+    for idx, plugin in enumerate(plugins_list):
+        if not isinstance(plugin, dict):
+            errors.append(f"{CLAUDE_MARKETPLACE_PATH} plugins[{idx}] is not an object")
+            continue
+        plugin_dict = cast(dict[str, Any], plugin)
+
+        name = plugin_dict.get("name")
+        if not isinstance(name, str):
+            errors.append(f"{CLAUDE_MARKETPLACE_PATH} plugins[{idx}] is missing 'name' key")
+            continue
+
+        source = plugin_dict.get("source")
+        expected = claude_targets.get(name)
+        if not isinstance(source, str):
+            errors.append(f"{CLAUDE_MARKETPLACE_PATH} plugin '{name}' missing source string")
+        elif expected and source != expected["path"]:
+            errors.append(f"{CLAUDE_MARKETPLACE_PATH} plugin '{name}' has source {source!r}, expected {expected['path']!r}")
+
+    metadata = raw.get("metadata")
+    if not isinstance(metadata, dict):
+        errors.append(f"{CLAUDE_MARKETPLACE_PATH} missing metadata object")
+    else:
+        metadata_dict = cast(dict[str, Any], metadata)
+        marketplace_version = metadata_dict.get("version")
+        if not isinstance(marketplace_version, str):
+            errors.append(f"{CLAUDE_MARKETPLACE_PATH} metadata.version missing or not a string")
+        else:
+            try:
+                parsed_marketplace_version = _parse_version(marketplace_version)
+            except ValueError as exc:
+                errors.append(f"{CLAUDE_MARKETPLACE_PATH} metadata.version {exc}")
+            else:
+                try:
+                    highest_target_version = max(_parse_version(target["version"]) for target in claude_targets.values() if target["version"])
+                except ValueError as exc:
+                    errors.append(f"Claude target version {exc}")
+                else:
+                    if parsed_marketplace_version < highest_target_version:
+                        expected_floor = ".".join(str(part) for part in highest_target_version)
+                        errors.append(
+                            f"{CLAUDE_MARKETPLACE_PATH} metadata.version {marketplace_version!r} lags behind Claude target version {expected_floor!r}"
+                        )
+
+    for name in claude_targets.keys() - marketplace_names:
+        errors.append(f"Claude target plugin '{name}' missing from {CLAUDE_MARKETPLACE_PATH} plugins array")
+    for name in marketplace_names - claude_targets.keys():
+        errors.append(f"{CLAUDE_MARKETPLACE_PATH} lists plugin '{name}' with no matching Claude target config")
+
+    return errors
+
+
+def check_codex_marketplace_plugins(base_dir: Path) -> list[str]:
+    """Check that the tracked Codex packaging marketplace matches Codex targets and required fields.
+
+    The canonical source.path here points at the build-output dir (e.g. ``./mthds-codex``),
+    not the runtime on-disk path Codex actually reads (``./plugins/<name>``).
+    ``bin/install-codex.sh`` rewrites the path at install time via ``render_repo_local_marketplace``.
+    """
+    marketplace_path = base_dir / CODEX_MARKETPLACE_PATH
+    if not marketplace_path.is_file():
+        return [f"{CODEX_MARKETPLACE_PATH} not found"]
+
+    try:
+        raw = json.loads(marketplace_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return [f"{CODEX_MARKETPLACE_PATH} is not valid JSON"]
+
+    plugins = raw.get("plugins", [])
+    if not isinstance(plugins, list):
+        return [f"{CODEX_MARKETPLACE_PATH} missing plugins array"]
+    plugins_list = cast(list[object], plugins)
+
+    configs = load_target_configs(base_dir)
+    defaults = load_defaults_vars(base_dir)
+    codex_targets: dict[str, str] = {
+        config.get("plugin", {}).get("name", name): f"./{str(config.get('plugin', {}).get('source', './')).rstrip('/')}"
+        for name, config in configs.items()
+        if _platform_for_config(config, defaults) == Platform.CODEX
+    }
+
+    marketplace_names: set[str] = set()
+    for plugin in plugins_list:
+        if isinstance(plugin, dict):
+            plugin_dict = cast(dict[str, Any], plugin)
+            name = plugin_dict.get("name")
+            if isinstance(name, str):
+                marketplace_names.add(name)
+    errors: list[str] = []
+
+    for idx, plugin in enumerate(plugins_list):
+        if not isinstance(plugin, dict):
+            errors.append(f"{CODEX_MARKETPLACE_PATH} plugins[{idx}] is not an object")
+            continue
+        plugin_dict = cast(dict[str, Any], plugin)
+
+        name = plugin_dict.get("name")
+        if not isinstance(name, str):
+            errors.append(f"{CODEX_MARKETPLACE_PATH} plugins[{idx}] is missing 'name' key")
+            continue
+
+        source = plugin_dict.get("source")
+        if not isinstance(source, dict):
+            errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' missing source object")
+        else:
+            source_dict = cast(dict[str, Any], source)
+            if source_dict.get("source") != "local":
+                errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' must have source.source = 'local'")
+            expected_path = codex_targets.get(name)
+            source_path = source_dict.get("path")
+            if expected_path and source_path != expected_path:
+                errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' has path {source_path!r}, expected {expected_path!r}")
+
+        policy = plugin_dict.get("policy")
+        if not isinstance(policy, dict):
+            errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' missing policy object")
+        else:
+            policy_dict = cast(dict[str, Any], policy)
+            if policy_dict.get("installation") != "AVAILABLE":
+                errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' must have policy.installation = 'AVAILABLE'")
+            if policy_dict.get("authentication") != "ON_INSTALL":
+                errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' must have policy.authentication = 'ON_INSTALL'")
+
+        category = plugin_dict.get("category")
+        if not isinstance(category, str) or not category:
+            errors.append(f"{CODEX_MARKETPLACE_PATH} plugin '{name}' missing category")
+
+    for name in codex_targets.keys() - marketplace_names:
+        errors.append(f"Codex target plugin '{name}' missing from {CODEX_MARKETPLACE_PATH} plugins array")
+    for name in marketplace_names - codex_targets.keys():
+        errors.append(f"{CODEX_MARKETPLACE_PATH} lists plugin '{name}' with no matching Codex target config")
 
     return errors
 
@@ -201,21 +353,17 @@ def _collect_output_dirs(base_dir: Path) -> list[Path]:
     """Collect output directories from all configured targets."""
     configs = load_target_configs(base_dir)
     output_dirs: list[Path] = []
-    for _target_name, config in configs.items():
+    for config in configs.values():
         source = config.get("plugin", {}).get("source", "./")
         if source == "./":
             output_dirs.append(base_dir)
         else:
-            output_dirs.append(base_dir / source.rstrip("/"))
+            output_dirs.append(base_dir / str(source).rstrip("/"))
     return output_dirs
 
 
 def check_stale_install_references(base_dir: Path) -> list[str]:
-    """Check for stale pip install / curl install references in generated SKILL.md files.
-
-    These patterns indicate toolchain install instructions that should use
-    mthds-agent-based install commands instead.
-    """
+    """Check for stale toolchain install references in generated SKILL.md files."""
     errors: list[str] = []
     for output_dir in _collect_output_dirs(base_dir):
         for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
@@ -229,7 +377,7 @@ def check_stale_install_references(base_dir: Path) -> list[str]:
 
 
 def check_stale_references(base_dir: Path) -> list[str]:
-    """Check: No SKILL.md files should reference shared files via references/ paths."""
+    """Check that generated SKILL.md files do not reference shared files via references/."""
     errors: list[str] = []
     for output_dir in _collect_output_dirs(base_dir):
         for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
@@ -241,7 +389,7 @@ def check_stale_references(base_dir: Path) -> list[str]:
 
 
 def check_shared_files_exist(base_dir: Path) -> list[str]:
-    """Check: All expected shared template source files must be present in templates/."""
+    """Check that all expected shared template source files are present."""
     shared_dir = base_dir / "templates" / "skills" / "shared"
     errors: list[str] = []
     for name in SHARED_TEMPLATE_FILES:
@@ -251,10 +399,7 @@ def check_shared_files_exist(base_dir: Path) -> list[str]:
 
 
 def check_no_templates_in_output(base_dir: Path) -> list[str]:
-    """Check: No .j2 files should exist in output directories (they belong in templates/).
-
-    Scans root skills/ and hooks/ (for static assets), plus all target output directories.
-    """
+    """Check that no .j2 files leaked into output directories."""
     errors: list[str] = []
 
     def _scan_dir(directory: Path) -> None:
@@ -263,14 +408,11 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
                 rel = j2_file.relative_to(base_dir)
                 errors.append(f"LEAKED TEMPLATE: {rel} (should be in templates/)")
 
-    # Scan root static asset directories
     _scan_dir(base_dir / "skills")
     _scan_dir(base_dir / "hooks")
-
-    # Scan all target output directories
     for output_dir in _collect_output_dirs(base_dir):
         if output_dir == base_dir:
-            continue  # Already scanned root above
+            continue
         _scan_dir(output_dir / "skills")
         _scan_dir(output_dir / "hooks")
 
@@ -278,20 +420,20 @@ def check_no_templates_in_output(base_dir: Path) -> list[str]:
 
 
 def check_codex_no_claude_artifacts(base_dir: Path) -> list[str]:
-    """Check: Codex output directories must not contain .claude-plugin/ or allowed-tools."""
+    """Check that Codex output directories do not contain Claude-only artifacts."""
     errors: list[str] = []
     configs = load_target_configs(base_dir)
+    defaults = load_defaults_vars(base_dir)
     for target_name, config in configs.items():
-        if config.get("vars", {}).get("platform", Platform.CLAUDE) != Platform.CODEX:
+        if _platform_for_config(config, defaults) != Platform.CODEX:
             continue
         source = config.get("plugin", {}).get("source", "./")
         if source == "./":
             continue
-        output_dir = base_dir / source.rstrip("/")
+        output_dir = base_dir / str(source).rstrip("/")
         claude_dir = output_dir / ".claude-plugin"
         if claude_dir.is_dir():
             errors.append(f"[{target_name}] .claude-plugin/ found in Codex output {source}")
-        # Check for allowed-tools in Codex skill frontmatter (scan frontmatter only)
         for skill_md in sorted(output_dir.glob("skills/*/SKILL.md")):
             text = skill_md.read_text(encoding="utf-8")
             parts = text.split("---", 2)
@@ -308,19 +450,14 @@ def _resolve_target_output_dir(base_dir: Path, target_name: str) -> Path:
     if target_name not in configs:
         msg = f"Target '{target_name}' not found in targets/"
         raise ValueError(msg)
-    source: str = configs[target_name].get("plugin", {}).get("source", "./")
+    source = str(configs[target_name].get("plugin", {}).get("source", "./"))
     if source == "./":
         return base_dir
     return base_dir / source.rstrip("/")
 
 
 def check_frontmatter_versions(base_dir: Path, canonical: str, target_name: str) -> list[str]:
-    """Check: SKILL.md frontmatter min_mthds_version must match canonical.
-
-    Scans only the specified target's output directory for SKILL.md files.
-    Dev targets may intentionally override min_mthds_version, so only prod
-    is validated by default.
-    """
+    """Check that SKILL.md frontmatter min_mthds_version matches canonical."""
     errors: list[str] = []
     output_dir = _resolve_target_output_dir(base_dir, target_name)
 
@@ -328,7 +465,6 @@ def check_frontmatter_versions(base_dir: Path, canonical: str, target_name: str)
         text = skill_md.read_text(encoding="utf-8")
         rel = skill_md.relative_to(base_dir)
 
-        # Extract frontmatter (between first two --- lines)
         parts = text.split("---", 2)
         if len(parts) < 3:
             errors.append(f"{rel}: no frontmatter found")
@@ -347,18 +483,34 @@ def check_frontmatter_versions(base_dir: Path, canonical: str, target_name: str)
     return errors
 
 
-def main() -> int:
-    base_dir = Path(__file__).resolve().parent.parent
+def _run_check(title: str, errors: list[str], failure_message: str, success_message: str) -> bool:
+    """Print a formatted check result and return whether it failed."""
+    print(title)
+    if errors:
+        for error in errors:
+            if error.startswith("MISSING:") or error.startswith("LEAKED TEMPLATE:"):
+                print(f"  {error}")
+            else:
+                print(f"  MISMATCH: {error}")
+        print(failure_message)
+        return True
+
+    print(success_message)
+    return False
+
+
+def run_shared_checks(base_dir: Path) -> bool:
+    """Run platform-agnostic repository checks."""
     failed = False
 
-    # Check 0: Target plugin versions (each target's plugin.json matches its config)
     print("Checking target plugin versions...")
     try:
         errors, versions = check_target_plugin_versions(base_dir)
     except ValueError as exc:
         print(f"  {exc}")
         print("FAIL: Cannot read target configs.")
-        return 1
+        return True
+
     if errors:
         for error in errors:
             print(f"  MISMATCH: {error}")
@@ -369,89 +521,107 @@ def main() -> int:
             print(f"  [{target_name}] version: {version}")
         print("  All target plugin versions consistent.")
 
-    # Check 0b: Marketplace plugins match target configs
-    print("Checking marketplace plugin entries...")
-    errors = check_marketplace_plugins(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  MISMATCH: {error}")
-        print("FAIL: marketplace.json plugins are inconsistent with target configs.")
-        failed = True
-    else:
-        print("  Marketplace plugins match target configs.")
+    failed |= _run_check(
+        "Checking target versions are in matched-version lockstep...",
+        check_matched_target_versions(base_dir),
+        "FAIL: Target versions have drifted — bump all of them together (see .claude/skills/release/SKILL.md).",
+        "  All target versions match.",
+    )
 
-    # Check 1a: stale install references (pip install pipelex, curl install.sh)
-    print("Checking for stale install references in SKILL.md files...")
-    errors = check_stale_install_references(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  {error}")
-        print("FAIL: Found stale install references (should use mthds-agent install commands).")
-        failed = True
-    else:
-        print("  No stale install references found.")
+    failed |= _run_check(
+        "Checking for stale install references in SKILL.md files...",
+        check_stale_install_references(base_dir),
+        "FAIL: Found stale install references (should use mthds-agent install commands).",
+        "  No stale install references found.",
+    )
+    failed |= _run_check(
+        "Checking for stale references/ paths to shared files...",
+        check_stale_references(base_dir),
+        "FAIL: Found stale references/ paths (should use ../shared/ instead).",
+        "  No stale references found.",
+    )
+    failed |= _run_check(
+        "Checking all shared template files exist...",
+        check_shared_files_exist(base_dir),
+        "FAIL: Some shared template files are missing.",
+        "  All shared template files present.",
+    )
+    failed |= _run_check(
+        "Checking for leaked .j2 files in output directories...",
+        check_no_templates_in_output(base_dir),
+        "FAIL: Found .j2 template files in output directories (should be in templates/).",
+        "  No leaked templates found.",
+    )
 
-    # Check 1b: stale references/ paths
-    print("Checking for stale references/ paths to shared files...")
-    errors = check_stale_references(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  {error}")
-        print("FAIL: Found stale references/ paths (should use ../shared/ instead).")
-        failed = True
-    else:
-        print("  No stale references found.")
-
-    # Check 2: shared template source files exist
-    print("Checking all shared template files exist...")
-    errors = check_shared_files_exist(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  {error}")
-        print("FAIL: Some shared template files are missing.")
-        failed = True
-    else:
-        print("  All shared template files present.")
-
-    # Check 2b: no .j2 files leaked into output directories
-    print("Checking for leaked .j2 files in output directories...")
-    errors = check_no_templates_in_output(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  {error}")
-        print("FAIL: Found .j2 template files in output directories (should be in templates/).")
-        failed = True
-    else:
-        print("  No leaked templates found.")
-
-    # Check 3: frontmatter version consistency (per-target)
-    print("Checking min_mthds_version consistency...")
     try:
         canonical = resolve_target_var(base_dir, "prod", "min_mthds_version")
     except ValueError as exc:
+        print("Checking min_mthds_version consistency...")
         print(f"  {exc}")
         print("FAIL: Cannot determine canonical min_mthds_version.")
-        return 1
+        return True
 
-    errors = check_frontmatter_versions(base_dir, canonical, "prod")
-    if errors:
-        for error in errors:
-            print(f"  MISMATCH: {error}")
-        print(f"FAIL: Version inconsistency detected (canonical: {canonical}).")
-        failed = True
-    else:
-        print("  All frontmatter versions consistent.")
+    failed |= _run_check(
+        "Checking prod frontmatter version consistency...",
+        check_frontmatter_versions(base_dir, canonical, "prod"),
+        f"FAIL: Version inconsistency detected (canonical: {canonical}).",
+        "  All frontmatter versions consistent.",
+    )
 
-    # Check 4: Codex targets must not contain Claude artifacts
-    print("Checking Codex targets for Claude artifacts...")
-    errors = check_codex_no_claude_artifacts(base_dir)
-    if errors:
-        for error in errors:
-            print(f"  {error}")
-        print("FAIL: Codex target contains Claude-specific artifacts.")
-        failed = True
-    else:
-        print("  No Claude artifacts in Codex targets.")
+    return failed
+
+
+def run_claude_checks(base_dir: Path) -> bool:
+    """Run Claude-specific packaging checks."""
+    return _run_check(
+        "Checking Claude marketplace entries...",
+        check_marketplace_plugins(base_dir),
+        "FAIL: Claude marketplace entries are inconsistent with target configs.",
+        "  Claude marketplace matches target configs.",
+    )
+
+
+def run_codex_checks(base_dir: Path) -> bool:
+    """Run Codex-specific packaging and artifact checks."""
+    failed = False
+    failed |= _run_check(
+        "Checking Codex packaging marketplace entries...",
+        check_codex_marketplace_plugins(base_dir),
+        "FAIL: Codex packaging marketplace entries are inconsistent with target configs.",
+        "  Codex packaging marketplace matches target configs.",
+    )
+    failed |= _run_check(
+        "Checking Codex targets for Claude artifacts...",
+        check_codex_no_claude_artifacts(base_dir),
+        "FAIL: Codex target contains Claude-specific artifacts.",
+        "  No Claude artifacts in Codex targets.",
+    )
+    return failed
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--scope",
+        choices=("all", "shared", "claude", "codex"),
+        default="all",
+        help="Limit checks to a scope. Default: all.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    base_dir = Path(__file__).resolve().parent.parent
+
+    failed = False
+    if args.scope in {"all", "shared"}:
+        failed |= run_shared_checks(base_dir)
+    if args.scope in {"all", "claude"}:
+        failed |= run_claude_checks(base_dir)
+    if args.scope in {"all", "codex"}:
+        failed |= run_codex_checks(base_dir)
 
     if failed:
         return 1
@@ -461,4 +631,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -14,7 +14,7 @@ make agent-test    # Silent on success, full output on failure
 
 - `make install` — Create venv + install all deps (uses uv)
 - `make li` — Lock + install
-- `make check` — Shared refs + version checks + format + lint + typecheck
+- `make check` — Aggregate shared, Claude, and Codex validation
 - `make tp` — Run tests with prints (`make tp TEST=test_function_name` to filter)
 - `make fui` — Fix unused imports only
 - `make cleanderived` — Remove caches/compiled files (useful when linters get confused)
