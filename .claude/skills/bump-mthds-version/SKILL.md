@@ -31,7 +31,7 @@ This is the **only file** that needs a manual edit. All other version references
 
 ### 3. Regenerate all build artifacts
 
-Run `make build` from the repo root. This renders all `.j2` templates for all targets (prod + dev) and writes the corresponding output files with the new version baked in.
+Run `make build` from the repo root. This renders all `.j2` templates for all targets (prod + dev + codex) and writes the corresponding output files with the new version baked in.
 
 ### 4. Verify with `make check`
 
@@ -39,14 +39,10 @@ Run `make check` from the repo root. This validates:
 - All SKILL.md frontmatter `min_mthds_version` values match the canonical version
 - All generated files are fresh (match their `.j2` source)
 - Target plugin versions are consistent
-- Marketplace plugin entries match target configs
+- Claude and Codex marketplace plugin entries match target configs
 
 If it fails, report the errors and fix them before continuing.
 
-### 5. Verify with grep
-
-Run `grep -r 'OLD' skills/*/SKILL.md skills/shared/mthds-agent-guide.md` (replacing `OLD` with the actual old version string). Every match means a stale reference. If any remain, the build did not regenerate correctly — investigate and fix.
-
-### 6. Report
+### 5. Report
 
 List all modified files and show the version change: `OLD → NEW`.

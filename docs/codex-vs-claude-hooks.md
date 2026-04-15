@@ -58,7 +58,7 @@ Codex 0.118.0 has no equivalent. There is no `codex plugin install` or `codex ma
 On top of that, Codex hooks are separate from plugins. Even if Codex could install the plugin automatically, it would not set up the hooks, the feature flag, or the hooks.json config. The install script handles everything:
 
 1. Copies plugin files into `$PWD/plugins/mthds/`
-2. Creates `.agents/plugins/marketplace.json` (repo-level, `./`-prefixed relative path)
+2. Renders `<project>/.agents/plugins/marketplace.json` from the repo's canonical `packaging/codex-marketplace.json`
 3. Copies the hook script to `~/.codex/hooks/`
 4. Writes `~/.codex/hooks.json` with the Stop hook config
 5. Enables `codex_hooks = true` in `~/.codex/config.toml`

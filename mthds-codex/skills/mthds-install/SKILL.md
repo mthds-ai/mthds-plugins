@@ -1,7 +1,7 @@
 ---
 name: mthds-install
 description: Install MTHDS method packages from GitHub or local directories. Use when user says "install a method", "install from GitHub", "add a method package", "mthds install", "install method", "set up a method", or wants to install an MTHDS method package for use with an AI agent.
-min_mthds_version: 0.4.0
+min_mthds_version: 0.4.1
 
 ---
 
@@ -16,7 +16,7 @@ Install method packages from GitHub or local directories using the `mthds-agent`
 Run this command to check toolchain status:
 
 ```bash
-mthds-env-check "0.4.0" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
