@@ -1,0 +1,54 @@
+.claude/skills/release/SKILL.md
+  a25195c22b035a84 21-23,25-28,30-39,55-57,83,85-88,90-91,93,96-100,154-158,189-195
+bin/install-codex.sh
+  a25195c22b035a84 192-196
+Makefile
+  a25195c22b035a84 113
+targets/codex.toml
+  a25195c22b035a84 3
+mthds-dev/.claude-plugin/plugin.json
+  a25195c22b035a84 10
+targets/dev.toml
+  a25195c22b035a84 3
+scripts/check.py
+  a25195c22b035a84 119-120,122-124,127-135,270-275,356,525-531
+tests/unit/test_check.py
+  a25195c22b035a84 13,164-192
+mthds-codex/.codex-plugin/plugin.json
+  a25195c22b035a84 24
+.claude/skills/bump-mthds-version/SKILL.md
+  a25195c22b035a84 34,42,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "969e4e916143f17cc2cd9106a04d3ad46e860d30",
+  "prompts": {
+    "6a8841b22581719a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6cff482b-8fd9-42ca-9d9c-a07645b61f3f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    },
+    "a25195c22b035a84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2247902-6354-442b-b1e1-747c444be8e2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 6227,
+      "total_deletions": 41,
+      "accepted_lines": 9177,
+      "overriden_lines": 0
+    }
+  }
+}
