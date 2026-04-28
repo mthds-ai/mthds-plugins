@@ -1,63 +1,58 @@
 #!/usr/bin/env bash
-# Codex Stop hook: lint and format .mthds files touched during the turn
-# Parses the session transcript to find which .mthds files were written via apply_patch,
-# then runs:
-#   1. plxt lint   — TOML/schema-level linting (blocks on errors)
-#   2. plxt fmt    — auto-format the file (only if lint passes)
-# Blocks if plxt is not installed. Passes silently if no .mthds files were touched.
-# Uses Node.js for JSON parsing (guaranteed on PATH since mthds-agent requires it).
+# Codex PostToolUse(apply_patch) hook: lint and format .mthds files after apply_patch.
+# Reads PostToolUse JSON from stdin, extracts the patch envelope from
+# tool_input.command, parses *** Update File: / *** Add File: / *** Move to:
+# headers to find touched .mthds files, then runs (per file):
+#   1. plxt lint  — TOML/schema-level linting (blocks on errors)
+#   2. plxt fmt   — auto-format the file (only if lint passes)
+# Stage 3 (mthds-agent validate bundle) stays disabled until offline-mode
+# validation lands in mthds-agent — the Codex sandbox blocks the eager S3
+# remote-config fetch and the command would hang. See docs/codex-vs-claude-hooks.md.
+# Passes silently if no .mthds files were touched.
 
 set -euo pipefail
 
-# --- Read stdin (Stop hook JSON) ---
 INPUT=$(cat)
 
-# --- Require Node.js for JSON parsing ---
+# --- Require Node.js for JSON parsing (already required by mthds-agent) ---
 if ! command -v node &>/dev/null; then
   printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
   exit 0
 fi
 
 # --- JSON helpers (Node.js) ---
+# $1 = JSON string, $2 = JS expression using `d` as the parsed object.
+# NOTE: $2 is interpolated into the JS source — must be a trusted literal.
 _jv() { node -e "let d;try{d=JSON.parse(process.argv[1])}catch{d=null};const r=d?($2):undefined;process.stdout.write(r==null?'':String(r))" "$1"; }
 _block() {
   node -e "process.stdout.write(JSON.stringify({decision:'block',reason:process.argv[1]})+'\n')" "$1" \
     || printf '{"decision":"block","reason":"Hook error: could not format block reason"}\n'
 }
 
-# --- Extract transcript_path from hook input ---
-TRANSCRIPT=$(_jv "$INPUT" "d.transcript_path") || true
+# --- Extract the apply_patch envelope from PostToolUse stdin ---
+# tool_input.command is the raw patch text the model emitted, with
+# `*** Begin Patch / *** Update File: <path> / ... / *** End Patch` framing.
+COMMAND=$(_jv "$INPUT" "d.tool_input?.command") || true
 
-if [[ -z "$TRANSCRIPT" || ! -f "$TRANSCRIPT" ]]; then
-  # No transcript available — pass silently
+if [[ -z "$COMMAND" ]]; then
   exit 0
 fi
 
-# --- Parse transcript for .mthds files written via apply_patch ---
+# --- Parse `*** Update File:` / `*** Add File:` / `*** Move to:` headers ---
+# A single apply_patch call can touch several files; we collect every .mthds
+# path mentioned. `Move to:` carries the destination of a rename — we want to
+# validate the destination, not the (now gone) source.
 MTHDS_FILES=$(node -e "
-const fs = require('fs');
-const lines = fs.readFileSync(process.argv[1], 'utf8').split('\n');
+const cmd = process.argv[1];
 const files = new Set();
-for (const line of lines) {
-  if (!line) continue;
-  let entry;
-  try { entry = JSON.parse(line); } catch { continue; }
-  // apply_patch entries contain file paths in the input field
-  const input = entry?.payload?.input || '';
-  if (typeof input !== 'string') continue;
-  // Match 'Update File:' or 'Add File:' lines in apply_patch format
-  const matches = input.match(/(?:Update File|Add File):\s*(\S+\.mthds)/g);
-  if (matches) {
-    for (const match of matches) {
-      const path = match.replace(/^(?:Update File|Add File):\s*/, '').trim();
-      if (path.endsWith('.mthds')) files.add(path);
-    }
-  }
+const re = /^\*\*\* (?:Update File|Add File|Move to):\s*(.+\.mthds)\s*$/gm;
+let match;
+while ((match = re.exec(cmd)) !== null) {
+  files.add(match[1].trim());
 }
 process.stdout.write([...files].join('\n'));
-" "$TRANSCRIPT" 2>/dev/null) || true
+" "$COMMAND" 2>/dev/null) || true
 
-# No .mthds files touched — pass silently
 if [[ -z "$MTHDS_FILES" ]]; then
   exit 0
 fi
@@ -75,6 +70,8 @@ trap 'rm -f "$TMPOUT" "$TMPERR"' EXIT
 ALL_ERRORS=""
 
 while IFS= read -r FILE_PATH; do
+  # Renamed-source paths and `*** Delete File:` targets won't exist on disk
+  # after the patch applies, so skipping nonexistent paths is the right thing.
   [[ -z "$FILE_PATH" || ! -f "$FILE_PATH" ]] && continue
 
   # =====================================================================
@@ -92,7 +89,7 @@ while IFS= read -r FILE_PATH; do
   fi
 
   # =====================================================================
-  # STAGE 2: plxt fmt — auto-format the file in-place (lint passed)
+  # STAGE 2: plxt fmt — auto-format in place (lint passed)
   # =====================================================================
   FMT_EXIT=0
   plxt fmt "$FILE_PATH" >"$TMPOUT" 2>"$TMPERR" || FMT_EXIT=$?
@@ -101,13 +98,14 @@ while IFS= read -r FILE_PATH; do
     ALL_ERRORS="${ALL_ERRORS}plxt fmt failed on $FILE_PATH (exit $FMT_EXIT):\n${FMT_ERR:-no output}\n\nFix it.\n\n"
   fi
 
-  # STAGE 3: mthds-agent validate bundle — DISABLED (sandbox blocks remote config fetch)
-  # TODO: re-enable when mthds-agent supports offline validation
+  # STAGE 3: mthds-agent validate bundle — DISABLED in the Codex sandbox.
+  # The eager S3 remote-config fetch in mthds-agent hangs when network is
+  # restricted; re-enable once mthds-agent supports offline validation
+  # (tracked as Phase 2D in TODOS.md).
   true
 
 done <<< "$MTHDS_FILES"
 
-# --- Report results ---
 if [[ -n "$ALL_ERRORS" ]]; then
   REASON=$(printf "$ALL_ERRORS" | sed '/^$/d')
   _block "$REASON"

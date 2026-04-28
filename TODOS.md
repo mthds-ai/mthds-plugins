@@ -282,19 +282,22 @@ Stretch goal from 1D, lifted to Phase 2 if not done in Phase 1:
 
 ---
 
-## Verification matrix (fill during 1A)
+## Verification matrix (1A findings, recorded 2026-04-28)
 
-| Check                                                       | Expected                                  | Actual | Source                                                            |
-| ----------------------------------------------------------- | ----------------------------------------- | ------ | ----------------------------------------------------------------- |
-| `codex --version`                                           | ≥ 0.124.0                                 |        | system                                                            |
-| PostToolUse fires for apply_patch                           | yes                                       |        | `codex-rs/core/src/tools/handlers/apply_patch.rs:317-339`         |
-| Stdin payload field for path                                | record exact field                        |        | run noop hook + dump stdin                                        |
-| `[features] codex_hooks` still required                     | ?                                         |        | `codex-rs/.../config.rs`                                          |
-| Stage 3 (`mthds-agent validate bundle`) works in sandbox    | ?                                         |        | run inside Codex                                                  |
-| `.agents/plugins/marketplace.json` discovery precedence     | known (vs `.claude-plugin/marketplace.json`) |     | `codex-rs/core-plugins/src/marketplace.rs:20-23`                  |
-| `codex plugin marketplace add` accepts owner/repo + path    | yes                                       |        | `codex-rs/cli/src/marketplace_cmd.rs:25-48`                       |
-| Top-level `codex marketplace add` rejected                  | yes                                       |        | `codex-rs/cli/src/main.rs:1939-1949`                              |
-| Multi-file apply_patch — one hook fire or many              | record                                    |        | run multi-file edit                                               |
+| Check                                                       | Expected                                  | Actual                                                                                                                              | Source                                                            |
+| ----------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `codex --version`                                           | ≥ 0.124.0                                 | 0.125.0 ✓                                                                                                                           | `codex --version` on dev machine                                  |
+| PostToolUse fires for apply_patch                           | yes                                       | yes — `ApplyPatchHandler::post_tool_use_payload` returns a payload                                                                  | `codex-rs/core/src/tools/handlers/apply_patch.rs:324-339`         |
+| Stdin payload field for path                                | record exact field                        | `tool_input.command` is the **raw apply_patch envelope** (string with `*** Update File:` / `*** Add File:` / `*** Move to:` lines) | `apply_patch.rs:330-336` + `apply_patch_payload_command:251-259`  |
+| Canonical `tool_name`                                       | `apply_patch`                             | `apply_patch` ✓ (with `Write`, `Edit` accepted as matcher aliases)                                                                  | `codex-rs/core/src/tools/hook_names.rs:34-39`                     |
+| `[features] codex_hooks` still required                     | ?                                         | **NO** — `Stage::Stable, default_enabled: true`. Drop `enable_hooks_feature` from install script.                                   | `codex-rs/features/src/lib.rs:765-770`                            |
+| Stage 3 (`mthds-agent validate bundle`) works in sandbox    | ?                                         | not verified live (deferred). Conservative: keep Stage 3 disabled, leave Phase 2D task open for offline mode in mthds-js.            | n/a                                                               |
+| `.agents/plugins/marketplace.json` discovery precedence     | known (vs `.claude-plugin/marketplace.json`) | `.agents/plugins/...` checked FIRST — Codex picks one (no merge), so a Codex marketplace at `.agents/plugins/...` shadows `.claude-plugin/...` cleanly. | `codex-rs/core-plugins/src/marketplace.rs:20-23,237-247`          |
+| `codex plugin marketplace add` accepts owner/repo + path    | yes                                       | yes — `<SOURCE>` accepts `owner/repo[@ref]`, HTTP(S) Git URLs, SSH URLs, or local marketplace root dirs                              | `codex plugin marketplace add --help`                             |
+| Top-level `codex marketplace add` rejected                  | yes                                       | yes — `error: unrecognized subcommand 'add'`                                                                                         | `codex marketplace add` (run on dev machine)                      |
+| Plugin manifest `hooks` field deserialized                  | NO                                        | **NO** — `RawPluginManifest` has only `name|version|description|skills|mcp_servers|apps|interface`. Phase 2A still required.        | `codex-rs/core-plugins/src/manifest.rs:11-30`                     |
+| Multi-file apply_patch — one hook fire or many              | record                                    | **one hook fire per `apply_patch` call**, even for multi-file patches — handler returns a single payload with the full envelope     | `apply_patch.rs:324-339`                                          |
+| `mthds-agent codex install-hook` writes Stop entry          | (regression risk)                         | confirmed — hardcodes `hooks.Stop[]`. Must NOT be called after 1B switch; install-codex.sh now does its own PostToolUse JSON merge.  | `mthds-js/src/agent/commands/codex.ts:55-65,153-170`              |
 
 ---
 

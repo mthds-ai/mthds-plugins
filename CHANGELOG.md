@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.9.0] - 2026-04-28
+
+### Changed
+
+- Codex hook switched from `Stop` to `PostToolUse(apply_patch)` for per-edit `.mthds` validation, matching the Claude Code semantics. Codex 0.124.0 fixed the upstream blocker (apply_patch now emits hook payloads).
+- Codex install no longer needs the curl-pipe-bash plugin install path: `codex plugin marketplace add mthds-ai/mthds-plugins` (Codex 0.124.0+) handles plugin install via the marketplace. The repo now ships `.agents/plugins/marketplace.json` (generated, byte-identical to the canonical `packaging/codex-marketplace.json`) so `codex plugin marketplace add` resolves cleanly.
+- `bin/install-codex.sh` slimmed down — only wires the hook and copies the env-check helper. Plugin file copy, marketplace rendering, GitHub-clone fallback, and the `codex_hooks` feature toggle are gone (the toggle is default-enabled in Codex now).
+- Codex hook script no longer parses the session transcript; it now reads the apply_patch envelope from `tool_input.command` directly.
+
+### Migration
+
+- Pre-existing installs have a `Stop` hook entry pointing at `codex-validate-mthds.sh` in `~/.codex/hooks.json`. Re-running `bin/install-codex.sh` automatically removes the stale `Stop` entry and writes the new `PostToolUse(apply_patch)` entry.
+
 ## [v0.8.0] - 2026-04-13
 
 ### Added

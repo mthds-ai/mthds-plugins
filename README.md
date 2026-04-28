@@ -26,17 +26,22 @@ claude plugin install mthds@mthds-plugins
 Open Codex and paste this. Codex does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && bash <(curl -fsSL https://raw.githubusercontent.com/mthds-ai/mthds-plugins/main/bin/install-codex.sh)'. Then tell me to restart Codex and run /plugins to install mthds.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && codex plugin marketplace add mthds-ai/mthds-plugins && bash <(curl -fsSL https://raw.githubusercontent.com/mthds-ai/mthds-plugins/main/bin/install-codex.sh)'. Then tell me to restart Codex and run /plugins to install mthds.
 ```
+
+Requires Codex 0.124.0+ (`codex plugin marketplace add` shipped in 0.124.0). Bump with `npm install -g @openai/codex@latest` if needed.
 
 ### Manual install (Codex)
 
 ```bash
 npm install -g mthds
 mthds-agent bootstrap
-bash bin/install-codex.sh
+codex plugin marketplace add mthds-ai/mthds-plugins
+bash bin/install-codex.sh   # wires the PostToolUse(apply_patch) hook + env-check
 # Restart Codex, then run /plugins to install mthds
 ```
+
+The `install-codex.sh` step is required only because Codex doesn't yet load `hooks` from a plugin manifest (upstream-tracked). When that lands, this step disappears and the install collapses to a single `codex plugin marketplace add` line. See `docs/codex-vs-claude-hooks.md`.
 
 ## Skills
 
@@ -68,7 +73,7 @@ Both plugins include hooks that validate `.mthds` files automatically:
 
 **Claude Code:** A PostToolUse hook matches Write/Edit and receives the file path directly. Errors block the edit immediately.
 
-**Codex:** A PostToolUse hook matches Bash and parses the command to detect `.mthds` file paths. Same per-edit validation, same immediate feedback.
+**Codex:** A PostToolUse hook matches `apply_patch` (Codex's file-write tool) and parses the patch envelope to find every touched `.mthds` file. Same per-edit validation, same immediate feedback.
 
 Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
 

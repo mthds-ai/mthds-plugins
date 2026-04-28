@@ -10,6 +10,8 @@ Claude Code skills plugin for building, running, validating, and editing AI meth
 └── marketplace.json           # Marketplace listing (all plugins)
 .codex-plugin/
 └── plugin-base.json           # Shared Codex plugin manifest fields
+.agents/plugins/
+└── marketplace.json           # Codex-discoverable copy of packaging/codex-marketplace.json (generated)
 packaging/
 └── codex-marketplace.json     # Canonical Codex marketplace packaging spec
 targets/
@@ -100,12 +102,21 @@ The dev target overrides install commands to use local container paths for CCC t
 
 ## PostToolUse Hook
 
-`hooks/validate-mthds.sh` (generated from `templates/hooks/validate-mthds.sh.j2`) runs automatically after every Write or Edit on `.mthds` files. It:
-1. Lints with `plxt lint` (blocks on errors)
-2. Formats with `plxt fmt` (only if lint passes)
-3. Validates semantically with `mthds-agent validate bundle` (blocks or warns)
+Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is identical; the wiring differs because Codex doesn't yet auto-load hooks from plugin manifests.
 
-Passes silently if file is not `.mthds`. Blocks if `plxt` or `mthds-agent` is not installed (with install instructions).
+**Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
+- Matches `Write|Edit`; receives `tool_input.file_path` directly
+- Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks or warns)
+- Bundled in the Claude plugin and auto-loaded by Claude Code
+
+**Codex (`mthds-codex/hooks/codex-validate-mthds.sh`, generated from `templates/hooks/codex-validate-mthds.sh.j2`):**
+- Matches `apply_patch`; parses `tool_input.command` (patch envelope) for `*** Update File: / Add File: / Move to:` headers
+- Stages: `plxt lint` → `plxt fmt`. Stage 3 stays disabled until `mthds-agent` ships offline-mode validation (Codex sandbox blocks the eager S3 fetch). Tracked as Phase 2D in `TODOS.md`.
+- Wired by `bin/install-codex.sh`, which merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` and migrates legacy `Stop` entries from pre-0.9.0 installs
+
+Both pass silently if the file is not `.mthds`. Both block if `plxt` is not installed.
+
+See `docs/codex-vs-claude-hooks.md` for the full comparison and upstream issue tracking.
 
 ## Prerequisites
 
