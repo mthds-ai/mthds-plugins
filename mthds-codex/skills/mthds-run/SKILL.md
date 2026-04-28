@@ -16,7 +16,20 @@ Execute MTHDS method bundles and interpret their JSON output.
 Run this command to check toolchain status:
 
 ```bash
-for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "0.5.0"; done; echo "MTHDS_ENV_CHECK_MISSING"
+# Pick the cached env-check from the plugin version with the highest semver.
+# Pad each numeric segment to fixed width so lex sort matches semver sort
+# (avoids the 0.10 < 0.9 lex-order trap). Sort keys are digits-only by
+# construction, so the [[ > ]] compare is locale-independent. Bash 3.2 OK.
+_best_f=""; _best_k=""
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do
+  [ -x "$f" ] || continue
+  _v="${f%/bin/*}"; _v="${_v##*/}"
+  _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
+  [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
+done
+[ -n "$_best_f" ] && exec "$_best_f" "0.5.0"
+echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

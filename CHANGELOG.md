@@ -7,7 +7,7 @@
 - Codex hook switched from `Stop` to `PostToolUse(apply_patch)` for per-edit `.mthds` validation, matching the Claude Code semantics. Codex 0.124.0 fixed the upstream blocker (apply_patch now emits hook payloads).
 - Codex install no longer needs the curl-pipe-bash plugin install path: `codex plugin marketplace add mthds-ai/mthds-plugins` (Codex 0.124.0+) handles plugin install via the marketplace. The repo ships `.agents/plugins/marketplace.json` (generated from canonical `packaging/codex-marketplace.json`) so `codex plugin marketplace add` resolves cleanly.
 - Codex hook validation logic moved from a bash script (`codex-validate-mthds.sh`) into the `mthds-agent codex hook` runtime (mthds-js npm package, requires ≥ 0.5.0). The hook config in `~/.codex/hooks.json` now invokes `mthds-agent codex hook` directly; no bash script is copied to `~/.codex/hooks/`.
-- Skill preambles now resolve `mthds-env-check` from the plugin's per-version cache directory (`$CODEX_HOME/plugins/cache/*/mthds/*/bin/mthds-env-check`) instead of `~/.codex/bin/mthds-env-check`. The env-check binary is no longer copied out of the plugin.
+- Skill preambles now resolve `mthds-env-check` from the plugin's per-version cache directory (`$CODEX_HOME/plugins/cache/*/mthds/*/bin/mthds-env-check`) instead of `~/.codex/bin/mthds-env-check`. The env-check binary is no longer copied out of the plugin. Version selection across cached versions uses semver-aware sort keys (zero-padded numeric segments), so the resolver correctly picks `0.10.0` over `0.9.0` rather than the lex-greatest match. Stays in pure bash to preserve the layering invariant: env-check verifies mthds-agent is installed and therefore must not depend on mthds-agent itself.
 
 ### Removed
 
