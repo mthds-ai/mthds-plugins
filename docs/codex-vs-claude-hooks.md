@@ -1,6 +1,6 @@
 # Codex vs Claude Code Hooks
 
-Both plugins validate `.mthds` files automatically after edits. The validation pipeline is the same (plxt lint, plxt fmt, mthds-agent validate), and as of Codex 0.124.0 the hook event is the same too — `PostToolUse` with a tool-name matcher. The remaining differences are about how each platform handles plugin packaging and hook delivery.
+Both plugins validate `.mthds` files automatically after edits. The validation pipeline is the same shape (plxt lint, plxt fmt, mthds-agent validate), and as of Codex 0.124.0 the hook event is the same too — `PostToolUse` with a tool-name matcher. The remaining differences are about how each platform handles plugin packaging and hook delivery.
 
 ## Claude Code hook
 
@@ -10,7 +10,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **Scope:** validates one file per invocation
 - **Sandbox:** hooks run without network restrictions
 - **Stages:** plxt lint, plxt fmt, mthds-agent validate bundle (all three)
-- **Template:** `templates/hooks/validate-mthds.sh.j2`
+- **Implementation:** bash script `templates/hooks/validate-mthds.sh.j2` (rendered into `mthds/hooks/`)
 - **Wiring:** `hooks.json` is bundled inside the plugin and auto-loaded by Claude Code
 
 ## Codex hook
@@ -21,14 +21,26 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **Scope:** validates every `.mthds` file that exists on disk after the patch applies (rename source paths and `*** Delete File:` targets are silently skipped)
 - **Sandbox:** hooks run inside the Codex sandbox with restricted network access
 - **Stages:** plxt lint, plxt fmt only — Stage 3 (`mthds-agent validate bundle`) stays disabled until offline-mode validation lands in mthds-agent
-- **Template:** `templates/hooks/codex-validate-mthds.sh.j2`
-- **Wiring:** `bin/install-codex.sh` merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` and copies the script into `~/.codex/hooks/`
+- **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js (≥ 0.5.0). The plugin ships no hook files.
+- **Wiring:** `mthds-agent codex install-hook` writes a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` whose `command` is the literal string `mthds-agent codex hook` (PATH-resolved at hook-fire time)
 
 ## Why the differences
 
 ### Hook script vs `tool_input.command`
 
 `apply_patch` is Codex's freeform file-write tool: the model emits a heredoc-shaped patch envelope (`*** Begin Patch / *** Update File: <path> / @@ ... / *** End Patch`) instead of distinct write/edit calls. The PostToolUse payload exposes that envelope verbatim as `tool_input.command`. The hook parses the envelope's `*** Update File: / *** Add File: / *** Move to:` headers to discover every touched file. There is no equivalent of Claude Code's `tool_input.file_path` because a single `apply_patch` call can touch any number of files.
+
+### Hook implementation lives in mthds-agent, not the plugin
+
+Claude Code auto-loads `hooks/hooks.json` from the plugin manifest, so the validation logic naturally lives inside the plugin (a bash script under `${CLAUDE_PLUGIN_ROOT}/hooks/`). Codex doesn't (yet) read a `hooks` field from `plugin.json` (`RawPluginManifest` in `codex-rs/core-plugins/src/manifest.rs:11-30` lacks the field). The hook config has to live at `~/.codex/hooks.json`, written by something the user runs at install time.
+
+Two options for "what runs":
+
+1. **Copy a script into `~/.codex/hooks/` at install time.** Older approach (the now-retired `bin/install-codex.sh`). The hook config points at the copied path. Pros: no agent dependency. Cons: requires a separate install step, copies break when the plugin upgrades, validation logic is duplicated bash that must stay in sync with the Claude version.
+
+2. **Invoke `mthds-agent codex hook` via `PATH`.** Current approach. The hook config's `command` is just the agent subcommand string. The agent itself is already on PATH after `npm install -g mthds`. Pros: no copies, no per-version path drift, validation logic versioned with mthds-agent (single source of truth across platforms). Cons: requires mthds-agent to be installed (true anyway — every other skill in the plugin needs it).
+
+We picked option 2. The plugin no longer ships any hook files; `mthds-agent codex install-hook` is a one-time JSON merge, not a file-copy step.
 
 ### `mthds-agent validate` still disabled in the Codex sandbox
 
@@ -38,11 +50,13 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 
 `plxt` had an eager `reqwest` client initialization that crashed in the Codex sandbox; it was made lazy in `vscode-pipelex` PR #38 (only created when lint encounters http/https schema sources).
 
-## Why an install script is still needed for Codex
+## Install flows
 
 Claude Code:
 
 ```bash
+npm install -g mthds
+mthds-agent bootstrap
 claude plugin marketplace add mthds-ai/mthds-plugins
 claude plugin install mthds@mthds-plugins
 ```
@@ -50,22 +64,18 @@ claude plugin install mthds@mthds-plugins
 Codex 0.124.0+:
 
 ```bash
+npm install -g mthds
+mthds-agent bootstrap
+mthds-agent codex install-hook
 codex plugin marketplace add mthds-ai/mthds-plugins
 # then /plugins inside Codex to install — there's no one-shot CLI install yet
 ```
 
-The plugin code itself installs cleanly via Codex's marketplace command. What Codex doesn't yet do is auto-load `hooks` from a plugin manifest: `RawPluginManifest` (in `codex-rs/core-plugins/src/manifest.rs`) deserializes only `name|version|description|skills|mcp_servers|apps|interface` — the `"hooks": "./hooks/codex-hooks.json"` field documented in the plugin spec is silently dropped. So hooks must still be wired into `~/.codex/hooks.json` out-of-band.
+The Codex flow has one extra step (`mthds-agent codex install-hook`) until upstream Codex auto-loads the `hooks` field from `plugin.json`. When that lands, both flows collapse to the same shape.
 
-`bin/install-codex.sh` does only that:
+## env-check resolution
 
-1. Ensures `mthds-agent` is on PATH (and ≥ MIN_MTHDS_VERSION)
-2. Copies `bin/mthds-env-check` to `~/.codex/bin/`
-3. Copies `mthds-codex/hooks/codex-validate-mthds.sh` to `~/.codex/hooks/`
-4. Merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` (idempotent; migrates legacy `Stop` entries from pre-0.9.0 installs)
-
-The `[features] codex_hooks = true` toggle is no longer required — `codex_hooks` is `Stage::Stable, default_enabled: true` in current Codex.
-
-When the upstream `hooks` plugin-manifest field lands, `bin/install-codex.sh` can be deleted entirely and the install collapses to a single `codex plugin marketplace add` line.
+The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is installed and at the required version. The env-check binary lives at `bin/mthds-env-check` inside the plugin. After `codex plugin marketplace add` + `/plugins install`, Codex stages a per-version copy under `$CODEX_HOME/plugins/cache/<source>/mthds/<version>/bin/mthds-env-check`. The preamble globs that path. Nothing is copied to `~/.codex/bin/`.
 
 ## Tracked upstream issues
 
@@ -76,4 +86,4 @@ When the upstream `hooks` plugin-manifest field lands, `bin/install-codex.sh` ca
 
 ## What's next
 
-See `TODOS.md` for the full roadmap. Phase 2 items (upstream-blocked or out-of-repo): plugin-manifest `hooks` field deserializer, single-shot `codex plugin install`, mthds-agent offline-mode validation, optional unification of Claude/Codex hook templates, and moving the install logic into `mthds-agent bootstrap`.
+See `TODOS.md` for the full roadmap. Phase 2 items (upstream-blocked or out-of-repo): plugin-manifest `hooks` field deserializer, single-shot `codex plugin install`, mthds-agent offline-mode validation.

@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-min_mthds_version: 0.4.1
+min_mthds_version: 0.5.0
 
 ---
 
@@ -16,7 +16,7 @@ Analyze and explain existing MTHDS method bundles in plain language.
 Run this command to check toolchain status:
 
 ```bash
-~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "0.5.0"; done; echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

@@ -102,17 +102,18 @@ The dev target overrides install commands to use local container paths for CCC t
 
 ## PostToolUse Hook
 
-Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is identical; the wiring differs because Codex doesn't yet auto-load hooks from plugin manifests.
+Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape; the delivery differs because Codex doesn't yet auto-load hooks from plugin manifests.
 
 **Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
 - Matches `Write|Edit`; receives `tool_input.file_path` directly
 - Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks or warns)
 - Bundled in the Claude plugin and auto-loaded by Claude Code
 
-**Codex (`mthds-codex/hooks/codex-validate-mthds.sh`, generated from `templates/hooks/codex-validate-mthds.sh.j2`):**
+**Codex (`mthds-agent codex hook`, in mthds-js):**
 - Matches `apply_patch`; parses `tool_input.command` (patch envelope) for `*** Update File: / Add File: / Move to:` headers
 - Stages: `plxt lint` → `plxt fmt`. Stage 3 stays disabled until `mthds-agent` ships offline-mode validation (Codex sandbox blocks the eager S3 fetch). Tracked as Phase 2D in `TODOS.md`.
-- Wired by `bin/install-codex.sh`, which merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` and migrates legacy `Stop` entries from pre-0.9.0 installs
+- Wired by `mthds-agent codex install-hook` (mthds-js 0.5.0+), which merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` whose command is `mthds-agent codex hook` (PATH-resolved). Migrates legacy `Stop` entries and pre-0.9.0 `PostToolUse` entries that pointed at the retired bash script.
+- The Codex plugin no longer ships any hook files. Validation logic lives in mthds-agent so it can be versioned independently of the plugin.
 
 Both pass silently if the file is not `.mthds`. Both block if `plxt` is not installed.
 

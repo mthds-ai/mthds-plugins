@@ -281,15 +281,13 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     (shared / "python-execution.md.j2").write_text("Python.\n")
     (shared / "upgrade-flow.md.j2").write_text("Upgrade.\n")
 
-    # Claude hooks
+    # Claude hooks (Codex platform renders no hook files — runtime lives in
+    # mthds-agent codex hook, not in a plugin-bundled script)
     hooks_tmpl = templates_dir / "hooks"
     hooks_tmpl.mkdir()
     (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
     (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
     (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
-    # Codex hooks
-    (hooks_tmpl / "codex-hooks.json.j2").write_text('{"hooks":{"Stop":[]}}\n')
-    (hooks_tmpl / "codex-validate-mthds.sh.j2").write_text("#!/bin/bash\n# codex post-tool-use hook\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -352,14 +350,16 @@ class TestCodexTarget:
         assert config.plugin_name == "mthds"
         assert config.source == "mthds-codex/"
 
-    def test_codex_uses_codex_hook_templates(self, tmp_path: Path) -> None:
-        """Codex platform renders Codex hook templates, not Claude hooks."""
+    def test_codex_renders_no_hook_files(self, tmp_path: Path) -> None:
+        """Codex platform ships no hook files — the validation runtime lives in
+        `mthds-agent codex hook` (mthds-js npm package), wired into
+        ~/.codex/hooks.json by `mthds-agent codex install-hook`."""
         tree = _create_codex_tree(tmp_path)
         codex_vars = {**DEFAULT_VARS, "platform": "codex"}
         results = render_templates(tree / "templates", tree, codex_vars)
         output_names = {path.name for path in results}
-        assert "codex-hooks.json" in output_names
-        assert "codex-validate-mthds.sh" in output_names
+        assert "codex-hooks.json" not in output_names
+        assert "codex-validate-mthds.sh" not in output_names
         assert "hooks.json" not in output_names
         assert "validate-mthds.sh" not in output_names
 
@@ -435,8 +435,10 @@ class TestCodexTarget:
         assert codex_manifest not in result.files
 
     def test_hook_templates_by_platform_has_both(self) -> None:
-        """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms."""
+        """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms.
+        Claude renders the bundled hook script; Codex renders nothing because
+        its hook runtime lives in the agent (out-of-repo)."""
         assert "claude" in HOOK_TEMPLATES_BY_PLATFORM
         assert "codex" in HOOK_TEMPLATES_BY_PLATFORM
         assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE]) == 3
-        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX]) == 2
+        assert HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX] == []

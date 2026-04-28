@@ -1,7 +1,7 @@
 Run this command to check toolchain status:
 
 ```bash
-~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "0.5.0"; done; echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

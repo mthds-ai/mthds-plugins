@@ -1,7 +1,7 @@
 ---
 name: mthds-upgrade
 description: Upgrade MTHDS CLI tools to the latest compatible versions. Use when user says "upgrade mthds", "update mthds", "mthds upgrade", "update my tools", "upgrade pipelex", "update pipelex", "upgrade plxt", "update tools".
-min_mthds_version: 0.4.1
+min_mthds_version: 0.5.0
 
 ---
 
@@ -16,7 +16,7 @@ Upgrade mthds-agent and its managed tools to the latest versions.
 Run this command to check toolchain status:
 
 ```bash
-~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "0.5.0"; done; echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**

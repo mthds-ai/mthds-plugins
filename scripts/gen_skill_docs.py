@@ -69,17 +69,18 @@ HOOK_TEMPLATES = [
     "hooks/session-start.sh.j2",
 ]
 
-# Hook templates by platform — each platform has its own hook set.
+# Hook templates by platform.
+# Codex: hook runtime lives in `mthds-agent codex hook` (mthds-js npm package),
+# wired into ~/.codex/hooks.json by `mthds-agent codex install-hook`. The plugin
+# itself ships no hook files — the `hooks` field is not yet read from
+# Codex plugin manifests anyway (upstream-blocked).
 HOOK_TEMPLATES_BY_PLATFORM = {
     Platform.CLAUDE: HOOK_TEMPLATES,
-    Platform.CODEX: [
-        "hooks/codex-hooks.json.j2",
-        "hooks/codex-validate-mthds.sh.j2",
-    ],
+    Platform.CODEX: [],
 }
 
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 
 
 @dataclass

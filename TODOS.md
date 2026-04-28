@@ -2,6 +2,39 @@
 
 Goal: bring the Codex plugin install UX, hooks, and reliability on par with the Claude Code plugin, leveraging fixes shipped in `codex` 0.124.0+ (latest `rust-v0.126.0-alpha.8` as of 2026-04-28). Three of the five blockers we hit when we built the Codex plugin in early April 2026 are now fixed; one is still upstream-blocked; one is moot.
 
+---
+
+## Status update — 2026-04-28: Phase 1 SHIPPED (final shape diverged)
+
+Phase 1 is done. The plan below is preserved for historical context, but the path actually taken differs in two material ways:
+
+1. **`bin/install-codex.sh` deleted entirely**, not slimmed. Its three remaining responsibilities (env-check copy, hook script copy, JSON merge) collapsed: env-check is now read from the plugin's per-version cache directory, and the hook runtime moved into mthds-agent itself (see 2 below). The JSON merge is what `mthds-agent codex install-hook` does.
+
+2. **Hook runtime moved from a bash script into mthds-agent.** mthds-js 0.5.0 ships two new pieces:
+   - `mthds-agent codex install-hook` (rewritten) writes a `PostToolUse(apply_patch)` entry whose `command` is the literal string `mthds-agent codex hook` — PATH-resolved at hook-fire time, not a path to a copied script. Migrates legacy `Stop` and legacy `PostToolUse` entries from earlier shapes.
+   - `mthds-agent codex hook` (new runtime) — TS port of the bash hook logic. The plugin no longer ships any `hooks/` files. Single source of truth across Claude and Codex (Claude still uses its bundled bash script for now, retained as legacy; Codex routes through the agent).
+
+Concrete diffs in this repo:
+- Deleted: `bin/install-codex.sh`, `templates/hooks/codex-hooks.json.j2`, `templates/hooks/codex-validate-mthds.sh.j2`, `mthds-codex/hooks/`, `tests/unit/test_install_codex_version_ge.py`, `tests/integration/test_hook_codex_validate_mthds.py`.
+- `templates/skills/shared/preamble.md.j2` — Codex env-check path replaced with a glob over `$CODEX_HOME/plugins/cache/*/mthds/*/bin/mthds-env-check`.
+- `scripts/gen_skill_docs.py` — `HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX] = []`.
+- `targets/defaults.toml` — `min_mthds_version = "0.5.0"`.
+- README, CHANGELOG, CLAUDE.md, docs/codex-vs-claude-hooks.md updated for the new install line: `npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && codex plugin marketplace add mthds-ai/mthds-plugins`.
+
+Regression net: `internal-tools/tests/test-nelly-plugin-install.sh` (PHASE=B) drives the install end-to-end inside a Nelly container.
+
+### What changed in the Phase-2 list
+
+- **2A** (upstream `hooks` field deserializer) — STILL PENDING. Now matters less: when it lands, the install line drops `mthds-agent codex install-hook`, but the runtime stays in mthds-agent (no bash to bundle).
+- **2B** (move script into plugin once `hooks` lands) — MOOT. There is no script to bundle anymore.
+- **2C** (one-shot `codex plugin install`) — STILL PENDING (upstream).
+- **2D** (mthds-agent offline-mode validation) — STILL PENDING. Stage 3 stays disabled in `mthds-agent codex hook` (`src/agent/commands/codex-hook.ts`) until this lands.
+- **2E** (close out tracked issues) — STILL PENDING.
+- **2F** (unify Claude/Codex hook templates) — partially MOOT — Codex no longer has a hook template at all. Claude's bash script could in principle be replaced with a `mthds-agent claude hook` parallel, but no driver for that today; defer.
+- **2G** (move install logic into bootstrap or agent) — DONE in the form of `mthds-agent codex install-hook` (mthds-js 0.5.0). `bootstrap` itself stays platform-agnostic per the user's preference.
+
+---
+
 ## Status of original blockers
 
 | #   | Blocker                                                  | Status                       | Phase   |

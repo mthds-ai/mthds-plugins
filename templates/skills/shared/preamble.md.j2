@@ -2,7 +2,7 @@ Run this command to check toolchain status:
 
 {% if platform == "codex" -%}
 ```bash
-~/.codex/bin/mthds-env-check "{{ min_mthds_version }}" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "{{ min_mthds_version }}"; done; echo "MTHDS_ENV_CHECK_MISSING"
 ```
 {% else -%}
 ```bash

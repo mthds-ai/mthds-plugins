@@ -270,8 +270,7 @@ def check_codex_marketplace_plugins(base_dir: Path) -> list[str]:
     """Check that the tracked Codex packaging marketplace matches Codex targets and required fields.
 
     The canonical source.path here points at the build-output dir (e.g. ``./mthds-codex``),
-    not the runtime on-disk path Codex actually reads (``./plugins/<name>``).
-    ``bin/install-codex.sh`` rewrites the path at install time via ``render_repo_local_marketplace``.
+    which is what `codex plugin marketplace add` reads when adding a local marketplace.
     """
     marketplace_path = base_dir / CODEX_MARKETPLACE_PATH
     if not marketplace_path.is_file():

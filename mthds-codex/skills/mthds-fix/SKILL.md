@@ -1,7 +1,7 @@
 ---
 name: mthds-fix
 description: Fix issues in MTHDS bundles. Use when user says "fix this workflow", "fix this method", "repair validation errors", "the pipeline is broken", "fix the .mthds file", after /mthds-check found issues, or when validation reports errors. Automatically applies fixes and re-validates in a loop.
-min_mthds_version: 0.4.1
+min_mthds_version: 0.5.0
 
 ---
 
@@ -16,7 +16,7 @@ Automatically fix issues in MTHDS method bundles.
 Run this command to check toolchain status:
 
 ```bash
-~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do [ -x "$f" ] && exec "$f" "0.5.0"; done; echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
