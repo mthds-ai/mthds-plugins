@@ -1,0 +1,63 @@
+tests/unit/test_install_codex_version_ge.py
+  f07217445b727f16 1,3-8,14,19,28-34,37-38,40-76,81-83,89,125-133,135-204
+docs/codex-vs-claude-hooks.md
+  f07217445b727f16 3,7,14,18-21,23,25,29,31,33,35,39,41,43,50,52-55,57,59,61-64,66,68,72-75,77,79
+targets/codex.toml
+  f07217445b727f16 3
+scripts/gen_skill_docs.py
+  f07217445b727f16 43-51,387-404,438-448,506-515
+mthds-codex/hooks/codex-validate-mthds.sh
+  f07217445b727f16 2-11,17,24-25,32-35,37,41-44,46,48-51,54,73-74,92,101-104
+.agents/plugins/marketplace.json
+  f07217445b727f16 1-20
+TODOS.md
+  f07217445b727f16 285-300
+mthds/.claude-plugin/plugin.json
+  f07217445b727f16 10
+bin/install-codex.sh
+  f07217445b727f16 2,4-6,8-17,19,21-23,56-57,68-71,78-91,177-179,181-182,184-187,189,193-202,204,206-223,226-241,244-249,251-256,258-266,268-273,276-279,284,289-290,293,296-298,300,317,319,323,326,347,385,387-388
+CHANGELOG.md
+  f07217445b727f16 3-15
+CLAUDE.md
+  f07217445b727f16 13-14,105,107-119
+.claude-plugin/marketplace.json
+  f07217445b727f16 9
+templates/hooks/codex-validate-mthds.sh.j2
+  f07217445b727f16 2-11,17,24-25,32-35,37,41-44,46,48-51,54,75-76,94,103-106
+mthds-codex/hooks/codex-hooks.json
+  f07217445b727f16 3,5
+mthds-codex/.codex-plugin/plugin.json
+  f07217445b727f16 24
+templates/hooks/codex-hooks.json.j2
+  f07217445b727f16 3,5
+README.md
+  f07217445b727f16 29,32-33,39-40,44-45,76
+mthds-dev/.claude-plugin/plugin.json
+  f07217445b727f16 10
+targets/prod.toml
+  f07217445b727f16 3
+tests/integration/test_hook_codex_validate_mthds.py
+  f07217445b727f16 1-256
+targets/dev.toml
+  f07217445b727f16 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "932002ada73bb0fb2add71382a7d79357f7ae9f1",
+  "prompts": {
+    "f07217445b727f16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0297eb01-93b8-45c5-8832-61da8142fa26",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 9873,
+      "total_deletions": 394,
+      "accepted_lines": 9843,
+      "overriden_lines": 0
+    }
+  }
+}
