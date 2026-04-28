@@ -1,0 +1,137 @@
+TODOS.md
+  66d247e07454ca63 5-37
+mthds/skills/mthds-inputs/SKILL.md
+  66d247e07454ca63 4,76
+README.md
+  66d247e07454ca63 29,38-39,44
+mthds-dev/skills/mthds-edit/SKILL.md
+  66d247e07454ca63 4,70
+mthds-codex/skills/mthds-runner-setup/SKILL.md
+  66d247e07454ca63 4,19
+mthds-dev/skills/shared/preamble.md
+  66d247e07454ca63 4
+mthds-dev/skills/mthds-publish/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/mthds-inputs/SKILL.md
+  66d247e07454ca63 4,76
+mthds/skills/mthds-check/SKILL.md
+  66d247e07454ca63 4,23
+mthds/skills/mthds-edit/SKILL.md
+  66d247e07454ca63 4,70
+mthds/skills/mthds-explain/SKILL.md
+  66d247e07454ca63 4,26
+mthds/skills/mthds-publish/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/mthds-run/SKILL.md
+  66d247e07454ca63 4,26
+mthds-codex/skills/mthds-explain/SKILL.md
+  66d247e07454ca63 4,19
+mthds/skills/mthds-upgrade/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/mthds-share/SKILL.md
+  66d247e07454ca63 4,26
+mthds-codex/skills/shared/mthds-agent-guide.md
+  66d247e07454ca63 3
+mthds-dev/skills/mthds-upgrade/SKILL.md
+  66d247e07454ca63 4,26
+mthds-codex/skills/mthds-install/SKILL.md
+  66d247e07454ca63 4,19
+scripts/check.py
+  66d247e07454ca63 273
+scripts/gen_skill_docs.py
+  66d247e07454ca63 72-76,79,83
+docs/codex-vs-claude-hooks.md
+  66d247e07454ca63 3,13,24-25,33-44,53,58-59,67-69,74,76,78,89
+mthds/skills/shared/frontmatter.md
+  66d247e07454ca63 1
+mthds-codex/skills/mthds-build/SKILL.md
+  66d247e07454ca63 4,67
+mthds-codex/skills/mthds-share/SKILL.md
+  66d247e07454ca63 4,19
+mthds-dev/skills/mthds-fix/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/mthds-check/SKILL.md
+  66d247e07454ca63 4,23
+mthds-dev/skills/mthds-pkg/SKILL.md
+  66d247e07454ca63 4,26
+mthds/skills/mthds-install/SKILL.md
+  66d247e07454ca63 4,26
+targets/defaults.toml
+  66d247e07454ca63 5
+mthds/skills/shared/preamble.md
+  66d247e07454ca63 4
+mthds-codex/skills/mthds-publish/SKILL.md
+  66d247e07454ca63 4,19
+mthds-codex/skills/mthds-pkg/SKILL.md
+  66d247e07454ca63 4,19
+mthds-dev/skills/mthds-install/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/shared/mthds-agent-guide.md
+  66d247e07454ca63 3
+mthds-dev/skills/mthds-explain/SKILL.md
+  66d247e07454ca63 4,26
+templates/skills/shared/preamble.md.j2
+  66d247e07454ca63 5
+mthds-codex/skills/shared/preamble.md
+  66d247e07454ca63 4
+mthds/skills/mthds-run/SKILL.md
+  66d247e07454ca63 4,26
+tests/unit/test_gen_skill_docs.py
+  66d247e07454ca63 284-285,353-356,361-362,438-440,444
+mthds-codex/skills/mthds-run/SKILL.md
+  66d247e07454ca63 4,19
+mthds-codex/skills/mthds-check/SKILL.md
+  66d247e07454ca63 4,18
+mthds/skills/mthds-fix/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/shared/frontmatter.md
+  66d247e07454ca63 1
+mthds/skills/mthds-runner-setup/SKILL.md
+  66d247e07454ca63 4,26
+mthds-codex/skills/mthds-upgrade/SKILL.md
+  66d247e07454ca63 4,19
+CLAUDE.md
+  66d247e07454ca63 105,112,115-116
+mthds/skills/mthds-pkg/SKILL.md
+  66d247e07454ca63 4,26
+mthds-dev/skills/mthds-build/SKILL.md
+  66d247e07454ca63 4,74
+mthds-codex/skills/mthds-inputs/SKILL.md
+  66d247e07454ca63 4,69
+mthds-codex/skills/shared/frontmatter.md
+  66d247e07454ca63 1
+mthds/skills/shared/mthds-agent-guide.md
+  66d247e07454ca63 3
+mthds/skills/mthds-share/SKILL.md
+  66d247e07454ca63 4,26
+mthds-codex/skills/mthds-fix/SKILL.md
+  66d247e07454ca63 4,19
+mthds-dev/skills/mthds-runner-setup/SKILL.md
+  66d247e07454ca63 4,26
+mthds/skills/mthds-build/SKILL.md
+  66d247e07454ca63 4,74
+mthds-codex/skills/mthds-edit/SKILL.md
+  66d247e07454ca63 4,63
+CHANGELOG.md
+  66d247e07454ca63 8-16,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "9f6769b42f19c5896c392c16c3114b72417ab179",
+  "prompts": {
+    "66d247e07454ca63": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f44d233-d200-4f89-94c6-dc8a2127d88b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 265,
+      "total_deletions": 1329,
+      "accepted_lines": 264,
+      "overriden_lines": 0
+    }
+  }
+}
