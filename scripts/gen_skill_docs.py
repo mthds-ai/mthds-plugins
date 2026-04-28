@@ -40,6 +40,15 @@ TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
 TEMPLATES_DIR_NAME = "templates"
 
+# Codex discovers plugin marketplaces at `.agents/plugins/marketplace.json`
+# (preferred) or `.claude-plugin/marketplace.json` (fallback). We ship a
+# Codex-discoverable copy of `packaging/codex-marketplace.json` at the repo
+# root so `codex plugin marketplace add mthds-ai/mthds-plugins` works without
+# an install script. The canonical file remains the single source of truth;
+# this is a verbatim copy.
+CODEX_DISCOVERY_MARKETPLACE_SRC = Path("packaging/codex-marketplace.json")
+CODEX_DISCOVERY_MARKETPLACE_DST = Path(".agents/plugins/marketplace.json")
+
 # All shared files are templates rendered per target.
 # Paths are relative to the templates/ directory.
 SHARED_TEMPLATES = [
@@ -60,17 +69,18 @@ HOOK_TEMPLATES = [
     "hooks/session-start.sh.j2",
 ]
 
-# Hook templates by platform — each platform has its own hook set.
+# Hook templates by platform.
+# Codex: hook runtime lives in `mthds-agent codex hook` (mthds-js npm package),
+# wired into ~/.codex/hooks.json by `mthds-agent codex install-hook`. The plugin
+# itself ships no hook files — the `hooks` field is not yet read from
+# Codex plugin manifests anyway (upstream-blocked).
 HOOK_TEMPLATES_BY_PLATFORM = {
     Platform.CLAUDE: HOOK_TEMPLATES,
-    Platform.CODEX: [
-        "hooks/codex-hooks.json.j2",
-        "hooks/codex-validate-mthds.sh.j2",
-    ],
+    Platform.CODEX: [],
 }
 
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 
 
 @dataclass
@@ -375,6 +385,24 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
     return result
 
 
+def render_codex_discovery_marketplace(base_dir: Path) -> str | None:
+    """Return the Codex-discoverable marketplace.json text from the canonical source.
+
+    Codex's marketplace loader scans `.agents/plugins/marketplace.json` and
+    `.claude-plugin/marketplace.json` for plugin listings. We ship a copy of
+    `packaging/codex-marketplace.json` at `.agents/plugins/marketplace.json`
+    so `codex plugin marketplace add mthds-ai/mthds-plugins` resolves without
+    an install script. The contents are byte-identical — no transformation.
+
+    Returns None when the canonical source is absent — repos without a Codex
+    target (e.g. unit-test fixtures) don't need the discovery copy either.
+    """
+    source_path = base_dir / CODEX_DISCOVERY_MARKETPLACE_SRC
+    if not source_path.is_file():
+        return None
+    return source_path.read_text(encoding="utf-8")
+
+
 def generate(base_dir: Path, target_name: str = "prod") -> int:
     """Render templates and write output files for one or all targets."""
     targets_dir = base_dir / TARGETS_DIR_NAME
@@ -407,6 +435,17 @@ def generate(base_dir: Path, target_name: str = "prod") -> int:
         file_count = len(result.files)
         total_files += file_count
         print(f"  [{name}] Generated {file_count} files.")
+
+    # Sync the Codex-discoverable marketplace copy whenever any target builds
+    # — both files live at the repo root and stay in lockstep. Skip silently
+    # in repos without a Codex packaging file (test fixtures, Claude-only forks).
+    discovery_content = render_codex_discovery_marketplace(base_dir)
+    if discovery_content is not None:
+        discovery_dst = base_dir / CODEX_DISCOVERY_MARKETPLACE_DST
+        discovery_dst.parent.mkdir(parents=True, exist_ok=True)
+        discovery_dst.write_text(discovery_content, encoding="utf-8")
+        rel = discovery_dst.relative_to(base_dir)
+        print(f"  [codex-discovery] Synced {rel}")
 
     if total_files == 0:
         print("No templates found.")
@@ -464,6 +503,16 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
             for j2_file in sorted(output_hooks_dir.rglob("*.j2")):
                 rel = j2_file.relative_to(base_dir)
                 all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+
+    # Cross-target check: when a Codex packaging source exists, its
+    # `.agents/plugins/marketplace.json` discovery copy must match byte-for-byte.
+    expected_discovery = render_codex_discovery_marketplace(base_dir)
+    if expected_discovery is not None:
+        discovery_dst = base_dir / CODEX_DISCOVERY_MARKETPLACE_DST
+        if not discovery_dst.is_file():
+            all_stale.append(f"  MISSING: {CODEX_DISCOVERY_MARKETPLACE_DST}")
+        elif discovery_dst.read_text(encoding="utf-8") != expected_discovery:
+            all_stale.append(f"  STALE: {CODEX_DISCOVERY_MARKETPLACE_DST} (does not match {CODEX_DISCOVERY_MARKETPLACE_SRC})")
 
     if all_stale:
         for msg in all_stale:

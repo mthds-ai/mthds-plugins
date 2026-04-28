@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 from pathlib import Path
 
 import pytest
+from jinja2 import Environment, FileSystemLoader
 
 from scripts.gen_skill_docs import (
+    CODEX_DISCOVERY_MARKETPLACE_DST,
+    CODEX_DISCOVERY_MARKETPLACE_SRC,
     EXECUTABLE_OUTPUTS,
     HOOK_TEMPLATES,
     HOOK_TEMPLATES_BY_PLATFORM,
@@ -19,6 +24,7 @@ from scripts.gen_skill_docs import (
     generate,
     load_target_config,
     make_plugin_json,
+    render_codex_discovery_marketplace,
     render_templates,
 )
 
@@ -267,6 +273,87 @@ class TestCheckFreshness:
         assert result == 1
 
 
+class TestCodexDiscoveryMarketplace:
+    """Tests for the .agents/plugins/marketplace.json sync (the file Codex
+    reads when resolving `codex plugin marketplace add mthds-ai/mthds-plugins`).
+    Covers `render_codex_discovery_marketplace`, `generate`'s sync side-effect,
+    and `check_freshness`'s missing-/stale-file detection. Regression suite
+    for greptile P2 (PR #11) — these were untested when added."""
+
+    def test_render_returns_none_when_source_absent(self, tmp_path: Path) -> None:
+        """A repo without packaging/codex-marketplace.json (Claude-only fork
+        or test fixture) skips the discovery sync silently."""
+        result = render_codex_discovery_marketplace(tmp_path)
+        assert result is None
+
+    def test_render_returns_content_when_source_present(self, tmp_path: Path) -> None:
+        """When the canonical source exists, render returns its bytes
+        verbatim (no transformation — both files live at the repo root and
+        stay byte-identical)."""
+        source_path = tmp_path / CODEX_DISCOVERY_MARKETPLACE_SRC
+        source_path.parent.mkdir(parents=True)
+        canonical = '{"name": "mthds-plugins", "plugins": []}\n'
+        source_path.write_text(canonical, encoding="utf-8")
+
+        result = render_codex_discovery_marketplace(tmp_path)
+        assert result == canonical
+
+    def test_generate_writes_discovery_when_source_present(self, tmp_path: Path) -> None:
+        """`generate` syncs `.agents/plugins/marketplace.json` whenever the
+        canonical packaging file exists."""
+        tree = _create_codex_tree(tmp_path)
+        source_path = tree / CODEX_DISCOVERY_MARKETPLACE_SRC
+        source_path.parent.mkdir(parents=True)
+        canonical = '{"name": "mthds-plugins", "plugins": [{"name": "mthds"}]}\n'
+        source_path.write_text(canonical, encoding="utf-8")
+
+        result = generate(tree, "codex")
+        assert result == 0
+
+        synced = tree / CODEX_DISCOVERY_MARKETPLACE_DST
+        assert synced.is_file(), f"{CODEX_DISCOVERY_MARKETPLACE_DST} should be written"
+        assert synced.read_text(encoding="utf-8") == canonical
+
+    def test_generate_skips_discovery_when_source_absent(self, template_tree: Path) -> None:
+        """Repos without the canonical source (e.g. Claude-only test fixtures)
+        must not have an empty discovery file written. The sync block returns
+        None and skips the write entirely."""
+        # template_tree has no packaging/codex-marketplace.json
+        generate(template_tree, "prod")
+        synced = template_tree / CODEX_DISCOVERY_MARKETPLACE_DST
+        assert not synced.exists(), "discovery file should not be created when source is absent"
+
+    def test_check_freshness_detects_missing_discovery(self, tmp_path: Path) -> None:
+        """When the source exists but the discovery copy hasn't been written
+        (or got deleted), check_freshness returns non-zero."""
+        tree = _create_codex_tree(tmp_path)
+        source_path = tree / CODEX_DISCOVERY_MARKETPLACE_SRC
+        source_path.parent.mkdir(parents=True)
+        source_path.write_text('{"name": "mthds-plugins", "plugins": []}\n', encoding="utf-8")
+        # Generate normally to bring everything else fresh.
+        generate(tree, "codex")
+        # Now delete the discovery copy.
+        (tree / CODEX_DISCOVERY_MARKETPLACE_DST).unlink()
+
+        result = check_freshness(tree, "codex")
+        assert result == 1
+
+    def test_check_freshness_detects_stale_discovery(self, tmp_path: Path) -> None:
+        """When the discovery copy exists but its bytes don't match the
+        source, check_freshness returns non-zero (catches forgotten rebuilds
+        after editing packaging/codex-marketplace.json)."""
+        tree = _create_codex_tree(tmp_path)
+        source_path = tree / CODEX_DISCOVERY_MARKETPLACE_SRC
+        source_path.parent.mkdir(parents=True)
+        source_path.write_text('{"name": "mthds-plugins", "plugins": []}\n', encoding="utf-8")
+        generate(tree, "codex")
+        # Tamper with the synced copy.
+        (tree / CODEX_DISCOVERY_MARKETPLACE_DST).write_text('{"name": "stale", "plugins": []}\n', encoding="utf-8")
+
+        result = check_freshness(tree, "codex")
+        assert result == 1
+
+
 def _create_codex_tree(tmp_path: Path) -> Path:
     """Create a minimal repo with both Claude and Codex targets."""
     templates_dir = tmp_path / "templates"
@@ -281,15 +368,13 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     (shared / "python-execution.md.j2").write_text("Python.\n")
     (shared / "upgrade-flow.md.j2").write_text("Upgrade.\n")
 
-    # Claude hooks
+    # Claude hooks (Codex platform renders no hook files — runtime lives in
+    # mthds-agent codex hook, not in a plugin-bundled script)
     hooks_tmpl = templates_dir / "hooks"
     hooks_tmpl.mkdir()
     (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
     (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
     (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
-    # Codex hooks
-    (hooks_tmpl / "codex-hooks.json.j2").write_text('{"hooks":{"Stop":[]}}\n')
-    (hooks_tmpl / "codex-validate-mthds.sh.j2").write_text("#!/bin/bash\n# codex post-tool-use hook\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -315,6 +400,58 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     (targets_dir / "codex.toml").write_text('[plugin]\nname = "mthds"\nversion = "0.1.0"\nsource = "mthds-codex/"\n\n[vars]\nplatform = "codex"\n')
 
     return tmp_path
+
+
+def _render_codex_preamble_bash() -> str:
+    """Render the production Codex skill preamble template and return the
+    first ```bash code block (the env-check resolver). Used by the
+    TestCodexTarget regression tests that exercise the resolver end-to-end."""
+    repo_root = Path(__file__).resolve().parents[2]
+    env = Environment(
+        loader=FileSystemLoader(str(repo_root / "templates")),
+        autoescape=False,
+        keep_trailing_newline=True,
+    )
+    rendered = env.get_template("skills/shared/preamble.md.j2").render(
+        platform="codex",
+        min_mthds_version="0.5.0",
+        marketplace_name="mthds-plugins",
+    )
+    match = re.search(r"```bash\n(.*?)\n```", rendered, re.DOTALL)
+    if match is None:
+        raise AssertionError(f"No bash block in rendered preamble:\n{rendered}")
+    return match.group(1)
+
+
+def _make_fake_codex_cache(tmp_path: Path, versions: list[str]) -> Path:
+    """Build a fake CODEX_HOME under tmp_path with one stub env-check per
+    version. Each stub prints its own version when invoked, so the
+    subprocess stdout reveals which one the resolver picked."""
+    fake_codex_home = tmp_path / "fake-codex"
+    for version in versions:
+        bin_dir = fake_codex_home / "plugins" / "cache" / "mthds-plugins" / "mthds" / version / "bin"
+        bin_dir.mkdir(parents=True)
+        stub = bin_dir / "mthds-env-check"
+        stub.write_text(f"#!/usr/bin/env bash\necho {version}\n")
+        stub.chmod(0o755)
+    return fake_codex_home
+
+
+def _run_preamble_bash(bash_cmd: str, codex_home: Path) -> "subprocess.CompletedProcess[str]":
+    """Run the rendered preamble bash with a minimal clean env. LC_ALL=C
+    pins lex-compare ordering — the keys are digit-only by construction
+    so this is defensive, not load-bearing."""
+    return subprocess.run(
+        ["bash", "-c", bash_cmd],
+        env={
+            "CODEX_HOME": str(codex_home),
+            "PATH": "/usr/bin:/bin",
+            "LC_ALL": "C",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 class TestCodexTarget:
@@ -352,14 +489,16 @@ class TestCodexTarget:
         assert config.plugin_name == "mthds"
         assert config.source == "mthds-codex/"
 
-    def test_codex_uses_codex_hook_templates(self, tmp_path: Path) -> None:
-        """Codex platform renders Codex hook templates, not Claude hooks."""
+    def test_codex_renders_no_hook_files(self, tmp_path: Path) -> None:
+        """Codex platform ships no hook files — the validation runtime lives in
+        `mthds-agent codex hook` (mthds-js npm package), wired into
+        ~/.codex/hooks.json by `mthds-agent codex install-hook`."""
         tree = _create_codex_tree(tmp_path)
         codex_vars = {**DEFAULT_VARS, "platform": "codex"}
         results = render_templates(tree / "templates", tree, codex_vars)
         output_names = {path.name for path in results}
-        assert "codex-hooks.json" in output_names
-        assert "codex-validate-mthds.sh" in output_names
+        assert "codex-hooks.json" not in output_names
+        assert "codex-validate-mthds.sh" not in output_names
         assert "hooks.json" not in output_names
         assert "validate-mthds.sh" not in output_names
 
@@ -434,9 +573,72 @@ class TestCodexTarget:
         assert claude_manifest in result.files
         assert codex_manifest not in result.files
 
+    def test_codex_preamble_globs_pick_latest_env_check(self, tmp_path: Path) -> None:
+        """The Codex preamble bash must exec the env-check from the version
+        with the highest **semver** (not the lex-greatest). Cache contains
+        0.8.1, 0.9.0, 0.10.0, 0.11.5 — pure lex order would pick 0.9.0 (since
+        '9' > '1' lex-wise); semver-aware order picks 0.11.5. Regression for
+        greptile P1 (PR #11) and the follow-up demand for proper ordering."""
+        cache = _make_fake_codex_cache(tmp_path, ["0.8.1", "0.9.0", "0.10.0", "0.11.5"])
+        result = _run_preamble_bash(_render_codex_preamble_bash(), cache)
+        assert result.returncode == 0, f"bash exited {result.returncode}: stdout={result.stdout!r} stderr={result.stderr!r}"
+        assert result.stdout.strip() == "0.11.5", (
+            f"Expected the highest semver (0.11.5) to be exec'd, got: stdout={result.stdout!r}, stderr={result.stderr!r}"
+        )
+
+    def test_codex_preamble_handles_two_digit_minor(self, tmp_path: Path) -> None:
+        """Minimal regression: 0.9.0 vs 0.10.0 cached, the latter must win.
+        This is the precise case lex order gets backwards ('0.10.0' < '0.9.0'
+        lex-wise) and is the headline reason we abandoned the lex hack."""
+        cache = _make_fake_codex_cache(tmp_path, ["0.9.0", "0.10.0"])
+        result = _run_preamble_bash(_render_codex_preamble_bash(), cache)
+        assert result.returncode == 0
+        assert result.stdout.strip() == "0.10.0", f"Expected 0.10.0 to win over 0.9.0 (semver-aware), got: stdout={result.stdout!r}"
+
+    def test_codex_preamble_handles_prerelease_versions(self, tmp_path: Path) -> None:
+        """Prerelease/build-metadata segments are stripped before sort-key
+        construction (we don't model full SemVer 2.0.0 prerelease precedence
+        in bash). Cache has 0.5.0-beta and 0.5.0; either may win the
+        tiebreaker, but both must run successfully without throwing."""
+        cache = _make_fake_codex_cache(tmp_path, ["0.5.0-beta", "0.5.0"])
+        result = _run_preamble_bash(_render_codex_preamble_bash(), cache)
+        assert result.returncode == 0, f"bash exited {result.returncode}: stderr={result.stderr!r}"
+        assert result.stdout.strip() in {"0.5.0", "0.5.0-beta"}, f"Expected one of 0.5.0/0.5.0-beta, got: stdout={result.stdout!r}"
+
+    def test_codex_preamble_handles_single_cached_version(self, tmp_path: Path) -> None:
+        """When only one version is cached, the resolver picks it without
+        entering the comparison branch. Locks in the loop's first-iteration
+        path (empty `_best_k` < anything non-empty)."""
+        cache = _make_fake_codex_cache(tmp_path, ["0.5.0"])
+        result = _run_preamble_bash(_render_codex_preamble_bash(), cache)
+        assert result.returncode == 0
+        assert result.stdout.strip() == "0.5.0"
+
+    def test_codex_preamble_skips_non_semver_directory_names(self, tmp_path: Path) -> None:
+        """A non-semver version dir (e.g. 'local') must not be picked over a
+        real semver entry. The numeric strip turns 'local' into a sort key
+        of all-zeros (six chars), which loses the lex compare against any
+        real version's longer padded key."""
+        cache = _make_fake_codex_cache(tmp_path, ["local", "0.10.0"])
+        result = _run_preamble_bash(_render_codex_preamble_bash(), cache)
+        assert result.returncode == 0
+        assert result.stdout.strip() == "0.10.0", f"Expected 0.10.0 to win over non-semver 'local', got: stdout={result.stdout!r}"
+
+    def test_codex_preamble_falls_back_when_no_env_check_cached(self, tmp_path: Path) -> None:
+        """When CODEX_HOME has no cached env-check at all, the preamble's
+        bash must fall through to the `MTHDS_ENV_CHECK_MISSING` echo (which
+        the skill's preamble logic treats as a WARN, not a STOP)."""
+        empty_codex_home = tmp_path / "empty-codex"
+        empty_codex_home.mkdir()
+        result = _run_preamble_bash(_render_codex_preamble_bash(), empty_codex_home)
+        assert result.returncode == 0
+        assert result.stdout.strip() == "MTHDS_ENV_CHECK_MISSING", f"Expected fallback echo, got: stdout={result.stdout!r}, stderr={result.stderr!r}"
+
     def test_hook_templates_by_platform_has_both(self) -> None:
-        """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms."""
+        """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms.
+        Claude renders the bundled hook script; Codex renders nothing because
+        its hook runtime lives in the agent (out-of-repo)."""
         assert "claude" in HOOK_TEMPLATES_BY_PLATFORM
         assert "codex" in HOOK_TEMPLATES_BY_PLATFORM
         assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE]) == 3
-        assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX]) == 2
+        assert HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX] == []
