@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import tomllib
 from collections.abc import Mapping
@@ -291,29 +292,34 @@ def make_plugin_json(base_dir: Path, config: TargetConfig) -> dict[str, object]:
     return base
 
 
-def _relative_symlink_target(link_location: Path, real_target: Path) -> Path:
-    """Compute a relative path from link_location to real_target for use in symlinks.
+def _refresh_copy(src: Path, dst: Path) -> None:
+    """Replace whatever exists at dst with a fresh copy of src's contents.
 
-    Both paths must be absolute or both relative to the same root.
-    The result is suitable for ``link_location.symlink_to(result)``.
+    Handles the legacy symlink layout: an existing symlink at dst is unlinked
+    before copytree runs. Plain files/dirs are removed too so the build is
+    idempotent.
     """
-    return Path(os.path.relpath(real_target, link_location.parent))
+    # is_symlink() must be checked before is_dir(): a symlink-to-dir is both,
+    # and rmtree would chase the link and delete its target.
+    if dst.is_symlink() or dst.is_file():
+        dst.unlink()
+    elif dst.is_dir():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
 
 
-def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
-    """Create symlinks in the output directory for static assets.
+def setup_static_assets(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
+    """Copy static assets (bin/, references/) into the output directory.
 
-    For non-root targets, symlinks point back to the source-of-truth files.
-    Only static assets (bin/, references/) are symlinked — skills/, shared/,
-    and hooks/ are all generated per-target by the template renderer.
+    The output dir must be self-contained: marketplace installs that copy a
+    single plugin subdir (Codex's local marketplace, Claude's local plugin
+    install) cannot follow symlinks pointing to siblings of the plugin root.
     """
-    # Symlink bin/ (static, not a template)
     bin_src = base_dir / "bin"
     bin_dst = output_dir / "bin"
-    if bin_src.is_dir() and not bin_dst.exists():
-        bin_dst.symlink_to(_relative_symlink_target(bin_dst, bin_src))
+    if bin_src.is_dir():
+        _refresh_copy(bin_src, bin_dst)
 
-    # Determine which skills to link
     if include_skills is not None:
         skill_names = include_skills
     else:
@@ -322,15 +328,14 @@ def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, includ
     output_skills_dir = output_dir / "skills"
     output_skills_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create skill subdirectories and symlink references/ (static assets)
     skills_dir = base_dir / "skills"
     for skill_name in skill_names:
         skill_output = output_skills_dir / skill_name
         skill_output.mkdir(parents=True, exist_ok=True)
         refs_src = skills_dir / skill_name / "references"
         refs_dst = skill_output / "references"
-        if refs_src.is_dir() and not refs_dst.exists():
-            refs_dst.symlink_to(_relative_symlink_target(refs_dst, refs_src))
+        if refs_src.is_dir():
+            _refresh_copy(refs_src, refs_dst)
 
 
 def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False) -> BuildResult:
@@ -339,8 +344,8 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
     Args:
         base_dir: Repository root.
         config: Target configuration.
-        dry_run: If True, compute expected files without creating directories,
-            symlinks, or writing anything to disk.
+        dry_run: If True, compute expected files without creating directories
+            or writing anything to disk.
     """
     templates_dir = base_dir / TEMPLATES_DIR_NAME
     output_dir = resolve_output_dir(base_dir, config.source)
@@ -360,7 +365,7 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
         # Non-root target: write to output directory
         if not dry_run:
             output_dir.mkdir(parents=True, exist_ok=True)
-            setup_symlinks(base_dir, output_dir, templates_dir, config.include_skills)
+            setup_static_assets(base_dir, output_dir, templates_dir, config.include_skills)
 
         for src_path, content in rendered.items():
             # Map base_dir-relative output to target output dir

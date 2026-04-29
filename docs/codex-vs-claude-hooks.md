@@ -46,6 +46,24 @@ We picked option 2. The plugin no longer ships any hook files; `mthds-agent code
 
 `mthds-agent validate bundle` fetches remote Pipelex configuration from S3 (`pipelex_remote_config_08.json`) on startup. The Codex sandbox blocks this network call and the command hangs. Validation itself is local — the remote config is not actually needed for structural checks — so the fix is to make the remote fetch lazy / skippable in `mthds-agent`. Tracked as Phase 2D in `TODOS.md`. Until then, the Codex hook runs only plxt lint + plxt fmt; Claude Code runs all three stages.
 
+### Sandbox network access
+
+By default, Codex's `workspace-write` sandbox blocks outbound network for hook commands. Even after Phase 2D ships, any future runtime call that talks to the network (telemetry, package resolution, remote pipelex config) will fail silently inside the sandbox unless the user opts in. The fix is one TOML key:
+
+```toml
+[sandbox_workspace_write]
+network_access = true
+```
+
+`mthds-agent codex apply-config` (mthds-js ≥ 0.6.0) merges that key into `~/.codex/config.toml` additively — it never removes or rewrites unrelated keys, and re-running it is a no-op. Use `--dry-run` to preview, `--check` for env-check / CI gating.
+
+The same command also warns (without modifying anything) when:
+
+- `[features] codex_hooks = false` is explicitly set. The `codex_hooks` flag is `Stage::Stable, default_enabled: true` as of Codex 0.124.0 (`codex-rs/features/src/lib.rs:768`), so the install flow does not need to set it. But an explicit `false` disables hooks entirely and breaks the plugin.
+- `sandbox_mode = "read-only"`, which prevents `apply_patch` from running at all.
+
+`mthds-agent doctor` runs the same inspection in read-only mode and surfaces the same warnings, so a user who runs `doctor` before installing learns about both issues without anything being written.
+
 ### plxt lazy HTTP fix
 
 `plxt` had an eager `reqwest` client initialization that crashed in the Codex sandbox; it was made lazy in `vscode-pipelex` PR #38 (only created when lint encounters http/https schema sources).
@@ -67,11 +85,12 @@ Codex 0.124.0+:
 npm install -g mthds
 mthds-agent bootstrap
 mthds-agent codex install-hook
+mthds-agent codex apply-config
 codex plugin marketplace add mthds-ai/mthds-plugins
 # then /plugins inside Codex to install — there's no one-shot CLI install yet
 ```
 
-The Codex flow has one extra step (`mthds-agent codex install-hook`) until upstream Codex auto-loads the `hooks` field from `plugin.json`. When that lands, both flows collapse to the same shape.
+The Codex flow has two extra steps until upstream Codex auto-loads the `hooks` field from `plugin.json` and lands a way to opt-in to sandbox network for plugin-declared hook commands. When both land, both flows collapse to the same shape.
 
 ## env-check resolution
 

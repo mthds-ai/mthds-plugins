@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mthds-env-check — check mthds-agent installation and version
-# Usage: mthds-env-check <min_version>
+# Usage: mthds-env-check <min_version> [--codex]
 # Output status codes (via stdout):
 #   MTHDS_AGENT_MISSING              — mthds-agent not on PATH
 #   MTHDS_AGENT_VERSION_UNKNOWN      — could not parse installed version
@@ -9,11 +9,13 @@
 #   UPGRADE_AVAILABLE ...            — from mthds-agent update-check
 #   JUST_UPGRADED ...                — from mthds-agent update-check
 #   UP_TO_DATE                       — from mthds-agent update-check
+#   CODEX_SANDBOX_NETWORK_MISSING    — only with --codex; sandbox would block hooks
 #   (no output)                      — up to date, nothing to report
 set -u
 exec 2>/dev/null
 
 REQUIRED="${1:-}"
+PLATFORM_FLAG="${2:-}"
 if [ -z "$REQUIRED" ]; then
   echo "MTHDS_ENV_CHECK_ERROR: missing min_version argument"
   exit 0
@@ -59,4 +61,27 @@ if [ $UPDATE_EXIT -ne 0 ]; then
   [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
 elif [ -n "$UPDATE_OUTPUT" ]; then
   echo "$UPDATE_OUTPUT"
+fi
+
+# Codex-only: confirm ~/.codex/config.toml has sandbox network access
+# enabled. Without it, the PostToolUse(apply_patch) hook can't reach the
+# pipelex remote config and silently fails. We only run this check when
+# explicitly invoked from a Codex preamble (--codex), since the same
+# binary serves Claude Code where this concern doesn't apply.
+if [ "$PLATFORM_FLAG" = "--codex" ]; then
+  CODEX_ERR_FILE=$(mktemp 2>/dev/null) || CODEX_ERR_FILE=""
+  if [ -n "$CODEX_ERR_FILE" ]; then
+    if ! mthds-agent codex apply-config --check >/dev/null 2>"$CODEX_ERR_FILE"; then
+      echo "CODEX_SANDBOX_NETWORK_MISSING"
+      # Surface the first line of stderr so support has a clue when this
+      # status is reported by users — global `exec 2>/dev/null` (line 15)
+      # would otherwise destroy the diagnostic.
+      [ -s "$CODEX_ERR_FILE" ] && head -n 1 "$CODEX_ERR_FILE" | sed 's/^/# /'
+    fi
+    rm -f "$CODEX_ERR_FILE"
+  else
+    if ! mthds-agent codex apply-config --check >/dev/null 2>&1; then
+      echo "CODEX_SANDBOX_NETWORK_MISSING"
+    fi
+  fi
 fi

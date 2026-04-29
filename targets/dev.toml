@@ -6,14 +6,22 @@ source = "mthds-dev/"
 
 [vars]
 # Inherits all defaults from defaults.toml.
-# Override install commands with local container paths for CCC testing.
+# Override install commands with inline shell that handles the read-only mount
+# layout used in dev-mode containers (mounts at /workspace/* and /build-src/*).
+# pipelex installs straight from the mount because uv builds in isolation.
+# mthds-agent and plxt stage into /tmp first because their installers write to
+# the source path (npm install -g symlinks back, plxt's Rust crate writes
+# target/). Staging uses tar-to-file then tar-from-file (not `tar c | tar x`)
+# so a producer-side failure aborts the chain under `&&` instead of silently
+# feeding a partial archive into the consumer. The exclusions keep the host's
+# huge target/, .venv, .git, etc. out of the staged copy.
 session_start_hook = true
-mthds_install_cmd = "npm install -g /build-src/mthds-js/"
-mthds_upgrade_cmd = "npm install -g /build-src/mthds-js/"
+mthds_install_cmd = "rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/"
+mthds_upgrade_cmd = "rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/"
 pipelex_install_cmd = "uv tool install /workspace/pipelex/"
 pipelex_upgrade_cmd = "uv tool install --upgrade /workspace/pipelex/"
-plxt_install_cmd = "uv tool install /workspace/vscode-pipelex/"
-plxt_upgrade_cmd = "uv tool install --upgrade /workspace/vscode-pipelex/"
+plxt_install_cmd = "rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.tar && mkdir -p /tmp/vscode-pipelex-build && tar -C /workspace/vscode-pipelex --exclude=./target --exclude=./.venv --exclude=./.git --exclude=./node_modules -cf /tmp/vscode-pipelex-build.tar . && tar -C /tmp/vscode-pipelex-build -xf /tmp/vscode-pipelex-build.tar && rm -f /tmp/vscode-pipelex-build.tar && uv tool install /tmp/vscode-pipelex-build/"
+plxt_upgrade_cmd = "rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.tar && mkdir -p /tmp/vscode-pipelex-build && tar -C /workspace/vscode-pipelex --exclude=./target --exclude=./.venv --exclude=./.git --exclude=./node_modules -cf /tmp/vscode-pipelex-build.tar . && tar -C /tmp/vscode-pipelex-build -xf /tmp/vscode-pipelex-build.tar && rm -f /tmp/vscode-pipelex-build.tar && uv tool install --upgrade /tmp/vscode-pipelex-build/"
 
 # [skills]
 # include = ["mthds-build", "mthds-check"]  # build only a subset

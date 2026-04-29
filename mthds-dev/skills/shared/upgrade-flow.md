@@ -3,7 +3,7 @@
 When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble reports `MTHDS_AGENT_OUTDATED`, follow this flow.
 
 **Three upgrade paths exist:**
-- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `npm install -g /build-src/mthds-js/` (Claude runs this directly, not via mthds-agent).
+- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/` (the agent runs this directly, not via mthds-agent).
 - **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
 - **Plugin (Claude Code plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded via `claude plugin install mthds-dev@mthds-plugins`.
 
@@ -32,10 +32,10 @@ The `UPGRADE_AVAILABLE` output from `mthds-agent update-check` includes which bi
 **For the `mthds` npm package (`mthds-agent` CLI):**
 
 ```bash
-npm install -g /build-src/mthds-js/
+rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/
 ```
 
-Claude runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
+The agent runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
 
 **For Python binaries (`pipelex-agent`, `plxt`):**
 
@@ -51,7 +51,7 @@ This upgrades all outdated Python binaries via `uv tool install --upgrade`.
 claude plugin install mthds-dev@mthds-plugins
 ```
 
-Claude runs this directly. After installing, tell the user to restart Claude Code for the new plugin to take effect.
+Claude runs this directly. After installing, tell the user to run `/reload-plugins` to activate the new plugin.
 
 ## Step 3.5 — Interpret upgrade output
 
@@ -61,7 +61,7 @@ After running `mthds-agent upgrade`, interpret the stdout line:
 
 - `UPGRADE_PARTIAL <json>` → Some targets upgraded, some failed. The JSON contains `{"upgraded":{...},"failed":{...}}`. Report which tools upgraded successfully and which failed. For each failure, provide the manual install command:
   - `pipelex-agent` or `pipelex`: `uv tool install --upgrade /workspace/pipelex/`
-  - `plxt`: `uv tool install --upgrade /workspace/vscode-pipelex/`
+  - `plxt`: `rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.tar && mkdir -p /tmp/vscode-pipelex-build && tar -C /workspace/vscode-pipelex --exclude=./target --exclude=./.venv --exclude=./.git --exclude=./node_modules -cf /tmp/vscode-pipelex-build.tar . && tar -C /tmp/vscode-pipelex-build -xf /tmp/vscode-pipelex-build.tar && rm -f /tmp/vscode-pipelex-build.tar && uv tool install --upgrade /tmp/vscode-pipelex-build/`
 
   Proceed to Step 4 with current versions (partial success is still usable).
 

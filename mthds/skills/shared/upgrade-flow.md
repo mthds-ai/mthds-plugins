@@ -3,7 +3,7 @@
 When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble reports `MTHDS_AGENT_OUTDATED`, follow this flow.
 
 **Three upgrade paths exist:**
-- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `npm install -g mthds@latest` (Claude runs this directly, not via mthds-agent).
+- **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `npm install -g mthds@latest` (the agent runs this directly, not via mthds-agent).
 - **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
 - **Plugin (Claude Code plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded via `claude plugin install mthds@mthds-plugins`.
 
@@ -35,7 +35,7 @@ The `UPGRADE_AVAILABLE` output from `mthds-agent update-check` includes which bi
 npm install -g mthds@latest
 ```
 
-Claude runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
+The agent runs this directly — `mthds-agent` cannot upgrade itself (running-process-replaces-itself problem).
 
 **For Python binaries (`pipelex-agent`, `plxt`):**
 
@@ -51,7 +51,7 @@ This upgrades all outdated Python binaries via `uv tool install --upgrade`.
 claude plugin install mthds@mthds-plugins
 ```
 
-Claude runs this directly. After installing, tell the user to restart Claude Code for the new plugin to take effect.
+Claude runs this directly. After installing, tell the user to run `/reload-plugins` to activate the new plugin.
 
 ## Step 3.5 — Interpret upgrade output
 

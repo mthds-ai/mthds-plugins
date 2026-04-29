@@ -83,7 +83,7 @@ These are ground-truth checks that drive the rest. Record results inline in this
 - [ ] **Marketplace discovery precedence**: with both `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json` present in a repo, does Codex pick one, merge them, or error? Source: `codex-rs/core-plugins/src/marketplace.rs:20-23`. Determines whether 1C must include changes to `.claude-plugin/marketplace.json` to avoid Codex picking it up.
 - [ ] **Local-path marketplace add works**: `codex plugin marketplace add /Users/lchoquel/repos/Pipelex/mthds-plugins` (after 1C lands). `mthds` should appear in `/plugins` list.
 - [ ] **Owner/repo marketplace add works**: `codex plugin marketplace add mthds-ai/mthds-plugins` from a clean dir, against the upstream branch with 1C merged.
-- [ ] **`[features] codex_hooks = true` still required**: try toggling off in `~/.codex/config.toml`, restart Codex, edit a `.mthds`, confirm hook still fires. If not required at 0.124.0+, mark `enable_hooks_feature` for removal in 1D.
+- [x] **`[features] codex_hooks = true` still required**: NO. Verified in `codex-rs/features/src/lib.rs:768-771` — `FeatureSpec { id: Feature::CodexHooks, key: "codex_hooks", stage: Stage::Stable, default_enabled: true }`. Hooks load by default in 0.124+; the flag is only consulted as a kill-switch (explicit `false` disables hooks). Install flow drops the line; `mthds-agent codex apply-config` warns (without modifying) when an explicit `false` is set.
 - [ ] **Stage 3 unblocked?**: from inside a Codex session sandbox, run `mthds-agent validate bundle <path>` against a known-good bundle. If it completes (no S3 hang on `pipelex_remote_config_08.json`), re-enable Stage 3 in 1B. If it still hangs, leave Stage 3 disabled and create a Phase 2 task in mthds-js for offline mode.
 
 ### 1B. Switch the Codex hook from `Stop` to `PostToolUse(apply_patch)`
@@ -164,7 +164,7 @@ Changes:
   - `install_mthds_cli` — mthds-agent dependency (with `MIN_MTHDS_VERSION` bumped per 1B Stage 3 decision if applicable)
   - `install_env_check` — copies `bin/mthds-env-check` to `~/.codex/bin/`, used by SKILL.md preambles
   - `setup_hooks` — calls `mthds-agent codex install-hook` to merge hook into `~/.codex/hooks.json`
-  - `enable_hooks_feature` — only if 1A confirms still required; otherwise delete
+  - ~~`enable_hooks_feature`~~ — DELETE (1A confirmed not required at 0.124.0+; flag is `Stage::Stable, default_enabled: true`)
 - [ ] **Stretch goal (recommended)**: collapse the entire script into `mthds-agent bootstrap`. In the mthds-js repo, extend `bootstrap` to detect Codex (presence of `~/.codex/`) and run hook install + env-check copy automatically. This eliminates `bin/install-codex.sh` and the curl-pipe-bash entirely. Tracked in 2G.
 - [ ] **If stretch doesn't land in this phase**, the script is now ~150 lines (down from ~415). Smaller surface area, less to maintain.
 
@@ -302,7 +302,7 @@ Stretch goal from 1D, lifted to Phase 2 if not done in Phase 1:
 - [ ] In mthds-js, extend `mthds-agent bootstrap` to detect Codex (presence of `~/.codex/`) and:
   - Copy `mthds-env-check` from the npm-installed location to `~/.codex/bin/`
   - Run hook install (merging into `~/.codex/hooks.json`, hook script bundled in mthds npm package)
-  - Set `[features] codex_hooks = true` if still required at the user's Codex version
+  - ~~Set `[features] codex_hooks = true` if still required at the user's Codex version~~ (not required at 0.124.0+; default-enabled)
 - [ ] When shipped, delete `bin/install-codex.sh` entirely, even before 2B lands.
 
 ---

@@ -27,7 +27,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.5.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.5.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
@@ -62,6 +62,12 @@ echo "MTHDS_ENV_CHECK_MISSING"
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
+- `CODEX_SANDBOX_NETWORK_MISSING` → WARN. The Codex sandbox is configured to block network access, which prevents the mthds hook from fetching remote config. Tell the user:
+
+  > Your Codex sandbox blocks network access for hooks, so mthds validation will fail. Run `mthds-agent codex apply-config` (review the diff first with `--dry-run`), then restart Codex. Proceeding for now.
+
+  Then proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
