@@ -1,7 +1,7 @@
 ---
 name: mthds-share
 description: Share MTHDS methods on social media (X/Twitter, Reddit, LinkedIn). Use when user says "share this method", "post on social media", "share on X", "share on Reddit", "share on LinkedIn", "tweet about this method", or wants to share a published method on social platforms.
-min_mthds_version: 0.5.0
+min_mthds_version: 0.5.1
 allowed-tools:
   - Bash
   - Read
@@ -34,7 +34,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.5.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.5.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 ```
 

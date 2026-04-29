@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.1] - 2026-04-29
+
+### Changed
+
+- Bump `min_mthds_version` from 0.5.0 to 0.5.1.
+
 ## [v0.9.0] - 2026-04-29
 
 ### Changed
