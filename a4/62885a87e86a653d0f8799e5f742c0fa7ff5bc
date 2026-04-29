@@ -1,0 +1,39 @@
+mthds-dev/skills/mthds-edit/references/model-references.md
+  8992dc78b1ebf919 50
+templates/skills/shared/upgrade-flow.md.j2
+  8992dc78b1ebf919 9
+mthds-dev/bin/mthds-env-check
+  8992dc78b1ebf919 72-81,83-85
+mthds-codex/skills/mthds-edit/references/model-references.md
+  8992dc78b1ebf919 50
+mthds/skills/mthds-edit/references/model-references.md
+  8992dc78b1ebf919 50
+CHANGELOG.md
+  8992dc78b1ebf919 14
+mthds-codex/bin/mthds-env-check
+  8992dc78b1ebf919 72-81,83-85
+mthds/bin/mthds-env-check
+  8992dc78b1ebf919 72-81,83-85
+skills/mthds-edit/references/model-references.md
+  8992dc78b1ebf919 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "a462885a87e86a653d0f8799e5f742c0fa7ff5bc",
+  "prompts": {
+    "8992dc78b1ebf919": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "33a93290-3f60-4a0e-8544-d2cc497803f6",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 90,
+      "total_deletions": 401,
+      "accepted_lines": 665,
+      "overriden_lines": 0
+    }
+  }
+}
