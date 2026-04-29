@@ -42,8 +42,8 @@ fi
 
 # --- Require plxt and mthds-agent on PATH ---
 MISSING=""
-command -v plxt &>/dev/null || MISSING="plxt (install via: uv tool install /workspace/vscode-pipelex/)"
-command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: npm install -g /build-src/mthds-js/)"
+command -v plxt &>/dev/null || MISSING="plxt (install via: rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.tar && mkdir -p /tmp/vscode-pipelex-build && tar -C /workspace/vscode-pipelex --exclude=./target --exclude=./.venv --exclude=./.git --exclude=./node_modules -cf /tmp/vscode-pipelex-build.tar . && tar -C /tmp/vscode-pipelex-build -xf /tmp/vscode-pipelex-build.tar && rm -f /tmp/vscode-pipelex-build.tar && uv tool install /tmp/vscode-pipelex-build/)"
+command -v mthds-agent &>/dev/null || MISSING="${MISSING:+$MISSING, }mthds-agent (install via: rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/)"
 if [[ -n "$MISSING" ]]; then
   _block "Missing required CLI tool(s): $MISSING"
   exit 0

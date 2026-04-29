@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import tomllib
 from collections.abc import Mapping
@@ -39,6 +40,15 @@ class Platform(StrEnum):
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
 TEMPLATES_DIR_NAME = "templates"
+
+# Codex discovers plugin marketplaces at `.agents/plugins/marketplace.json`
+# (preferred) or `.claude-plugin/marketplace.json` (fallback). We ship a
+# Codex-discoverable copy of `packaging/codex-marketplace.json` at the repo
+# root so `codex plugin marketplace add mthds-ai/mthds-plugins` works without
+# an install script. The canonical file remains the single source of truth;
+# this is a verbatim copy.
+CODEX_DISCOVERY_MARKETPLACE_SRC = Path("packaging/codex-marketplace.json")
+CODEX_DISCOVERY_MARKETPLACE_DST = Path(".agents/plugins/marketplace.json")
 
 # All shared files are templates rendered per target.
 # Paths are relative to the templates/ directory.
@@ -60,17 +70,18 @@ HOOK_TEMPLATES = [
     "hooks/session-start.sh.j2",
 ]
 
-# Hook templates by platform — each platform has its own hook set.
+# Hook templates by platform.
+# Codex: hook runtime lives in `mthds-agent codex hook` (mthds-js npm package),
+# wired into ~/.codex/hooks.json by `mthds-agent codex install-hook`. The plugin
+# itself ships no hook files — the `hooks` field is not yet read from
+# Codex plugin manifests anyway (upstream-blocked).
 HOOK_TEMPLATES_BY_PLATFORM = {
     Platform.CLAUDE: HOOK_TEMPLATES,
-    Platform.CODEX: [
-        "hooks/codex-hooks.json.j2",
-        "hooks/codex-validate-mthds.sh.j2",
-    ],
+    Platform.CODEX: [],
 }
 
 # Files that should be made executable after rendering.
-EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh", "codex-validate-mthds.sh"}
+EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 
 
 @dataclass
@@ -281,29 +292,34 @@ def make_plugin_json(base_dir: Path, config: TargetConfig) -> dict[str, object]:
     return base
 
 
-def _relative_symlink_target(link_location: Path, real_target: Path) -> Path:
-    """Compute a relative path from link_location to real_target for use in symlinks.
+def _refresh_copy(src: Path, dst: Path) -> None:
+    """Replace whatever exists at dst with a fresh copy of src's contents.
 
-    Both paths must be absolute or both relative to the same root.
-    The result is suitable for ``link_location.symlink_to(result)``.
+    Handles the legacy symlink layout: an existing symlink at dst is unlinked
+    before copytree runs. Plain files/dirs are removed too so the build is
+    idempotent.
     """
-    return Path(os.path.relpath(real_target, link_location.parent))
+    # is_symlink() must be checked before is_dir(): a symlink-to-dir is both,
+    # and rmtree would chase the link and delete its target.
+    if dst.is_symlink() or dst.is_file():
+        dst.unlink()
+    elif dst.is_dir():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
 
 
-def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
-    """Create symlinks in the output directory for static assets.
+def setup_static_assets(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
+    """Copy static assets (bin/, references/) into the output directory.
 
-    For non-root targets, symlinks point back to the source-of-truth files.
-    Only static assets (bin/, references/) are symlinked — skills/, shared/,
-    and hooks/ are all generated per-target by the template renderer.
+    The output dir must be self-contained: marketplace installs that copy a
+    single plugin subdir (Codex's local marketplace, Claude's local plugin
+    install) cannot follow symlinks pointing to siblings of the plugin root.
     """
-    # Symlink bin/ (static, not a template)
     bin_src = base_dir / "bin"
     bin_dst = output_dir / "bin"
-    if bin_src.is_dir() and not bin_dst.exists():
-        bin_dst.symlink_to(_relative_symlink_target(bin_dst, bin_src))
+    if bin_src.is_dir():
+        _refresh_copy(bin_src, bin_dst)
 
-    # Determine which skills to link
     if include_skills is not None:
         skill_names = include_skills
     else:
@@ -312,15 +328,14 @@ def setup_symlinks(base_dir: Path, output_dir: Path, templates_dir: Path, includ
     output_skills_dir = output_dir / "skills"
     output_skills_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create skill subdirectories and symlink references/ (static assets)
     skills_dir = base_dir / "skills"
     for skill_name in skill_names:
         skill_output = output_skills_dir / skill_name
         skill_output.mkdir(parents=True, exist_ok=True)
         refs_src = skills_dir / skill_name / "references"
         refs_dst = skill_output / "references"
-        if refs_src.is_dir() and not refs_dst.exists():
-            refs_dst.symlink_to(_relative_symlink_target(refs_dst, refs_src))
+        if refs_src.is_dir():
+            _refresh_copy(refs_src, refs_dst)
 
 
 def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False) -> BuildResult:
@@ -329,8 +344,8 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
     Args:
         base_dir: Repository root.
         config: Target configuration.
-        dry_run: If True, compute expected files without creating directories,
-            symlinks, or writing anything to disk.
+        dry_run: If True, compute expected files without creating directories
+            or writing anything to disk.
     """
     templates_dir = base_dir / TEMPLATES_DIR_NAME
     output_dir = resolve_output_dir(base_dir, config.source)
@@ -350,7 +365,7 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
         # Non-root target: write to output directory
         if not dry_run:
             output_dir.mkdir(parents=True, exist_ok=True)
-            setup_symlinks(base_dir, output_dir, templates_dir, config.include_skills)
+            setup_static_assets(base_dir, output_dir, templates_dir, config.include_skills)
 
         for src_path, content in rendered.items():
             # Map base_dir-relative output to target output dir
@@ -373,6 +388,24 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
         result.files[plugin_json_path] = json.dumps(plugin_json, indent=2) + "\n"
 
     return result
+
+
+def render_codex_discovery_marketplace(base_dir: Path) -> str | None:
+    """Return the Codex-discoverable marketplace.json text from the canonical source.
+
+    Codex's marketplace loader scans `.agents/plugins/marketplace.json` and
+    `.claude-plugin/marketplace.json` for plugin listings. We ship a copy of
+    `packaging/codex-marketplace.json` at `.agents/plugins/marketplace.json`
+    so `codex plugin marketplace add mthds-ai/mthds-plugins` resolves without
+    an install script. The contents are byte-identical — no transformation.
+
+    Returns None when the canonical source is absent — repos without a Codex
+    target (e.g. unit-test fixtures) don't need the discovery copy either.
+    """
+    source_path = base_dir / CODEX_DISCOVERY_MARKETPLACE_SRC
+    if not source_path.is_file():
+        return None
+    return source_path.read_text(encoding="utf-8")
 
 
 def generate(base_dir: Path, target_name: str = "prod") -> int:
@@ -407,6 +440,17 @@ def generate(base_dir: Path, target_name: str = "prod") -> int:
         file_count = len(result.files)
         total_files += file_count
         print(f"  [{name}] Generated {file_count} files.")
+
+    # Sync the Codex-discoverable marketplace copy whenever any target builds
+    # — both files live at the repo root and stay in lockstep. Skip silently
+    # in repos without a Codex packaging file (test fixtures, Claude-only forks).
+    discovery_content = render_codex_discovery_marketplace(base_dir)
+    if discovery_content is not None:
+        discovery_dst = base_dir / CODEX_DISCOVERY_MARKETPLACE_DST
+        discovery_dst.parent.mkdir(parents=True, exist_ok=True)
+        discovery_dst.write_text(discovery_content, encoding="utf-8")
+        rel = discovery_dst.relative_to(base_dir)
+        print(f"  [codex-discovery] Synced {rel}")
 
     if total_files == 0:
         print("No templates found.")
@@ -464,6 +508,16 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
             for j2_file in sorted(output_hooks_dir.rglob("*.j2")):
                 rel = j2_file.relative_to(base_dir)
                 all_stale.append(f"  LEAKED TEMPLATE: {rel} (should be in templates/)")
+
+    # Cross-target check: when a Codex packaging source exists, its
+    # `.agents/plugins/marketplace.json` discovery copy must match byte-for-byte.
+    expected_discovery = render_codex_discovery_marketplace(base_dir)
+    if expected_discovery is not None:
+        discovery_dst = base_dir / CODEX_DISCOVERY_MARKETPLACE_DST
+        if not discovery_dst.is_file():
+            all_stale.append(f"  MISSING: {CODEX_DISCOVERY_MARKETPLACE_DST}")
+        elif discovery_dst.read_text(encoding="utf-8") != expected_discovery:
+            all_stale.append(f"  STALE: {CODEX_DISCOVERY_MARKETPLACE_DST} (does not match {CODEX_DISCOVERY_MARKETPLACE_SRC})")
 
     if all_stale:
         for msg in all_stale:

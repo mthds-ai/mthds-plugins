@@ -9,7 +9,7 @@ A skills plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code
 Open Claude Code and paste this. Claude does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins'. Then tell me to restart Claude Code.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins'. Then tell me to /reload-plugins.
 ```
 
 ### Manual install (Claude Code)
@@ -26,17 +26,28 @@ claude plugin install mthds@mthds-plugins
 Open Codex and paste this. Codex does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && bash <(curl -fsSL https://raw.githubusercontent.com/mthds-ai/mthds-plugins/main/bin/install-codex.sh)'. Then tell me to restart Codex and run /plugins to install mthds.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins'. Then tell me to restart Codex and run /plugins to install mthds.
 ```
+
+Requires Codex 0.124.0+ (`codex plugin marketplace add` shipped in 0.124.0). Bump with `npm install -g @openai/codex@latest` if needed.
 
 ### Manual install (Codex)
 
 ```bash
 npm install -g mthds
-mthds-agent bootstrap
-bash bin/install-codex.sh
+mthds-agent bootstrap                # uv + plxt + pipelex-agent
+mthds-agent codex install-hook       # wires PostToolUse(apply_patch) → mthds-agent codex hook
+mthds-agent codex apply-config       # enables sandbox network access so the hook can run
+codex plugin marketplace add mthds-ai/mthds-plugins
 # Restart Codex, then run /plugins to install mthds
 ```
+
+Two install steps are required today:
+
+- `install-hook` writes a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json`. Codex doesn't yet load `hooks` from a plugin manifest (upstream-tracked).
+- `apply-config` additively merges `[sandbox_workspace_write] network_access = true` into `~/.codex/config.toml`. Codex's default workspace-write sandbox blocks outbound network for hook commands, which would prevent the mthds validator from reaching the pipelex remote config.
+
+Both commands are idempotent and never overwrite unrelated config. Use `--dry-run` to preview, `--check` for CI/env-check. When Codex auto-loads hooks from plugin manifests, both steps disappear and the install collapses to a single `codex plugin marketplace add`. See `docs/codex-vs-claude-hooks.md`.
 
 ## Skills
 
@@ -68,7 +79,7 @@ Both plugins include hooks that validate `.mthds` files automatically:
 
 **Claude Code:** A PostToolUse hook matches Write/Edit and receives the file path directly. Errors block the edit immediately.
 
-**Codex:** A PostToolUse hook matches Bash and parses the command to detect `.mthds` file paths. Same per-edit validation, same immediate feedback.
+**Codex:** A PostToolUse hook matches `apply_patch` (Codex's file-write tool) and parses the patch envelope to find every touched `.mthds` file. Same per-edit validation, same immediate feedback.
 
 Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
 

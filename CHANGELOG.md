@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.9.0] - 2026-04-29
+
+### Changed
+
+- Codex hook switched from `Stop` to `PostToolUse(apply_patch)` for per-edit `.mthds` validation, matching the Claude Code semantics. Codex 0.124.0 fixed the upstream blocker (apply_patch now emits hook payloads).
+- Codex install no longer needs the curl-pipe-bash plugin install path: `codex plugin marketplace add mthds-ai/mthds-plugins` (Codex 0.124.0+) handles plugin install via the marketplace. The repo ships `.agents/plugins/marketplace.json` (generated from canonical `packaging/codex-marketplace.json`) so `codex plugin marketplace add` resolves cleanly.
+- Codex hook validation logic moved from a bash script (`codex-validate-mthds.sh`) into the `mthds-agent codex hook` runtime (mthds-js npm package, requires ≥ 0.5.0). The hook config in `~/.codex/hooks.json` now invokes `mthds-agent codex hook` directly; no bash script is copied to `~/.codex/hooks/`.
+- Skill preambles now resolve `mthds-env-check` from the plugin's per-version cache directory (`$CODEX_HOME/plugins/cache/*/mthds/*/bin/mthds-env-check`) instead of `~/.codex/bin/mthds-env-check`. The env-check binary is no longer copied out of the plugin. Version selection across cached versions uses semver-aware sort keys (zero-padded numeric segments), so the resolver correctly picks `0.10.0` over `0.9.0` rather than the lex-greatest match. Stays in pure bash to preserve the layering invariant: env-check verifies mthds-agent is installed and therefore must not depend on mthds-agent itself.
+
+### Removed
+
+- `bin/install-codex.sh` — replaced by `mthds-agent codex install-hook` (in mthds-js 0.5.0). The new install line is `npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins`.
+- `templates/hooks/codex-hooks.json.j2` and `templates/hooks/codex-validate-mthds.sh.j2` — Codex plugin no longer ships hook files (validation runtime lives in the agent).
+- `~/.codex/bin/mthds-env-check` copy step — env-check is read from the plugin install dir directly.
+
+### Migration
+
+- Pre-existing installs (with the legacy `Stop` hook or the WIP-0.9.0 `PostToolUse(apply_patch)` entry pointing at `codex-validate-mthds.sh`) are migrated automatically when the user runs `mthds-agent codex install-hook`: stale entries are removed and replaced with the new shape. Stale `~/.codex/hooks/codex-validate-mthds.sh` and `~/.codex/bin/mthds-env-check` files left from previous installs are harmless; they can be deleted manually if desired.
+
 ## [v0.8.0] - 2026-04-13
 
 ### Added

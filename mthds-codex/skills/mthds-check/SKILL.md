@@ -1,7 +1,7 @@
 ---
 name: mthds-check
 description: Check and validate MTHDS bundles for issues. Use when user says "validate this", "check my workflow", "check my method", "does this .mthds make sense?", "review this pipeline", "any issues?", "is this correct?". Reports problems without modifying files. Read-only analysis.
-min_mthds_version: 0.4.1
+min_mthds_version: 0.5.0
 ---
 
 # Check MTHDS bundles
@@ -15,7 +15,20 @@ Validate and review MTHDS bundles based on the MTHDS standard without making cha
 Run this command to check toolchain status:
 
 ```bash
-~/.codex/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+# Pick the cached env-check from the plugin version with the highest semver.
+# Pad each numeric segment to fixed width so lex sort matches semver sort
+# (avoids the 0.10 < 0.9 lex-order trap). Sort keys are digits-only by
+# construction, so the [[ > ]] compare is locale-independent. Bash 3.2 OK.
+_best_f=""; _best_k=""
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do
+  [ -x "$f" ] || continue
+  _v="${f%/bin/*}"; _v="${_v##*/}"
+  _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
+  [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
+done
+[ -n "$_best_f" ] && exec "$_best_f" "0.5.0" --codex
+echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -49,6 +62,12 @@ Run this command to check toolchain status:
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
+- `CODEX_SANDBOX_NETWORK_MISSING` → WARN. The Codex sandbox is configured to block network access, which prevents the mthds hook from fetching remote config. Tell the user:
+
+  > Your Codex sandbox blocks network access for hooks, so mthds validation will fail. Run `mthds-agent codex apply-config` (review the diff first with `--dry-run`), then restart Codex. Proceeding for now.
+
+  Then proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 

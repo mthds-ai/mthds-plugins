@@ -5,7 +5,7 @@ exec 2>/dev/null
 
 # If mthds-agent is not installed, report and exit
 if ! command -v mthds-agent &>/dev/null; then
-  echo "MTHDS stack: mthds-agent NOT INSTALLED (npm install -g /build-src/mthds-js/)"
+  echo "MTHDS stack: mthds-agent NOT INSTALLED (rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/)"
   exit 0
 fi
 

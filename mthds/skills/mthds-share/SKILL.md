@@ -1,7 +1,7 @@
 ---
 name: mthds-share
 description: Share MTHDS methods on social media (X/Twitter, Reddit, LinkedIn). Use when user says "share this method", "post on social media", "share on X", "share on Reddit", "share on LinkedIn", "tweet about this method", or wants to share a published method on social platforms.
-min_mthds_version: 0.4.1
+min_mthds_version: 0.5.0
 allowed-tools:
   - Bash
   - Read
@@ -23,7 +23,19 @@ Generate share URLs for method packages and open them in the browser. Supports X
 Run this command to check toolchain status:
 
 ```bash
-~/.claude/plugins/marketplaces/mthds-plugins/bin/mthds-env-check "0.4.1" 2>/dev/null || ../mthds-plugins/bin/mthds-env-check "0.4.1" 2>/dev/null || echo "MTHDS_ENV_CHECK_MISSING"
+# Pick the cached env-check from the plugin version with the highest semver.
+# Matches both `mthds` (prod) and `mthds-dev` (dev) plugin caches. The padded
+# segment trick keeps lex order = semver order so 0.10 doesn't sort below 0.9.
+_best_f=""; _best_k=""
+for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
+  [ -x "$f" ] || continue
+  _v="${f%/bin/*}"; _v="${_v##*/}"
+  _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
+  [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
+done
+[ -n "$_best_f" ] && exec "$_best_f" "0.5.0"
+echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
 **Interpret the output:**
@@ -57,6 +69,12 @@ Run this command to check toolchain status:
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
+- `CODEX_SANDBOX_NETWORK_MISSING` → WARN. The Codex sandbox is configured to block network access, which prevents the mthds hook from fetching remote config. Tell the user:
+
+  > Your Codex sandbox blocks network access for hooks, so mthds validation will fail. Run `mthds-agent codex apply-config` (review the diff first with `--dry-run`), then restart Codex. Proceeding for now.
+
+  Then proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
