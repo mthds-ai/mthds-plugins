@@ -47,7 +47,7 @@ mthds-agent models --type llm -b anthropic # Combine both filters
 If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it:
 
 ```bash
-mthds-agent check-model "$writing-creative" --type llm
+mthds-agent check-model '$writing-creative' --type llm
 mthds-agent check-model "@best-claude" --type llm
 mthds-agent check-model "gpt-4o" --type llm
 ```

@@ -11,7 +11,7 @@
 
 ### Removed
 
-- `bin/install-codex.sh` — replaced by `mthds-agent codex install-hook` (in mthds-js 0.5.0). The new install line is `npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && codex plugin marketplace add mthds-ai/mthds-plugins`.
+- `bin/install-codex.sh` — replaced by `mthds-agent codex install-hook` (in mthds-js 0.5.0). The new install line is `npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins`.
 - `templates/hooks/codex-hooks.json.j2` and `templates/hooks/codex-validate-mthds.sh.j2` — Codex plugin no longer ships hook files (validation runtime lives in the agent).
 - `~/.codex/bin/mthds-env-check` copy step — env-check is read from the plugin install dir directly.
 

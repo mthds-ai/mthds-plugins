@@ -6,7 +6,7 @@ When `mthds-agent update-check` reports `UPGRADE_AVAILABLE` or the preamble repo
 - **mthds-agent (npm package):** Detected by the preamble's bash version gate (`MTHDS_AGENT_OUTDATED`). Upgraded via `{{ mthds_upgrade_cmd }}` (the agent runs this directly, not via mthds-agent).
 - **Python binaries (pipelex-agent, plxt):** Detected by `mthds-agent update-check` (`UPGRADE_AVAILABLE`). Upgraded via `mthds-agent upgrade` (which calls `uv tool install --upgrade`).
 {% if platform == "codex" -%}
-- **Plugin (Codex plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded by re-adding the marketplace and reinstalling from the TUI: `codex plugin marketplace add mthds-ai/mthds-plugins`, then `/plugins install mthds`.
+- **Plugin (Codex plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded by re-adding the marketplace and reinstalling from the TUI: `codex plugin marketplace add mthds-ai/mthds-plugins`, then `/plugins install {{ plugin_name }}`.
 {%- else -%}
 - **Plugin (Claude Code plugin):** Detected by `mthds-agent update-check` when the `plugin` entry in `UPGRADE_AVAILABLE` shows `outdated` or `missing`. Upgraded via `claude plugin install {{ plugin_name }}@{{ marketplace_name }}`.
 {%- endif %}

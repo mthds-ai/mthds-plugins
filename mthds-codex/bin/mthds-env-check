@@ -69,9 +69,19 @@ fi
 # explicitly invoked from a Codex preamble (--codex), since the same
 # binary serves Claude Code where this concern doesn't apply.
 if [ "$PLATFORM_FLAG" = "--codex" ]; then
-  if mthds-agent codex apply-config --check >/dev/null 2>&1; then
-    : # ok
+  CODEX_ERR_FILE=$(mktemp 2>/dev/null) || CODEX_ERR_FILE=""
+  if [ -n "$CODEX_ERR_FILE" ]; then
+    if ! mthds-agent codex apply-config --check >/dev/null 2>"$CODEX_ERR_FILE"; then
+      echo "CODEX_SANDBOX_NETWORK_MISSING"
+      # Surface the first line of stderr so support has a clue when this
+      # status is reported by users — global `exec 2>/dev/null` (line 15)
+      # would otherwise destroy the diagnostic.
+      [ -s "$CODEX_ERR_FILE" ] && head -n 1 "$CODEX_ERR_FILE" | sed 's/^/# /'
+    fi
+    rm -f "$CODEX_ERR_FILE"
   else
-    echo "CODEX_SANDBOX_NETWORK_MISSING"
+    if ! mthds-agent codex apply-config --check >/dev/null 2>&1; then
+      echo "CODEX_SANDBOX_NETWORK_MISSING"
+    fi
   fi
 fi
