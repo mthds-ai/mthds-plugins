@@ -5,18 +5,12 @@
 ### Changed
 
 - **`mthds-install` skill drops `--agent` and `--skills` flags from the documented surface.** **Breaking.** Coordinated with mthds-js 0.6.0, which removes both flags from `mthds-agent install`. Method packages always install under `.mthds/methods/` regardless of which agent runs the command — `--agent` was meaningless. Skills are installed via the Claude Code / Codex plugin systems, not by the method install command.
-- **Bump `min_mthds_version` from 0.5.1 to 0.6.0.** Consumers running an older `mthds-agent` will fail the env-check with a clean upgrade prompt rather than hitting an "unknown option `--agent`" error from the CLI. mthds-js 0.6.0 reciprocally enforces plugin >= 0.10.0, so the floors catch any partial upgrade in either direction.
+- **Bump `min_mthds_version` from 0.5.0 to 0.6.0.** Consumers running an older `mthds-agent` will fail the env-check with a clean upgrade prompt rather than hitting an "unknown option `--agent`" error from the CLI. mthds-js 0.6.0 reciprocally enforces plugin >= 0.10.0, so the floors catch any partial upgrade in either direction.
 - Minor template hygiene: `mthds-runner-setup` skill now uses `{{ harness_name }}` instead of hardcoded "Claude Code" so the Codex target renders correctly.
 
 ### Removed
 
 - **Dead `default_agent` template variable.** No `.j2` template or build script references it after the `mthds-install` skill changes; deleted from `targets/defaults.toml` and `targets/codex.toml`.
-
-## [v0.9.1] - 2026-04-29
-
-### Changed
-
-- Bump `min_mthds_version` from 0.5.0 to 0.5.1.
 
 ## [v0.9.0] - 2026-04-29
 
