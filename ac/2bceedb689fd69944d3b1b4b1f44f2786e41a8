@@ -1,0 +1,155 @@
+mthds-dev/.claude-plugin/plugin.json
+  681f99fe74280aa9 10
+mthds-dev/skills/mthds-fix/SKILL.md
+  681f99fe74280aa9 4,37
+templates/skills/mthds-run/SKILL.md.j2
+  6f5525beae9338b6 213-214,240
+mthds-codex/skills/mthds-edit/SKILL.md
+  681f99fe74280aa9 4,75
+mthds-dev/skills/mthds-inputs/SKILL.md
+  681f99fe74280aa9 4,87
+mthds/skills/mthds-upgrade/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-run/SKILL.md
+  681f99fe74280aa9 4,37,280-281,307
+mthds/.claude-plugin/plugin.json
+  681f99fe74280aa9 10
+mthds-dev/skills/shared/frontmatter.md
+  681f99fe74280aa9 1
+targets/dev.toml
+  681f99fe74280aa9 3
+mthds-dev/skills/mthds-edit/SKILL.md
+  681f99fe74280aa9 4,81
+mthds/skills/mthds-fix/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-codex/.codex-plugin/plugin.json
+  681f99fe74280aa9 24
+mthds/skills/mthds-build/SKILL.md
+  681f99fe74280aa9 4,85
+mthds-codex/skills/shared/preamble.md
+  681f99fe74280aa9 16
+mthds-codex/skills/mthds-publish/SKILL.md
+  681f99fe74280aa9 4,31
+mthds-codex/skills/mthds-run/SKILL.md
+  681f99fe74280aa9 4,31,274-275,301
+.claude-plugin/marketplace.json
+  681f99fe74280aa9 9
+mthds-dev/skills/mthds-explain/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-dev/skills/mthds-publish/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-pkg/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-codex/skills/shared/mthds-agent-guide.md
+  6f5525beae9338b6 197,256
+  681f99fe74280aa9 3
+mthds-codex/skills/mthds-inputs/SKILL.md
+  681f99fe74280aa9 4,81
+mthds/skills/mthds-share/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-dev/skills/shared/mthds-agent-guide.md
+  681f99fe74280aa9 3
+  6f5525beae9338b6 197,256
+mthds-codex/skills/mthds-upgrade/SKILL.md
+  681f99fe74280aa9 4,31
+mthds-dev/skills/mthds-run/SKILL.md
+  681f99fe74280aa9 4,37,280-281,307
+mthds/skills/shared/preamble.md
+  681f99fe74280aa9 15
+mthds-codex/skills/mthds-build/SKILL.md
+  681f99fe74280aa9 4,79
+mthds-codex/skills/mthds-install/SKILL.md
+  681f99fe74280aa9 4,31
+targets/defaults.toml
+  681f99fe74280aa9 5
+mthds-codex/skills/mthds-check/SKILL.md
+  681f99fe74280aa9 4,30
+mthds/skills/mthds-inputs/SKILL.md
+  681f99fe74280aa9 4,87
+mthds-dev/skills/mthds-runner-setup/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-dev/skills/shared/preamble.md
+  681f99fe74280aa9 15
+mthds-dev/skills/mthds-pkg/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-install/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-codex/skills/mthds-pkg/SKILL.md
+  681f99fe74280aa9 4,31
+mthds/skills/mthds-explain/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-check/SKILL.md
+  681f99fe74280aa9 4,34
+templates/skills/shared/mthds-agent-guide.md.j2
+  6f5525beae9338b6 197,256
+mthds/skills/shared/mthds-agent-guide.md
+  681f99fe74280aa9 3
+  6f5525beae9338b6 197,256
+targets/prod.toml
+  681f99fe74280aa9 3
+CHANGELOG.md
+  681f99fe74280aa9 3-9
+mthds-dev/skills/mthds-check/SKILL.md
+  681f99fe74280aa9 4,34
+mthds-dev/skills/mthds-install/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-publish/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-codex/skills/mthds-runner-setup/SKILL.md
+  681f99fe74280aa9 4,31
+mthds-codex/skills/mthds-share/SKILL.md
+  681f99fe74280aa9 4,31
+mthds/skills/shared/frontmatter.md
+  681f99fe74280aa9 1
+mthds-codex/skills/mthds-explain/SKILL.md
+  681f99fe74280aa9 4,31
+mthds-codex/skills/mthds-fix/SKILL.md
+  681f99fe74280aa9 4,31
+mthds-dev/skills/mthds-build/SKILL.md
+  681f99fe74280aa9 4,85
+mthds-dev/skills/mthds-upgrade/SKILL.md
+  681f99fe74280aa9 4,37
+mthds-dev/skills/mthds-share/SKILL.md
+  681f99fe74280aa9 4,37
+mthds/skills/mthds-edit/SKILL.md
+  681f99fe74280aa9 4,81
+targets/codex.toml
+  681f99fe74280aa9 3
+mthds-codex/skills/shared/frontmatter.md
+  681f99fe74280aa9 1
+mthds/skills/mthds-runner-setup/SKILL.md
+  681f99fe74280aa9 4,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "ac2bceedb689fd69944d3b1b4b1f44f2786e41a8",
+  "prompts": {
+    "681f99fe74280aa9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3e79de42-6999-4258-8f00-5c2d9de48865",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 189,
+      "total_deletions": 179,
+      "accepted_lines": 189,
+      "overriden_lines": 0
+    },
+    "6f5525beae9338b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d6628213-f208-4f98-87b6-3ab91aa21a7f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 9763,
+      "total_deletions": 6,
+      "accepted_lines": 9685,
+      "overriden_lines": 0
+    }
+  }
+}
