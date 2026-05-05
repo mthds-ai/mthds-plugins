@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.5.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.5.0`.
+All skills in this plugin require `mthds-agent >= 0.6.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.6.0`.
 
 ## IMPORTANT PREREQUISITES
 
@@ -268,7 +268,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON) | `mthds-agent check-model "$writing-creative" --type llm` |
 | `mthds-agent accept-gateway-terms` | Accept Pipelex Gateway terms and mark inference setup complete | `mthds-agent accept-gateway-terms` |
 | `mthds-agent doctor` | Check config health and auto-fix (outputs markdown) | `mthds-agent doctor` |
-| `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --agent claude-code --location local` |
+| `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
 | `mthds-agent package list` | Display package manifest | `mthds-agent package list -C <pkg-dir>` |
 | `mthds-agent package validate` | Validate METHODS.toml package manifest | `mthds-agent package validate -C <pkg-dir>` |

@@ -1,7 +1,7 @@
 ---
 name: mthds-install
 description: Install MTHDS method packages from GitHub or local directories. Use when user says "install a method", "install from GitHub", "add a method package", "mthds install", "install method", "set up a method", or wants to install an MTHDS method package for use with an AI agent.
-min_mthds_version: 0.5.0
+min_mthds_version: 0.6.0
 
 ---
 
@@ -28,7 +28,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.5.0" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.6.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
@@ -95,14 +95,13 @@ If the user provides a GitHub URL or `org/repo` string, use it as the address ar
 
 | Flag | Required | Values | Description |
 |------|----------|--------|-------------|
-| `--agent` | Yes | `claude-code`, `cursor`, `codex` | AI agent to install for |
-| `--location` | Yes | `local`, `global` | `local` = project `.claude/methods/`, `global` = `~/.claude/methods/` |
+| `--location` | Yes | `local`, `global` | `local` = project `.mthds/methods/`, `global` = `~/.mthds/methods/` |
 | `--method <name>` | No | method name | Install only one method from a multi-method package |
-| `--skills` | No | — | Also install the MTHDS skills plugin |
 | `--no-runner` | No | — | Skip automatic Pipelex runtime installation |
 
+Method packages always install under `.mthds/methods/` regardless of which agent runs the command.
+
 **Defaults**:
-- Use `--agent claude-code` (since this skill runs inside Claude Code)
 - Use `--location local` unless the user explicitly asks for global install
 
 ### Step 3: Run the Install
@@ -110,25 +109,19 @@ If the user provides a GitHub URL or `org/repo` string, use it as the address ar
 **From GitHub**:
 
 ```bash
-mthds-agent install <org/repo> --agent claude-code --location local
+mthds-agent install <org/repo> --location local
 ```
 
 **From a local directory**:
 
 ```bash
-mthds-agent install --local <path> --agent claude-code --location local
+mthds-agent install --local <path> --location local
 ```
 
 **Install a specific method from a multi-method package**:
 
 ```bash
-mthds-agent install <org/repo> --agent claude-code --location local --method <name>
-```
-
-**Install with skills plugin**:
-
-```bash
-mthds-agent install <org/repo> --agent claude-code --location local --skills
+mthds-agent install <org/repo> --location local --method <name>
 ```
 
 ### Step 4: Present Results
@@ -140,8 +133,7 @@ On success, the CLI returns JSON:
   "success": true,
   "installed_methods": ["method-name"],
   "location": "local",
-  "target_dir": "/path/to/.claude/methods",
-  "installed_skills": [],
+  "target_dir": "/path/to/.mthds/methods",
   "shim_dir": "~/.mthds/bin",
   "shims_generated": ["method-name"]
 }
@@ -150,7 +142,6 @@ On success, the CLI returns JSON:
 Present to the user:
 - Which methods were installed and where (`target_dir`)
 - If CLI shims were generated, note the shim directory and advise adding `~/.mthds/bin` to PATH if not already present
-- If skills were installed, mention they are now available
 
 ### Step 5: Handle Errors
 
@@ -158,9 +149,7 @@ Common errors:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `--agent is required` | Missing `--agent` flag | Add `--agent claude-code` |
 | `--location is required` | Missing `--location` flag | Add `--location local` or `--location global` |
-| `Unknown agent` | Invalid agent ID | Use one of: `claude-code`, `cursor`, `codex` |
 | `Failed to resolve methods` | GitHub repo not found or no methods in repo | Verify the address and that the repo contains METHODS.toml |
 | `Method "X" not found` | `--method` filter doesn't match any method in the package | Check available method names in the package |
 | `Failed to install pipelex runtime` | Runtime install failed (network, permissions) | Retry, or use `--no-runner` to skip runtime install |

@@ -1,6 +1,6 @@
 [plugin]
 name = "mthds"
-version = "0.9.0"
+version = "0.10.0"
 description = "Skills for building, running, validating, and editing AI methods following the MTHDS standard."
 source = "mthds/"
 
