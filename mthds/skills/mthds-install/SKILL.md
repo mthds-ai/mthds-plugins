@@ -1,7 +1,7 @@
 ---
 name: mthds-install
 description: Install MTHDS method packages from GitHub or local directories. Use when user says "install a method", "install from GitHub", "add a method package", "mthds install", "install method", "set up a method", or wants to install an MTHDS method package for use with an AI agent.
-min_mthds_version: 0.6.0
+min_mthds_version: 0.6.2
 allowed-tools:
   - Bash
   - Read
@@ -34,7 +34,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.6.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.6.2"
 echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
