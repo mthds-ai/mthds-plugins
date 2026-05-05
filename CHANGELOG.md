@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.10.1] - 2026-05-05
+
+### Changed
+
+- Bump `min_mthds_version` from 0.6.0 to 0.6.2.
+- Document the `live_run_graph.json` artifact in the `mthds-run` skill and shared `mthds-agent-guide`. Live runs write the graph spec JSON next to the bundle alongside the existing `live_run.html` / `dry_run.html`.
+
 ## [v0.10.0] - 2026-04-30
 
 ### Changed
