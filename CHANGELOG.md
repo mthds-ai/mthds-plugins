@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.3] - 2026-05-12
+
+### Fixed
+
+- **`validate-mthds.sh` no longer blocks non-`.mthds` Edit/Write operations.** The PostToolUse hook fires on every Write/Edit (matcher `"Write|Edit"`, no file-pattern filter), and a bug in its gating order meant a Node.js JSON-parser failure would emit a `decision: block` payload against unrelated files (`.ts`, `.py`, `.md`, anything). The `.mthds` extension check ran *after* the unconditional block on `_jv` failure. Moved the `.mthds` pre-filter to the top of the script so non-`.mthds` payloads exit silently before any Node, `plxt`, or `mthds-agent` invocation — blast radius drops from "any Write/Edit in any session" to "edits to `.mthds` files only".
+
 ## [v0.10.2] - 2026-05-11
 
 ### Changed
