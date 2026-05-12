@@ -12,11 +12,16 @@ set -euo pipefail
 # --- Read stdin (PostToolUse JSON) and extract file path ---
 INPUT=$(cat)
 
+# Fast pre-filter: this hook only cares about .mthds files. Exit silently
+# for everything else — no Node, no plxt, no mthds-agent, no risk of
+# blocking unrelated edits if any later stage misbehaves.
+if ! [[ "$INPUT" =~ \"file_path\"[[:space:]]*:[[:space:]]*\"[^\"]*\.mthds\" ]]; then
+  exit 0
+fi
+
 # --- Require Node.js for JSON parsing (guaranteed by mthds-agent dependency) ---
 if ! command -v node &>/dev/null; then
-  if [[ "$INPUT" =~ \"file_path\"[[:space:]]*:[[:space:]]*\"[^\"]*\.mthds\" ]]; then
-    printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
-  fi
+  printf '{"decision":"block","reason":"Missing required runtime: Node.js (required by mthds-agent)"}\n'
   exit 0
 fi
 

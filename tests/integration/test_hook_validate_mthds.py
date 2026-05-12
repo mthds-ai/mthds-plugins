@@ -105,6 +105,21 @@ class TestHookValidateMthds:
         assert result.returncode == 0
         assert result.stdout == ""
 
+    def test_non_mthds_file_passes_silently_when_node_broken(self, hook_env: tuple[Path, Path, dict[str, str]], tmp_path: Path) -> None:
+        """Non-.mthds file must pass silently even if `node` is broken.
+
+        Regression: previously, the hook called the Node.js JSON parser before
+        checking the .mthds extension, so any Node.js failure produced a block
+        decision against unrelated files. The .mthds pre-filter now runs first.
+        """
+        bin_dir, _, env = hook_env
+        (bin_dir / "node").unlink()
+        _make_stub(bin_dir / "node", "#!/bin/bash\nexit 1\n")
+        stdin = _post_tool_use_json(str(tmp_path / "test.py"))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        assert result.stdout == ""
+
     def test_missing_file_path_passes_silently(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
         """Missing file_path in JSON input produces no output."""
         _, _, env = hook_env
