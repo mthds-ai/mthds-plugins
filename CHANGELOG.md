@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.10.2] - 2026-05-11
+
+### Changed
+
+- **Bump `min_mthds_version` from 0.6.2 to 0.6.3.** The new `mthds-agent` ships two fixes that this release surfaces to users: (1) plugin-version detection now works under Codex (previously read only the Claude Code registry, so Codex users saw `plugin: outdated 0.10.0, required >=0.10.1` when their Codex install was actually fine); (2) the update-check cache writer falls back to `$TMPDIR/mthds-agent/` when `~/.mthds/state/` is unwritable, eliminating the repeated `Warning: could not write update-check cache (EPERM)` users hit inside Codex's `workspaceWrite` sandbox. Users still on `mthds-agent` 0.6.2 will be prompted to upgrade.
+- `PLUGIN_UPDATE_AVAILABLE` emitted by `mthds-agent` now includes a `host` field (`"claude" | "codex"`) and a host-appropriate `cmd` (Codex sessions see `/plugins install mthds` instead of the Claude shell command). Skill preambles do not yet branch on this field — that's a follow-up once we standardize host-aware upgrade prompts.
+
 ## [v0.10.1] - 2026-05-05
 
 ### Changed

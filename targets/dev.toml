@@ -1,6 +1,6 @@
 [plugin]
 name = "mthds-dev"
-version = "0.10.1"
+version = "0.10.2"
 description = "Development build of MTHDS skills — for iteration and testing."
 source = "mthds-dev/"
 
