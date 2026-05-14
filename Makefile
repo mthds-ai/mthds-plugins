@@ -17,7 +17,8 @@ UV_MIN_VERSION = $(shell grep -m1 'required-version' pyproject.toml | sed -E 's/
 	gen-skill-docs build check check-shared check-claude check-codex agent-check \
 	format lint ruff-format ruff-lint pyright mypy fix-unused-imports fui \
 	test agent-test gha-tests tp \
-	cleanderived cleanenv cleanall reinstall ri
+	cleanderived cleanenv cleanall reinstall ri \
+	codex-use-local codex-use-official codex-refresh codex-status
 
 ##########################################################################################
 ### SETUP
@@ -167,3 +168,36 @@ gen-skill-docs: install ## Generate SKILL.md from .j2 templates (use TARGET=name
 build: install ## Build all targets (prod + dev + codex)
 	@$(VENV_PYTHON) scripts/gen_skill_docs.py --target all
 	@echo "Done: built all targets"
+
+##########################################################################################
+### CODEX MARKETPLACE SOURCE (local dev vs published GitHub)
+##########################################################################################
+
+CODEX_MARKETPLACE_NAME := mthds-plugins
+CODEX_OFFICIAL_SOURCE  := mthds-ai/mthds-plugins
+CODEX_LOCAL_SOURCE     := $(CURDIR)
+
+codex-use-local: ## Point Codex at this local mthds-plugins checkout (refreshes plugin cache)
+	@codex plugin marketplace remove $(CODEX_MARKETPLACE_NAME) >/dev/null 2>&1 || true
+	@codex plugin marketplace add "$(CODEX_LOCAL_SOURCE)"
+	@codex plugin marketplace upgrade $(CODEX_MARKETPLACE_NAME) >/dev/null 2>&1 || true
+	@echo "• Codex marketplace '$(CODEX_MARKETPLACE_NAME)' now points at $(CODEX_LOCAL_SOURCE)"
+	@echo "  Restart Codex to pick up the swap. The 'mthds' plugin stays installed —"
+	@echo "  only /plugins → uninstall/reinstall if skills still look stale after restart."
+
+codex-use-official: ## Point Codex back at the published GitHub marketplace (refreshes plugin cache)
+	@codex plugin marketplace remove $(CODEX_MARKETPLACE_NAME) >/dev/null 2>&1 || true
+	@codex plugin marketplace add $(CODEX_OFFICIAL_SOURCE)
+	@codex plugin marketplace upgrade $(CODEX_MARKETPLACE_NAME) >/dev/null 2>&1 || true
+	@echo "• Codex marketplace '$(CODEX_MARKETPLACE_NAME)' now points at $(CODEX_OFFICIAL_SOURCE)"
+	@echo "  Restart Codex to pick up the swap. The 'mthds' plugin stays installed —"
+	@echo "  only /plugins → uninstall/reinstall if skills still look stale after restart."
+
+codex-refresh: ## Re-sync plugin cache from the active marketplace source (run after editing mthds-codex/)
+	@codex plugin marketplace upgrade $(CODEX_MARKETPLACE_NAME)
+
+codex-status: ## Show which source is currently registered for the Codex mthds marketplace
+	@awk '/^\[marketplaces\.$(CODEX_MARKETPLACE_NAME)\]/{flag=1; next} /^\[/{flag=0} flag' \
+		"$$HOME/.codex/config.toml" \
+		| grep -E "^(source_type|source|last_revision|last_updated)" \
+		|| echo "• No '$(CODEX_MARKETPLACE_NAME)' marketplace registered."
