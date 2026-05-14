@@ -59,7 +59,7 @@ network_access = true
 
 The same command also warns (without modifying anything) when:
 
-- `[features] codex_hooks = false` is explicitly set. The `codex_hooks` flag is `Stage::Stable, default_enabled: true` as of Codex 0.124.0 (`codex-rs/features/src/lib.rs:768`), so the install flow does not need to set it. But an explicit `false` disables hooks entirely and breaks the plugin.
+- `[features] hooks = false` (or its alias `[features] codex_hooks = false`) is explicitly set. The hooks flag defaults to enabled, so the install flow does not need to set it. An explicit `false` on either name disables hooks entirely and breaks the plugin.
 - `sandbox_mode = "read-only"`, which prevents `apply_patch` from running at all.
 
 `mthds-agent doctor` runs the same inspection in read-only mode and surfaces the same warnings, so a user who runs `doctor` before installing learns about both issues without anything being written.
