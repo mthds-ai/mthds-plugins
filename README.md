@@ -26,28 +26,29 @@ claude plugin install mthds@mthds-plugins
 Open Codex and paste this. Codex does the rest.
 
 ```
-Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && mthds-agent codex install-hook && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins'. Then tell me to restart Codex and run /plugins to install mthds.
+Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins'. Then tell me to restart Codex and run /plugins to install mthds.
 ```
 
-Requires Codex 0.124.0+ (`codex plugin marketplace add` shipped in 0.124.0). Bump with `npm install -g @openai/codex@latest` if needed.
+Requires Codex 0.130.0+ (plugin-bundled hooks shipped in 0.130). Bump with `npm install -g @openai/codex@latest` if needed.
 
 ### Manual install (Codex)
 
 ```bash
 npm install -g mthds
 mthds-agent bootstrap                # uv + plxt + pipelex-agent
-mthds-agent codex install-hook       # wires PostToolUse(apply_patch) → mthds-agent codex hook
-mthds-agent codex apply-config       # enables sandbox network access so the hook can run
+mthds-agent codex apply-config       # set up ~/.codex/ for the mthds plugin
 codex plugin marketplace add mthds-ai/mthds-plugins
 # Restart Codex, then run /plugins to install mthds
 ```
 
-Two install steps are required today:
+The `.mthds` validation hook ships inside the plugin (`hooks/codex-hooks.json`, declared in the Codex plugin manifest); Codex discovers it directly once the plugin is installed — there is no per-user hook wiring step.
 
-- `install-hook` writes a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json`. Codex doesn't yet load `hooks` from a plugin manifest (upstream-tracked).
-- `apply-config` additively merges `[sandbox_workspace_write] network_access = true` into `~/.codex/config.toml`. Codex's default workspace-write sandbox blocks outbound network for hook commands, which would prevent the mthds validator from reaching the pipelex remote config.
+`mthds-agent codex apply-config` makes one-time additive changes to `~/.codex/config.toml`:
 
-Both commands are idempotent and never overwrite unrelated config. Use `--dry-run` to preview, `--check` for CI/env-check. When Codex auto-loads hooks from plugin manifests, both steps disappear and the install collapses to a single `codex plugin marketplace add`. See `docs/codex-vs-claude-hooks.md`.
+- `[features] plugin_hooks = true` — Codex only loads plugin-bundled hooks when this is enabled.
+- `[sandbox_workspace_write] network_access = true` — Codex's default workspace-write sandbox otherwise blocks outbound network for hook commands.
+
+It also removes any obsolete `~/.codex/hooks.json` entry left by older mthds installs (which used a now-retired `install-hook` step). The command is idempotent and never overwrites unrelated config — use `--dry-run` to preview, `--check` for CI/env-check. See `docs/codex-vs-claude-hooks.md`.
 
 ## Skills
 

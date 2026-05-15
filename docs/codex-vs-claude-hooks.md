@@ -1,6 +1,6 @@
 # Codex vs Claude Code Hooks
 
-Both plugins validate `.mthds` files automatically after edits. The validation pipeline is the same shape (plxt lint, plxt fmt, mthds-agent validate), and as of Codex 0.124.0 the hook event is the same too — `PostToolUse` with a tool-name matcher. The remaining differences are about how each platform handles plugin packaging and hook delivery.
+Both plugins validate `.mthds` files automatically after edits. The validation pipeline is the same shape (plxt lint, plxt fmt, mthds-agent validate), the hook event is the same (`PostToolUse` with a tool-name matcher), and — now that Codex supports plugin-bundled hooks — both hooks ship inside the plugin itself. The remaining differences come from Codex's freeform file-write tool and its sandbox.
 
 ## Claude Code hook
 
@@ -15,58 +15,51 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 
 ## Codex hook
 
-- **Event:** `PostToolUse` with matcher `apply_patch`
+- **Event:** `PostToolUse` with matcher `^apply_patch$`
 - **Trigger:** fires once per `apply_patch` call (one fire per multi-file patch, with all touched files in a single payload)
 - **File discovery:** parses `tool_input.command` (the raw apply_patch envelope) for `*** Update File:` / `*** Add File:` / `*** Move to:` headers
 - **Scope:** validates every `.mthds` file that exists on disk after the patch applies (rename source paths and `*** Delete File:` targets are silently skipped)
 - **Sandbox:** hooks run inside the Codex sandbox with restricted network access
 - **Stages:** plxt lint, plxt fmt only — Stage 3 (`mthds-agent validate bundle`) stays disabled until offline-mode validation lands in mthds-agent
-- **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js (≥ 0.5.0). The plugin ships no hook files.
-- **Wiring:** `mthds-agent codex install-hook` writes a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` whose `command` is the literal string `mthds-agent codex hook` (PATH-resolved at hook-fire time)
+- **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js. The validation runtime lives in the npm package, not the plugin.
+- **Wiring:** the plugin bundles `hooks/codex-hooks.json` and points the Codex plugin manifest's `hooks` field at it. Codex discovers it directly — no per-user install step. Loading it requires `[features] plugin_hooks = true` (see below).
 
 ## Why the differences
 
-### Hook script vs `tool_input.command`
+### `apply_patch` envelope vs `tool_input.file_path`
 
 `apply_patch` is Codex's freeform file-write tool: the model emits a heredoc-shaped patch envelope (`*** Begin Patch / *** Update File: <path> / @@ ... / *** End Patch`) instead of distinct write/edit calls. The PostToolUse payload exposes that envelope verbatim as `tool_input.command`. The hook parses the envelope's `*** Update File: / *** Add File: / *** Move to:` headers to discover every touched file. There is no equivalent of Claude Code's `tool_input.file_path` because a single `apply_patch` call can touch any number of files.
 
-### Hook implementation lives in mthds-agent, not the plugin
+### Validation runtime lives in mthds-agent, not the plugin
 
-Claude Code auto-loads `hooks/hooks.json` from the plugin manifest, so the validation logic naturally lives inside the plugin (a bash script under `${CLAUDE_PLUGIN_ROOT}/hooks/`). Codex doesn't (yet) read a `hooks` field from `plugin.json` (`RawPluginManifest` in `codex-rs/core-plugins/src/manifest.rs:11-30` lacks the field). The hook config has to live at `~/.codex/hooks.json`, written by something the user runs at install time.
+The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry whose command is the literal string `mthds-agent codex hook`. The actual validation logic is that subcommand, shipped in the mthds-js npm package. Keeping it there gives a single source of truth across platforms (the Claude bash hook and the Codex subcommand run the same plxt stages) and lets the validation logic be versioned with mthds-agent rather than the plugin. `mthds-agent` is already on PATH after `npm install -g mthds`, which every other skill in the plugin needs anyway.
 
-Two options for "what runs":
+### Plugin-bundled hooks are opt-in
 
-1. **Copy a script into `~/.codex/hooks/` at install time.** Older approach (the now-retired `bin/install-codex.sh`). The hook config points at the copied path. Pros: no agent dependency. Cons: requires a separate install step, copies break when the plugin upgrades, validation logic is duplicated bash that must stay in sync with the Claude version.
-
-2. **Invoke `mthds-agent codex hook` via `PATH`.** Current approach. The hook config's `command` is just the agent subcommand string. The agent itself is already on PATH after `npm install -g mthds`. Pros: no copies, no per-version path drift, validation logic versioned with mthds-agent (single source of truth across platforms). Cons: requires mthds-agent to be installed (true anyway — every other skill in the plugin needs it).
-
-We picked option 2. The plugin no longer ships any hook files; `mthds-agent codex install-hook` is a one-time JSON merge, not a file-copy step.
+Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`. The flag is off by default, so `mthds-agent codex apply-config` sets it (along with the sandbox network key). Until the flag is on, the bundled hook simply does not load — the plugin's skill preamble runs `apply-config --check` and warns the user when setup is incomplete. Plugin-bundled hook discovery requires Codex 0.130+.
 
 ### `mthds-agent validate` still disabled in the Codex sandbox
 
-`mthds-agent validate bundle` fetches remote Pipelex configuration from S3 (`pipelex_remote_config_08.json`) on startup. The Codex sandbox blocks this network call and the command hangs. Validation itself is local — the remote config is not actually needed for structural checks — so the fix is to make the remote fetch lazy / skippable in `mthds-agent`. Tracked as Phase 2D in `TODOS.md`. Until then, the Codex hook runs only plxt lint + plxt fmt; Claude Code runs all three stages.
+`mthds-agent validate bundle` fetches a remote Pipelex configuration from S3 on startup. The Codex sandbox blocks this network call and the command hangs. Validation itself is local — the remote config is not actually needed for structural checks — so the fix is to make the remote fetch lazy / skippable in `mthds-agent`. Until then, the Codex hook runs only plxt lint + plxt fmt; Claude Code runs all three stages.
 
 ### Sandbox network access
 
-By default, Codex's `workspace-write` sandbox blocks outbound network for hook commands. Even after Phase 2D ships, any future runtime call that talks to the network (telemetry, package resolution, remote pipelex config) will fail silently inside the sandbox unless the user opts in. The fix is one TOML key:
+By default, Codex's `workspace-write` sandbox blocks outbound network for hook commands. `mthds-agent codex apply-config` merges `[sandbox_workspace_write] network_access = true` into `~/.codex/config.toml` so future runtime calls that talk to the network (telemetry, package resolution, remote pipelex config) don't fail silently inside the sandbox. The merge is additive — it never removes or rewrites unrelated keys, and re-running it is a no-op. Use `--dry-run` to preview, `--check` for env-check / CI gating.
 
-```toml
-[sandbox_workspace_write]
-network_access = true
-```
+`apply-config` also warns (without modifying anything) when:
 
-`mthds-agent codex apply-config` (mthds-js ≥ 0.6.0) merges that key into `~/.codex/config.toml` additively — it never removes or rewrites unrelated keys, and re-running it is a no-op. Use `--dry-run` to preview, `--check` for env-check / CI gating.
-
-The same command also warns (without modifying anything) when:
-
-- `[features] hooks = false` (or its alias `[features] codex_hooks = false`) is explicitly set. The hooks flag defaults to enabled, so the install flow does not need to set it. An explicit `false` on either name disables hooks entirely and breaks the plugin.
+- `[features] hooks = false` (or its alias `codex_hooks = false`) is explicitly set. That flag defaults to enabled; an explicit `false` disables all hooks and breaks the plugin.
 - `sandbox_mode = "read-only"`, which prevents `apply_patch` from running at all.
 
-`mthds-agent doctor` runs the same inspection in read-only mode and surfaces the same warnings, so a user who runs `doctor` before installing learns about both issues without anything being written.
+A required key explicitly set to a conflicting value (e.g. `plugin_hooks = false`) is reported as a clear error rather than silently overridden — `apply-config` never flips an explicit user choice. `mthds-agent doctor` runs the same inspection in read-only mode and surfaces the same findings, plus any obsolete `~/.codex/hooks.json` entry.
 
 ### plxt lazy HTTP fix
 
 `plxt` had an eager `reqwest` client initialization that crashed in the Codex sandbox; it was made lazy in `vscode-pipelex` PR #38 (only created when lint encounters http/https schema sources).
+
+## Migration from `install-hook`
+
+Before Codex supported plugin-bundled hooks, the plugin had no way to ship the hook: Codex did not read a `hooks` field from plugin manifests, so the hook config had to live at `~/.codex/hooks.json`, written at install time by `mthds-agent codex install-hook`. That command is retired. `apply-config` removes any `PostToolUse(apply_patch)` or legacy `Stop` entry that `install-hook` (or the even older `install-codex.sh`) left behind, so the bundled hook does not fire twice.
 
 ## Install flows
 
@@ -79,30 +72,31 @@ claude plugin marketplace add mthds-ai/mthds-plugins
 claude plugin install mthds@mthds-plugins
 ```
 
-Codex 0.124.0+:
+Codex 0.130.0+:
 
 ```bash
 npm install -g mthds
 mthds-agent bootstrap
-mthds-agent codex install-hook
 mthds-agent codex apply-config
 codex plugin marketplace add mthds-ai/mthds-plugins
 # then /plugins inside Codex to install — there's no one-shot CLI install yet
 ```
 
-The Codex flow has two extra steps until upstream Codex auto-loads the `hooks` field from `plugin.json` and lands a way to opt-in to sandbox network for plugin-declared hook commands. When both land, both flows collapse to the same shape.
+The Codex flow has one extra step (`apply-config`) over Claude Code, plus the final manual `/plugins` install. `apply-config` sets the `plugin_hooks` feature flag and the sandbox network key and cleans up legacy hook entries; its `plugin_hooks` half becomes unnecessary once Codex enables plugin hooks by default.
 
 ## env-check resolution
 
-The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is installed and at the required version. The env-check binary lives at `bin/mthds-env-check` inside the plugin. After `codex plugin marketplace add` + `/plugins install`, Codex stages a per-version copy under `$CODEX_HOME/plugins/cache/<source>/mthds/<version>/bin/mthds-env-check`. The preamble globs that path. Nothing is copied to `~/.codex/bin/`.
+The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is installed and at the required version, and that `~/.codex/` is set up for the plugin (it shells out to `apply-config --check`). The env-check binary lives at `bin/mthds-env-check` inside the plugin. After `codex plugin marketplace add` + `/plugins install`, Codex stages a per-version copy under `$CODEX_HOME/plugins/cache/<source>/mthds/<version>/bin/mthds-env-check`. The preamble globs that path.
 
-## Tracked upstream issues
+## Upstream history
 
-- [openai/codex#16732](https://github.com/openai/codex/issues/16732) — **ApplyPatchHandler doesn't emit PreToolUse/PostToolUse hook events.** **FIXED in 0.124.0** ([PR #18391](https://github.com/openai/codex/pull/18391)). `apply_patch` now serializes hook payloads with `tool_name = "apply_patch"` and `tool_input.command = <patch envelope>`. `Write` and `Edit` are accepted as matcher aliases for ergonomics.
-- [openai/codex#14754](https://github.com/openai/codex/issues/14754) — **Add PreToolUse and PostToolUse hook events for code quality enforcement.** Subsumed by #16732.
-- [openai/codex#17087](https://github.com/openai/codex/pull/17087) — **`codex marketplace add` command.** **SHIPPED** as `codex plugin marketplace add` (note the `plugin` namespace). Accepts `owner/repo[@ref]`, HTTP(S) Git URLs, SSH URLs, or local marketplace root directories.
-- (no public issue yet) — **`hooks` field in plugin manifest deserializer.** `RawPluginManifest` in `codex-rs/core-plugins/src/manifest.rs:11-30` lacks a `hooks` field; the docs reference one. Phase 2A in `TODOS.md` may file this issue.
+- [openai/codex#16732](https://github.com/openai/codex/issues/16732) — **ApplyPatchHandler didn't emit PreToolUse/PostToolUse hook events.** Fixed in Codex 0.124.0: `apply_patch` now serializes hook payloads with `tool_name = "apply_patch"` and `tool_input.command = <patch envelope>`.
+- [openai/codex#17087](https://github.com/openai/codex/pull/17087) — **`codex plugin marketplace add`.** Shipped in 0.124.0. Accepts `owner/repo[@ref]`, HTTP(S)/SSH Git URLs, or local marketplace directories.
+- **Plugin-bundled hooks.** Shipped in Codex 0.129–0.130: Codex now reads a `hooks` entry from `.codex-plugin/plugin.json` (or a default `hooks/hooks.json`) and loads the hook when `[features] plugin_hooks = true`. This is what lets the plugin ship `codex-hooks.json` directly and retired the `install-hook` workaround.
 
 ## What's next
 
-See `TODOS.md` for the full roadmap. Phase 2 items (upstream-blocked or out-of-repo): plugin-manifest `hooks` field deserializer, single-shot `codex plugin install`, mthds-agent offline-mode validation.
+The remaining gaps are upstream-blocked:
+
+- **`plugin_hooks` defaults to off.** While it is opt-in, `apply-config` must set it. Once Codex enables plugin hooks by default, that half of `apply-config` becomes unnecessary and the Codex install flow collapses toward the Claude Code shape.
+- **mthds-agent offline-mode validation.** Stage 3 (`mthds-agent validate bundle`) stays disabled in the Codex hook until the eager remote-config fetch is made lazy/skippable, so structural validation can run without network.

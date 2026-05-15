@@ -7,6 +7,7 @@
   "repository": "https://github.com/mthds-ai/mthds-plugins",
   "license": "MIT",
   "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
   "interface": {
     "displayName": "MTHDS",
     "shortDescription": "Build, run, validate, and edit AI methods following the MTHDS standard.",
@@ -21,5 +22,5 @@
   },
   "name": "mthds",
   "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
-  "version": "0.10.3"
+  "version": "0.11.0"
 }

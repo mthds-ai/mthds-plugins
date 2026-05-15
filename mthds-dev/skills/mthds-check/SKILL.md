@@ -1,7 +1,7 @@
 ---
 name: mthds-check
 description: Check and validate MTHDS bundles for issues. Use when user says "validate this", "check my workflow", "check my method", "does this .mthds make sense?", "review this pipeline", "any issues?", "is this correct?". Reports problems without modifying files. Read-only analysis.
-min_mthds_version: 0.6.3
+min_mthds_version: 0.7.0
 allowed-tools:
   - Bash
   - Read
@@ -31,7 +31,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.6.3"
+[ -n "$_best_f" ] && exec "$_best_f" "0.7.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 ```
 
@@ -67,9 +67,9 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
-- `CODEX_SANDBOX_NETWORK_MISSING` → WARN. The Codex sandbox is configured to block network access, which prevents the mthds hook from fetching remote config. Tell the user:
+- `CODEX_CONFIG_NEEDS_SETUP` → WARN. `~/.codex/` is not fully set up for the mthds plugin — sandbox network access, the `plugin_hooks` feature the bundled hook needs, or an obsolete hook entry needs attention — so `.mthds` validation may not run. Tell the user:
 
-  > Your Codex sandbox blocks network access for hooks, so mthds validation will fail. Run `mthds-agent codex apply-config` (review the diff first with `--dry-run`), then restart Codex. Proceeding for now.
+  > Your Codex environment isn't fully set up for mthds, so `.mthds` validation may not run. Run `mthds-agent codex apply-config` (preview the changes first with `--dry-run`), then restart Codex. Proceeding for now.
 
   Then proceed to Step 1.
 

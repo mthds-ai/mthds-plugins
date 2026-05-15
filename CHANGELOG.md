@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.11.0] - 2026-05-15
+
+### Changed
+
+- **Codex validation hook is now bundled in the plugin.** Codex 0.129–0.130 added plugin-bundled hook discovery: a plugin can declare a `hooks` entry in `.codex-plugin/plugin.json` and Codex loads it directly. The plugin now ships `hooks/codex-hooks.json` — a `PostToolUse(^apply_patch$)` entry invoking `mthds-agent codex hook` — and declares it in the Codex manifest. This replaces the per-user `mthds-agent codex install-hook` step. **Requires Codex 0.130.0+** (was 0.124.0+); plugin-bundled hooks load only when `[features] plugin_hooks = true`.
+- **`mthds-agent codex apply-config` now also enables `[features] plugin_hooks`.** Codex loads plugin-bundled hooks only when that flag is set, and it is off by default — so `apply-config` merges it alongside the existing `[sandbox_workspace_write] network_access = true`. `apply-config` additionally sweeps any obsolete `PostToolUse`/`Stop` entry the retired `install-hook` left in `~/.codex/hooks.json`, so the bundled hook never fires twice.
+- **Bump `min_mthds_version` from 0.6.3 to 0.7.0.** mthds-js 0.7.0 ships the multi-key `apply-config` and is the release that removes `install-hook`. Consumers on an older `mthds-agent` fail the env-check with a clean upgrade prompt.
+- **Codex env-check signal `CODEX_SANDBOX_NETWORK_MISSING` renamed to `CODEX_CONFIG_NEEDS_SETUP`.** `bin/mthds-env-check` runs `apply-config --check`, which now also flags a missing `plugin_hooks` key or a leftover hook entry — not just sandbox network — so the signal name and the skill preamble's wording were generalized.
+
+### Removed
+
+- **The `mthds-agent codex install-hook` install step.** **Breaking (Codex).** The hook ships with the plugin, so there is no per-user wiring step. Existing installs are cleaned up automatically — `mthds-agent codex apply-config` removes the stale `~/.codex/hooks.json` entry the old step left behind.
+
 ## [v0.10.3] - 2026-05-12
 
 ### Fixed
