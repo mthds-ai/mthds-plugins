@@ -118,11 +118,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
-- `CODEX_CONFIG_NEEDS_SETUP` → WARN. `~/.codex/` is not fully set up for the mthds plugin — sandbox network access, the `plugin_hooks` feature the bundled hook needs, or an obsolete hook entry needs attention — so `.mthds` validation may not run. Tell the user:
 
-  > Your Codex environment isn't fully set up for mthds, so `.mthds` validation may not run. Run `mthds-agent codex apply-config` (preview the changes first with `--dry-run`), then restart Codex. Proceeding for now.
-
-  Then proceed to Step 1.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 

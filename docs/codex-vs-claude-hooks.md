@@ -36,7 +36,7 @@ The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry wh
 
 ### Plugin-bundled hooks are opt-in
 
-Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`. The flag is off by default, so `mthds-agent codex apply-config` sets it (along with the sandbox network key). Until the flag is on, the bundled hook simply does not load — the plugin's skill preamble runs `apply-config --check` and warns the user when setup is incomplete. Plugin-bundled hook discovery requires Codex 0.130+.
+Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`. The flag is off by default, so `mthds-agent codex apply-config` sets it (along with the sandbox network key). Until the flag is on, the bundled hook simply does not load — the plugin's skill preamble runs `apply-config --check` and, when setup is incomplete, offers to run `apply-config` for the user (preview via `--dry-run`, confirm, apply). Plugin-bundled hook discovery requires Codex 0.130+.
 
 ### `mthds-agent validate` still disabled in the Codex sandbox
 
@@ -86,7 +86,7 @@ The Codex flow has one extra step (`apply-config`) over Claude Code, plus the fi
 
 ## env-check resolution
 
-The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is installed and at the required version, and that `~/.codex/` is set up for the plugin (it shells out to `apply-config --check`). The env-check binary lives at `bin/mthds-env-check` inside the plugin. After `codex plugin marketplace add` + `/plugins install`, Codex stages a per-version copy under `$CODEX_HOME/plugins/cache/<source>/mthds/<version>/bin/mthds-env-check`. The preamble globs that path.
+The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is installed and at the required version, and that `~/.codex/` is set up for the plugin (it shells out to `apply-config --check`). When the check reports `CODEX_CONFIG_NEEDS_SETUP`, the preamble drives an offer-then-run flow: it previews the fix with `apply-config --dry-run`, asks the user, runs `apply-config`, and falls back to handing over the command if the sandbox blocks the write. The bundled hook still loads only on the next Codex restart, so the preamble is explicit that the current session relies on the skills' own explicit `plxt lint` + `validate bundle` steps. The env-check binary lives at `bin/mthds-env-check` inside the plugin. After `codex plugin marketplace add` + `/plugins install`, Codex stages a per-version copy under `$CODEX_HOME/plugins/cache/<source>/mthds/<version>/bin/mthds-env-check`. The preamble globs that path.
 
 ## Upstream history
 

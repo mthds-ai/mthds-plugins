@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.1] - 2026-05-17
+
+### Changed
+
+- **The `CODEX_CONFIG_NEEDS_SETUP` env-check signal now drives an offer-then-run flow instead of a passive warning.** When a skill's Step 0 env-check finds `~/.codex/` not set up for the plugin, the preamble previews the fix with `mthds-agent codex apply-config --dry-run`, asks the user, and runs `apply-config` — falling back to handing over the command if the Codex sandbox blocks the write to `~/.codex/config.toml`. It relays any `warnings` (read-only sandbox, hooks disabled) that `apply-config` deliberately will not auto-fix, and is explicit that the bundled hook only loads after a Codex restart — so the current session relies on the skills' own explicit `plxt lint` + `validate bundle` steps. Previously the skill only warned and proceeded, leaving the user to resolve the gap unaided. Detection was already correct; this closes the resolution gap in the skill instruction.
+
 ## [v0.11.0] - 2026-05-15
 
 ### Changed
