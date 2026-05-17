@@ -118,7 +118,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
      - Error from the sandbox blocking the write to `~/.codex/config.toml` → ask the user to run `mthds-agent codex apply-config` themselves in a terminal, then restart Codex.
   4. **Skip** — tell the user the validation hook stays off until they run `mthds-agent codex apply-config` and restart Codex.
 
-  Then proceed to Step 1. This session has no PostToolUse hook, but the mthds skills run `plxt lint` and `mthds-agent validate bundle` explicitly — `.mthds` files built or edited through a skill are still validated.
+  Then proceed to Step 1. This session has no PostToolUse hook. The mthds skills still run `mthds-agent validate bundle` explicitly, so `.mthds` files built or edited through a skill are still semantically validated — but the write-time `plxt lint`/`fmt` pass depends on the hook and will not run until Codex is restarted.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 
