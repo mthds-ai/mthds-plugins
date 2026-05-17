@@ -368,13 +368,14 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     (shared / "python-execution.md.j2").write_text("Python.\n")
     (shared / "upgrade-flow.md.j2").write_text("Upgrade.\n")
 
-    # Claude hooks (Codex platform renders no hook files — runtime lives in
-    # mthds-agent codex hook, not in a plugin-bundled script)
+    # Hook templates: Claude renders hooks.json + the bash scripts; Codex
+    # renders codex-hooks.json (the plugin-bundled PostToolUse config).
     hooks_tmpl = templates_dir / "hooks"
     hooks_tmpl.mkdir()
     (hooks_tmpl / "hooks.json.j2").write_text("{}\n")
     (hooks_tmpl / "validate-mthds.sh.j2").write_text("#!/bin/bash\n")
     (hooks_tmpl / "session-start.sh.j2").write_text("#!/bin/bash\n")
+    (hooks_tmpl / "codex-hooks.json.j2").write_text("{}\n")
 
     skill_dir = templates_dir / "skills" / "mthds-test"
     skill_dir.mkdir()
@@ -389,7 +390,8 @@ def _create_codex_tree(tmp_path: Path) -> Path:
     codex_plugin = tmp_path / ".codex-plugin"
     codex_plugin.mkdir()
     (codex_plugin / "plugin-base.json").write_text(
-        '{"author": {"name": "test"}, "license": "MIT", "skills": "./skills/", "interface": {"displayName": "Test"}}\n'
+        '{"author": {"name": "test"}, "license": "MIT", "skills": "./skills/", '
+        '"hooks": "./hooks/codex-hooks.json", "interface": {"displayName": "Test"}}\n'
     )
 
     # Target configs
@@ -489,18 +491,17 @@ class TestCodexTarget:
         assert config.plugin_name == "mthds"
         assert config.source == "mthds-codex/"
 
-    def test_codex_renders_no_hook_files(self, tmp_path: Path) -> None:
-        """Codex platform ships no hook files — the validation runtime lives in
-        `mthds-agent codex hook` (mthds-js npm package), wired into
-        ~/.codex/hooks.json by `mthds-agent codex install-hook`."""
+    def test_codex_renders_codex_hook_file(self, tmp_path: Path) -> None:
+        """Codex platform renders the plugin-bundled codex-hooks.json
+        PostToolUse config and none of the Claude hook files."""
         tree = _create_codex_tree(tmp_path)
         codex_vars = {**DEFAULT_VARS, "platform": "codex"}
         results = render_templates(tree / "templates", tree, codex_vars)
         output_names = {path.name for path in results}
-        assert "codex-hooks.json" not in output_names
-        assert "codex-validate-mthds.sh" not in output_names
+        assert "codex-hooks.json" in output_names
         assert "hooks.json" not in output_names
         assert "validate-mthds.sh" not in output_names
+        assert "session-start.sh" not in output_names
 
     def test_claude_uses_claude_hook_templates(self, tmp_path: Path) -> None:
         """Claude platform still renders Claude hook templates (regression)."""
@@ -531,7 +532,8 @@ class TestCodexTarget:
         assert "allowed-tools" in results[skill_path]
 
     def test_codex_plugin_json_uses_codex_base(self, tmp_path: Path) -> None:
-        """make_plugin_json reads from .codex-plugin/plugin-base.json for Codex."""
+        """make_plugin_json reads from .codex-plugin/plugin-base.json for Codex,
+        including the `hooks` field that bundles the Codex validation hook."""
         tree = _create_codex_tree(tmp_path)
         config = load_target_config(tree / "targets", "codex")
         plugin_json = make_plugin_json(tree, config)
@@ -539,6 +541,7 @@ class TestCodexTarget:
         assert plugin_json["version"] == "0.1.0"
         assert "skills" in plugin_json
         assert "interface" in plugin_json
+        assert plugin_json["hooks"] == "./hooks/codex-hooks.json"
 
     def test_claude_plugin_json_uses_claude_base(self, tmp_path: Path) -> None:
         """make_plugin_json reads from .claude-plugin/plugin-base.json for Claude (regression)."""
@@ -636,9 +639,9 @@ class TestCodexTarget:
 
     def test_hook_templates_by_platform_has_both(self) -> None:
         """HOOK_TEMPLATES_BY_PLATFORM defines templates for both platforms.
-        Claude renders the bundled hook script; Codex renders nothing because
-        its hook runtime lives in the agent (out-of-repo)."""
+        Claude renders the bundled hook scripts; Codex renders the bundled
+        codex-hooks.json PostToolUse config."""
         assert "claude" in HOOK_TEMPLATES_BY_PLATFORM
         assert "codex" in HOOK_TEMPLATES_BY_PLATFORM
         assert len(HOOK_TEMPLATES_BY_PLATFORM[Platform.CLAUDE]) == 3
-        assert HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX] == []
+        assert HOOK_TEMPLATES_BY_PLATFORM[Platform.CODEX] == ["hooks/codex-hooks.json.j2"]

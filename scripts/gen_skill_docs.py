@@ -71,13 +71,14 @@ HOOK_TEMPLATES = [
 ]
 
 # Hook templates by platform.
-# Codex: hook runtime lives in `mthds-agent codex hook` (mthds-js npm package),
-# wired into ~/.codex/hooks.json by `mthds-agent codex install-hook`. The plugin
-# itself ships no hook files — the `hooks` field is not yet read from
-# Codex plugin manifests anyway (upstream-blocked).
+# Codex: the plugin bundles hooks/codex-hooks.json, referenced from the Codex
+# plugin manifest's `hooks` field (see .codex-plugin/plugin-base.json). Codex
+# discovers it directly (Codex 0.130+, with [features] plugin_hooks = true).
+# The hook command `mthds-agent codex hook` is the validation runtime shipped
+# in the mthds-js npm package.
 HOOK_TEMPLATES_BY_PLATFORM = {
     Platform.CLAUDE: HOOK_TEMPLATES,
-    Platform.CODEX: [],
+    Platform.CODEX: ["hooks/codex-hooks.json.j2"],
 }
 
 # Files that should be made executable after rendering.

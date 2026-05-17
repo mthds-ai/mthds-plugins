@@ -33,7 +33,8 @@ templates/                     # SOURCE OF TRUTH — all .j2 templates live here
 │       ├── native-content-types.md.j2  # Type documentation (rendered per target)
 │       └── upgrade-flow.md.j2    # Upgrade prompts (rendered per target)
 └── hooks/
-    ├── hooks.json.j2              # PostToolUse hook config
+    ├── hooks.json.j2              # Claude PostToolUse hook config
+    ├── codex-hooks.json.j2        # Codex PostToolUse hook config (plugin-bundled)
     └── validate-mthds.sh.j2       # .mthds file validator
 skills/                        # STATIC ASSETS ONLY — canonical references/, symlinked by targets
 ├── mthds-build/references/    # Static skill-specific reference docs
@@ -102,22 +103,24 @@ The dev target overrides install commands to use local container paths for CCC t
 
 ## PostToolUse Hook
 
-Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape; the delivery differs because Codex doesn't yet auto-load hooks from plugin manifests.
+Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape, and both hooks ship inside the plugin.
 
 **Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
 - Matches `Write|Edit`; receives `tool_input.file_path` directly
 - Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks or warns)
-- Bundled in the Claude plugin and auto-loaded by Claude Code
+- Bundled in the Claude plugin (`hooks/hooks.json`) and auto-loaded by Claude Code
 
 **Codex (`mthds-agent codex hook`, in mthds-js):**
-- Matches `apply_patch`; parses `tool_input.command` (patch envelope) for `*** Update File: / Add File: / Move to:` headers
-- Stages: `plxt lint` → `plxt fmt`. Stage 3 stays disabled until `mthds-agent` ships offline-mode validation (Codex sandbox blocks the eager S3 fetch). Tracked as Phase 2D in `TODOS.md`.
-- Wired by `mthds-agent codex install-hook` (mthds-js 0.5.0+), which merges a `PostToolUse(apply_patch)` entry into `~/.codex/hooks.json` whose command is `mthds-agent codex hook` (PATH-resolved). Migrates legacy `Stop` entries and pre-0.9.0 `PostToolUse` entries that pointed at the retired bash script.
-- The Codex plugin no longer ships any hook files. Validation logic lives in mthds-agent so it can be versioned independently of the plugin.
+- Matches `^apply_patch$`; parses `tool_input.command` (patch envelope) for `*** Update File: / Add File: / Move to:` headers
+- Stages: `plxt lint` → `plxt fmt`. Stage 3 stays disabled until `mthds-agent` ships offline-mode validation (the Codex sandbox blocks the eager S3 fetch).
+- Bundled in the Codex plugin as `hooks/codex-hooks.json` (generated from `templates/hooks/codex-hooks.json.j2`) and declared via the `hooks` field in `.codex-plugin/plugin.json`. Codex discovers it directly when `[features] plugin_hooks = true` — set by `mthds-agent codex apply-config`. Requires Codex 0.130+.
+- The hook command is just `mthds-agent codex hook`; validation logic lives in mthds-agent so it is versioned with the npm package, not the plugin.
+
+`mthds-agent codex apply-config` configures `~/.codex/` for the Codex plugin (sandbox network + `[features] plugin_hooks`) and removes any obsolete `~/.codex/hooks.json` entry left by the retired `install-hook` command.
 
 Both pass silently if the file is not `.mthds`. Both block if `plxt` is not installed.
 
-See `docs/codex-vs-claude-hooks.md` for the full comparison and upstream issue tracking.
+See `docs/codex-vs-claude-hooks.md` for the full comparison and upstream history.
 
 ## Prerequisites
 
