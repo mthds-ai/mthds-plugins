@@ -28,7 +28,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 bash -c '
 # Pick the cached env-check from the plugin version with the highest semver.
 # Matches both `mthds` (prod) and `mthds-dev` (dev) plugin caches. The padded
-# segment trick keeps lex order = semver order so 0.10 doesn't sort below 0.9.
+# segment trick keeps lex order = semver order so 0.10 does not sort below 0.9.
 _best_f=""; _best_k=""
 for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   [ -x "$f" ] || continue
