@@ -66,6 +66,9 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 Run this command to check toolchain status:
 
 ```bash
+# Wrapped in `bash -c` so the bash array syntax below works even when the
+# session shell is zsh (Codex runs blocks under the user's shell).
+bash -c '
 # Pick the cached env-check from the plugin version with the highest semver.
 # Pad each numeric segment to fixed width so lex sort matches semver sort
 # (avoids the 0.10 < 0.9 lex-order trap). Sort keys are digits-only by
@@ -75,11 +78,12 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   [ -x "$f" ] || continue
   _v="${f%/bin/*}"; _v="${_v##*/}"
   _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
-  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
 [ -n "$_best_f" ] && exec "$_best_f" "0.7.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
+'
 ```
 
 **Interpret the output:**
@@ -114,11 +118,17 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
-- `CODEX_CONFIG_NEEDS_SETUP` → WARN. `~/.codex/` is not fully set up for the mthds plugin — sandbox network access, the `plugin_hooks` feature the bundled hook needs, or an obsolete hook entry needs attention — so `.mthds` validation may not run. Tell the user:
+- `CODEX_CONFIG_NEEDS_SETUP` → Codex's `~/.codex/` is not set up for the mthds plugin, so the bundled `.mthds` validation hook will not load. The env-check may print a `#`-prefixed diagnostic line after the status — relay it if present. Resolve this before Step 1:
 
-  > Your Codex environment isn't fully set up for mthds, so `.mthds` validation may not run. Run `mthds-agent codex apply-config` (preview the changes first with `--dry-run`), then restart Codex. Proceeding for now.
+  1. **Preview** — run `mthds-agent codex apply-config --dry-run` and show the user the output. `WOULD_APPLY` lists the keys it will add under `applied`; `ALREADY_OK` means no keys need adding. Either way, relay any `warnings` entries — those (e.g. read-only sandbox, hooks disabled) need a hand-fix `apply-config` will not perform. If `ALREADY_OK` with no warnings, treat as resolved and go to Step 1.
+  2. **Ask** — use AskUserQuestion: "Apply Codex config now?" with options "Apply now" / "Skip".
+  3. **Apply now** — run `mthds-agent codex apply-config`:
+     - `APPLIED` / `ALREADY_OK` → tell the user the config is fixed and they must **restart Codex** for the validation hook to load (it will not load in this session). Relay any `warnings` — those still need a hand-fix.
+     - Error about conflicting keys → show it verbatim; the user must hand-edit `~/.codex/config.toml`, then re-run `mthds-agent codex apply-config`.
+     - Error from the sandbox blocking the write to `~/.codex/config.toml` → ask the user to run `mthds-agent codex apply-config` themselves in a terminal, then restart Codex.
+  4. **Skip** — tell the user the validation hook stays off until they run `mthds-agent codex apply-config` and restart Codex.
 
-  Then proceed to Step 1.
+  Then proceed to Step 1. This session has no PostToolUse hook. The mthds skills still run `mthds-agent validate bundle` explicitly, so `.mthds` files built or edited through a skill are still semantically validated — but the write-time `plxt lint`/`fmt` pass depends on the hook and will not run until Codex is restarted.
 
 - No output or `UP_TO_DATE` → Proceed to Step 1.
 

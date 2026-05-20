@@ -50,6 +50,8 @@ The `.mthds` validation hook ships inside the plugin (`hooks/codex-hooks.json`, 
 
 It also removes any obsolete `~/.codex/hooks.json` entry left by older mthds installs (which used a now-retired `install-hook` step). The command is idempotent and never overwrites unrelated config — use `--dry-run` to preview, `--check` for CI/env-check. See `docs/codex-vs-claude-hooks.md`.
 
+If mthds gets installed without this step (for example, added straight from the marketplace UI), the skills catch it: their Step 0 env-check detects the gap and offers to run `apply-config` for you. Running it up front just avoids building your first method before the validation hook is live.
+
 ## Skills
 
 Skills work identically on both Claude Code (`/skill-name`) and Codex (`$skill-name`).
