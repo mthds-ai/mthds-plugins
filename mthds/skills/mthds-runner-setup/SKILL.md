@@ -23,6 +23,9 @@ You've built a method — now let's run it. Before your first live inference run
 Run this command to check toolchain status:
 
 ```bash
+# Wrapped in `bash -c` so the bash array syntax below works even when the
+# session shell is zsh.
+bash -c '
 # Pick the cached env-check from the plugin version with the highest semver.
 # Matches both `mthds` (prod) and `mthds-dev` (dev) plugin caches. The padded
 # segment trick keeps lex order = semver order so 0.10 doesn't sort below 0.9.
@@ -31,11 +34,12 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   [ -x "$f" ] || continue
   _v="${f%/bin/*}"; _v="${_v##*/}"
   _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
-  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf '%06d' "${_p:-0}")"; done
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
 [ -n "$_best_f" ] && exec "$_best_f" "0.7.0"
 echo "MTHDS_ENV_CHECK_MISSING"
+'
 ```
 
 **Interpret the output:**
