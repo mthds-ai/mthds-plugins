@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.2] - 2026-05-21
+
+### Documentation
+
+- **Document the `mthds-vibe` skill.** The skill shipped in v0.11.0 but was not listed in the README skill table or mentioned in the changelog, so users had no way to discover it through normal documentation. Added a row to the README skill inventory and documented the skill below under v0.11.0 (where it actually shipped). The skill itself is unchanged.
+
 ## [v0.11.1] - 2026-05-17
 
 ### Changed
@@ -7,6 +13,10 @@
 - **The `CODEX_CONFIG_NEEDS_SETUP` env-check signal now drives an offer-then-run flow instead of a passive warning.** When a skill's Step 0 env-check finds `~/.codex/` not set up for the plugin, the preamble previews the fix with `mthds-agent codex apply-config --dry-run`, asks the user, and runs `apply-config` — falling back to handing over the command if the Codex sandbox blocks the write to `~/.codex/config.toml`. It relays any `warnings` (read-only sandbox, hooks disabled) that `apply-config` deliberately will not auto-fix, and is explicit that the bundled hook only loads after a Codex restart — so the current session relies on the skills' own explicit `plxt lint` + `validate bundle` steps. Previously the skill only warned and proceeded, leaving the user to resolve the gap unaided. Detection was already correct; this closes the resolution gap in the skill instruction.
 
 ## [v0.11.0] - 2026-05-15
+
+### Added
+
+- **`mthds-vibe` skill.** A single-pass authoring path: write a complete `bundle.mthds` in one go, then let the PostToolUse hook and an explicit `validate bundle` step catch errors. Scope is deliberately narrower than `mthds-build` (no `dict` fields, no `PipeStructure`, no inline `templating_style` blocks) — when those come up the skill is instructed to emit the closest in-scope equivalent and flag the deviation. On Claude Code the skill is `disable-model-invocation: true` (explicit `/mthds-vibe` only); on Codex it's discoverable normally. Ships with a `vibe-cheat-sheet.md` reference under `skills/mthds-vibe/references/`.
 
 ### Changed
 

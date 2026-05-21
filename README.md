@@ -71,6 +71,7 @@ Skills work identically on both Claude Code (`/skill-name`) and Codex (`$skill-n
 | `mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
 | `mthds-publish` | Publish methods to mthds.sh |
 | `mthds-share` | Share methods on social media |
+| `mthds-vibe` | Write a complete MTHDS bundle directly in a single pass |
 
 ## Automatic validation
 
