@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.3] - 2026-05-25
+
+### Changed
+
+- **Bump `min_mthds_version` from 0.7.0 to 0.8.0.** mthds-js 0.8.0 raises its own pipelex / pipelex-agent floor to `>=0.30.0` and fixes five PipelexRunner `JSON.parse` paths broken by the pipelex 0.29.0 agent CLI output-contract change (markdown by default for `run` / `validate` / `init`, `validate bundle --format` renamed to `--graph-format`). pipelex 0.30.0 additionally routes logs to stderr so JSON consumers no longer get polluted stdout. Bumping the mthds-agent floor here transitively pulls all of that through — consumers on older `mthds-agent` fail the env-check with a clean upgrade prompt. The plugin shells out only to `mthds-agent` (never directly to `pipelex-agent`), so no skill, hook, or script invocations needed adapting beyond the floor.
+
 ## [v0.11.2] - 2026-05-21
 
 ### Documentation

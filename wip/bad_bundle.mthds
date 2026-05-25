@@ -1,0 +1,211 @@
+domain      = "cv_screening_scorecard"
+description = "Build a scorecard from a job offer, batch-score CVs, then either generate interview questions or draft a rejection email per candidate"
+main_pipe   = "screen_all_candidates"
+
+[concept.JobOffer]
+description = "The full text of a job offer or job description"
+refines     = "Text"
+
+[concept.CV]
+description = "The full text of a candidate's CV / resume"
+refines     = "Text"
+
+[concept.Criterion]
+description = "A single weighted evaluation criterion derived from the job offer"
+
+[concept.Criterion.structure]
+name        = { type = "text", description = "Short name of the criterion (e.g. 'Python expertise')", required = true }
+description = { type = "text", description = "What this criterion measures and how to assess it", required = true }
+weight      = { type = "integer", description = "Importance of this criterion from 1 (nice-to-have) to 10 (critical)", required = true }
+
+[concept.Scorecard]
+description = "Structured scorecard of weighted criteria extracted from a job offer"
+
+[concept.Scorecard.structure]
+position_title        = { type = "text", description = "The job title", required = true }
+role_summary          = { type = "text", description = "One-paragraph summary of the role and what success looks like", required = true }
+criteria              = { type = "list", item_type = "concept", item_concept_ref = "Criterion", description = "The evaluation criteria, ordered from most to least important", required = true }
+minimum_overall_score = { type = "integer", description = "Minimum weighted overall score (0-100) at or above which a candidate should be invited to interview", required = true }
+
+[concept.CriterionScore]
+description = "Score given to a candidate on a single criterion"
+
+[concept.CriterionScore.structure]
+criterion_name = { type = "text", description = "Name of the criterion being scored (must match a criterion in the scorecard)", required = true }
+score          = { type = "integer", description = "Score from 0 (no match) to 10 (perfect match)", required = true }
+rationale      = { type = "text", description = "Short evidence-based rationale citing the CV", required = true }
+
+[concept.Score]
+description = "Full scoring result for one candidate against the scorecard"
+
+[concept.Score.structure]
+candidate_name = { type = "text", description = "Candidate's full name as found in the CV (or 'Unknown' if not stated)", required = true }
+criterion_scores = { type = "list", item_type = "concept", item_concept_ref = "CriterionScore", description = "One score per scorecard criterion", required = true }
+overall_score = { type = "integer", description = "Weighted overall match score on a 0-100 scale", required = true }
+strengths = { type = "list", item_type = "text", description = "Key strengths of this candidate for the role" }
+gaps = { type = "list", item_type = "text", description = "Key gaps or missing requirements" }
+recommendation = { choices = [
+  "interview",
+  "reject",
+], description = "'interview' if overall_score >= scorecard minimum_overall_score, else 'reject'", required = true }
+justification = { type = "text", description = "One-paragraph justification of the recommendation", required = true }
+
+[concept.CandidateDecision]
+description = "Final per-candidate decision packaging either interview questions or a rejection email"
+
+[concept.CandidateDecision.structure]
+candidate_name = { type = "text", description = "Candidate's full name", required = true }
+overall_score = { type = "integer", description = "Weighted overall match score on a 0-100 scale", required = true }
+recommendation = { choices = [
+  "interview",
+  "reject",
+], description = "Final recommendation", required = true }
+justification = { type = "text", description = "One-paragraph justification of the recommendation", required = true }
+interview_questions = { type = "list", item_type = "text", description = "Exactly 5 interview questions when recommendation is 'interview', otherwise empty" }
+rejection_email_subject = { type = "text", description = "Subject line of the rejection email when recommendation is 'reject', otherwise empty string" }
+rejection_email_body = { type = "text", description = "Body of the rejection email when recommendation is 'reject', otherwise empty string" }
+
+[pipe.screen_all_candidates]
+type = "PipeSequence"
+description = "Build a scorecard from the job offer, then process every CV"
+inputs = { job_offer = "JobOffer", cvs = "CV[]" }
+output = "CandidateDecision[]"
+steps = [
+  { pipe = "build_scorecard", result = "scorecard" },
+  { pipe = "process_cvs", result = "candidate_decisions" },
+]
+
+[pipe.build_scorecard_oops]
+type = "PipeLLM"
+description = "Analyze the job offer and produce a weighted scorecard"
+inputs = { job_offer = "JobOffer" }
+output = "Scorecard"
+prompt = """
+You are a senior hiring manager. Read the job offer below and produce a structured
+scorecard that can be used to fairly evaluate candidate CVs.
+
+Job offer:
+@job_offer
+
+Guidelines:
+- Extract the position title and write a one-paragraph role summary.
+- Define 5 to 8 well-chosen criteria covering must-have technical skills, relevant
+  experience, domain knowledge, and key soft skills. Avoid vague catch-alls.
+- Assign each criterion a weight from 1 to 10 reflecting its importance for this role.
+- Set minimum_overall_score (0-100) as the bar at or above which a candidate deserves
+  an interview. Calibrate it so that only genuinely qualified candidates pass.
+"""
+
+[pipe.process_cvs]
+type             = "PipeBatch"
+description      = "Score every CV against the scorecard and produce a decision per candidate"
+inputs           = { cvs = "CV[]", scorecard = "Scorecard" }
+output           = "CandidateDecision[]"
+branch_pipe_code = "process_one_cv"
+input_list_name  = "cvs"
+input_item_name  = "cv"
+
+[pipe.process_one_cv]
+type = "PipeSequence"
+description = "Score one CV then branch to interview prep or rejection draft"
+inputs = { cv = "CV", scorecard = "Scorecard" }
+output = "CandidateDecision"
+steps = [
+  { pipe = "score_cv", result = "score" },
+  { pipe = "decide_outcome", result = "candidate_decision" },
+]
+
+[pipe.score_cv]
+type = "PipeLLM"
+description = "Score a single CV against every criterion in the scorecard"
+inputs = { cv = "CV", scorecard = "Scorecard" }
+output = "Score"
+prompt = """
+You are screening a candidate against a structured scorecard.
+
+Scorecard:
+@scorecard
+
+CV:
+@cv
+
+Instructions:
+- Extract the candidate's full name from the CV (use 'Unknown' if it is not stated).
+- Produce one CriterionScore per criterion in the scorecard. The criterion_name must
+  exactly match the scorecard. Each score is 0 to 10 with a short evidence-based
+  rationale citing concrete elements of the CV.
+- Compute overall_score on a 0-100 scale as the weighted average of criterion scores
+  (each criterion's weight applied to its score, normalized to 0-100).
+- List the candidate's key strengths and gaps for this specific role.
+- Set recommendation to 'interview' if overall_score >= scorecard.minimum_overall_score,
+  otherwise 'reject'. Be strict — do not invent qualifications.
+- Provide a one-paragraph justification that an HR partner could share internally.
+"""
+
+[pipe.decide_outcome]
+type                = "PipeCondition"
+description         = "Route to interview prep or rejection draft based on the score recommendation"
+inputs              = { score = "Score", cv = "CV", scorecard = "Scorecard" }
+output              = "CandidateDecision"
+expression_template = "{{ score.recommendation }}"
+default_outcome     = "draft_rejection"
+
+[pipe.decide_outcome.outcomes]
+interview = "prepare_interview"
+reject    = "draft_rejection"
+
+[pipe.prepare_interview]
+type = "PipeLLM"
+description = "Generate 5 tailored interview questions and package the final decision"
+inputs = { score = "Score", cv = "CV", scorecard = "Scorecard" }
+output = "CandidateDecision"
+prompt = """
+The candidate has been recommended for an interview. Produce a CandidateDecision.
+
+Fill the fields:
+- candidate_name, overall_score, justification: copy from the score.
+- recommendation: must be "interview".
+- interview_questions: produce exactly 5 questions tailored to this role and this
+  candidate. Probe technical depth on the candidate's strengths, validate any
+  claims that are central to the scorecard, and explore the gaps surfaced in the
+  scoring. Avoid generic questions.
+- rejection_email_subject and rejection_email_body: leave as empty strings.
+
+Score:
+@score
+
+CV:
+@cv
+
+Scorecard:
+@scorecard
+"""
+
+[pipe.draft_rejection]
+type = "PipeLLM"
+description = "Draft a polite, specific rejection email and package the final decision"
+inputs = { score = "Score", cv = "CV", scorecard = "Scorecard" }
+output = "CandidateDecision"
+prompt = """
+The candidate has been recommended for rejection. Produce a CandidateDecision.
+
+Fill the fields:
+- candidate_name, overall_score, justification: copy from the score.
+- recommendation: must be "reject".
+- rejection_email_subject: a short, professional subject line referencing the
+  position from the scorecard.
+- rejection_email_body: a polite email addressed to the candidate by name. Thank
+  them for applying, mention the position, give a brief and honest high-level
+  reason (do not enumerate every gap), wish them well, and invite them to apply
+  to future openings. Two to four short paragraphs.
+- interview_questions: leave as an empty list.
+
+Score:
+@score
+
+CV:
+@cv
+
+Scorecard:
+@scorecard
+"""

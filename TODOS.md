@@ -2,6 +2,8 @@
 
 This document is a working plan, designed to survive a cold-start handoff. Read this whole file before resuming.
 
+> **STATUS (2026-05-26):** Original Phases 1, 2, 5 of this plan are SUPERSEDED by `./wip/plan-validate-hook-rewrite.md`, which captures a markdown-first hook rewrite (decided after verification surfaced that pipelex's JSON envelope no longer populates `validation_errors[]` and that both Claude Code and Codex PostToolUse hooks support `hookSpecificOutput.additionalContext` for non-blocking agent feedback). Phases 3 and 4 of THIS doc remain deferred follow-up scope. The Upstream status block below is also stale — see the new plan doc for current upstream state.
+
 ## 0. Background — why we're doing this
 
 Pipelex `v0.29.0` (2026-05-20) flipped agent CLI `run` / `validate` / `init` to **markdown by default** on both stdout and stderr (the success and error paths can be set independently via `--format` / `--error-format`). `models` / `check-model` / `doctor` were already markdown-default. `inputs` / `concept` / `pipe` / `install` / `package` are unaffected (still JSON / raw TOML). The `pipelex-agent validate bundle` graph flag was renamed `--format` → `--graph-format` in the same release. See `../pipelex/CHANGELOG.md:54-58` for the canonical wording.
@@ -12,7 +14,13 @@ This is good for skill agents (LLMs read markdown better than JSON) — but it h
 2. **Skill prose claims JSON-on-stdout for `run` / `validate` / `init`** in several places — wrong now. Agents using these skills will receive markdown and get confused if the skill tells them to parse JSON envelope fields like `main_stuff.json`.
 3. **`/mthds-fix` iterates structured `validation_errors[]`** to look up per-error fix strategies. That contract needs JSON; the skill must opt back into `--format json` for its validate calls.
 
-Cross-repo coupling: the `min_mthds_version` bump shipped from here must not predate the `mthds-agent` release that floors pipelex `>=0.29.1`. That mthds-agent release is tracked in `../mthds-js/TODOS.md`. **Do not release this plugin before mthds-js ships the floor bump and a tagged version is available on npm.**
+Cross-repo coupling: the `min_mthds_version` bump shipped from here must not predate the `mthds-agent` release that floors pipelex `>=0.30.0`. That mthds-agent release is tracked in `../mthds-js/TODOS.md`. **Do not release this plugin before mthds-js ships the floor bump and a tagged version is available on npm.**
+
+### Upstream status (updated 2026-05-25)
+
+- **pipelex**: `fix/Log-target` branch carries the stderr log-target fix + version 0.30.0. Not yet merged to `dev` or published to PyPI.
+- **mthds-js**: `fix/Pipelex-output-changes` branch carries five PipelexRunner JSON-parse fixes + floor bump to `>=0.30.0`. Not yet merged to `main` or published to npm. See `../mthds-js/TODOS.md` Checkpoints 2 and 3 for details.
+- **Sequence**: pipelex 0.30.0 to PyPI → mthds-js to npm → then this repo can execute Phases 1-5 and release.
 
 User decision (2026-05-23) ratifying the framing above:
 - ✅ Keep pipelex markdown default for skill agents (do not force `--format json` in passthrough).
@@ -35,7 +43,7 @@ User decision (2026-05-23) ratifying the framing above:
 | D6 | `templates/skills/mthds-check/SKILL.md.j2` | 50-53 | "Parse the JSON Output" — skill is read-only review; markdown is sufficient | Phase 3 |
 | D7 | `templates/skills/mthds-build/SKILL.md.j2` | 311 | Claims "the JSON output includes the path in `graph_files`" — only true with `--format json`. In markdown mode the path appears in stderr logs | Phase 3 |
 | F1 | `templates/skills/mthds-fix/SKILL.md.j2` | 25-33, 95-100 | Iterates `validation_errors[].error_type` — needs JSON. Pin `--format json` on validate calls in this skill | Phase 4 |
-| V1 | `targets/defaults.toml` | `[vars] min_mthds_version` | Must be bumped to the mthds-agent version that floors pipelex `>=0.29.1` (TBD — set after mthds-js cuts the release) | Phase 5 |
+| V1 | `targets/defaults.toml` | `[vars] min_mthds_version` | Must be bumped to the mthds-agent version that floors pipelex `>=0.30.0` (TBD — set after mthds-js cuts the release) | Phase 5 |
 
 ### Key uncertainty to resolve in Phase 1
 
@@ -166,7 +174,7 @@ This phase is gated on the **Checkpoint 1 decision** about option A (pin JSON) v
 
 ## 5. Phase 5 — Version coordination & release prep
 
-Goal: bump `min_mthds_version` to the mthds-agent floor that requires pipelex `>=0.29.1`. Do not release ahead of mthds-js.
+Goal: bump `min_mthds_version` to the mthds-agent floor that requires pipelex `>=0.30.0`. Do not release ahead of mthds-js.
 
 - [ ] **5.1** Confirm the mthds-js floor-bump release has shipped to npm. Check `https://www.npmjs.com/package/mthds` for the new version, and confirm `npm view mthds version` reports it. Record the exact version string here.
 - [ ] **5.2** Edit `targets/defaults.toml`. Change `[vars] min_mthds_version` to the version recorded in 5.1.
@@ -175,7 +183,7 @@ Goal: bump `min_mthds_version` to the mthds-agent floor that requires pipelex `>
 - [ ] **5.5** Run the `internal-tools` integration tests if Docker is available (`make build && make agent-test` from the workspace root per the workspace `CLAUDE.md`). These exercise the install/upgrade pathway and would catch a min-version typo. If Docker is not running, ask the user to start it — do not skip.
 - [ ] **5.6** Use `/release` skill (or follow its conventions manually): bump `targets/prod.toml`, `targets/dev.toml`, `targets/codex.toml` plugin versions; update `CHANGELOG.md` with a new section describing:
   - **Fixed**: PostToolUse validate hook no longer silently skips broken `.mthds` files on pipelex `0.29.0+` (now passes `--error-format json` to opt back into structured stderr).
-  - **Changed**: `min_mthds_version` floor bumped to `<X.Y.Z>` to require the mthds-agent release that floors pipelex `>=0.29.1`. Cite the breaking changes from pipelex `v0.29.0` (agent CLI markdown default, `validate bundle --format → --graph-format`) that motivate the floor.
+  - **Changed**: `min_mthds_version` floor bumped to `<X.Y.Z>` to require the mthds-agent release that floors pipelex `>=0.30.0`. Cite the breaking changes from pipelex `v0.29.0` (agent CLI markdown default, `validate bundle --format → --graph-format`) that motivate the floor.
   - **Changed**: Skill docs (`mthds-agent-guide.md`, `mthds-run/SKILL.md`, `mthds-check/SKILL.md`, `mthds-build/SKILL.md`) rewritten to be markdown-first for `run` / `validate` / `init`.
   - **Changed**: `/mthds-fix` now pins `--format json` for its validate calls (its fix loop iterates structured `validation_errors`).
 - [ ] **5.7** Create the release branch via `/release`. Do not merge until a human approves.

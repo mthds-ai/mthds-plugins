@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.7.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.7.0`.
+All skills in this plugin require `mthds-agent >= 0.8.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.8.0`.
 
 ## IMPORTANT PREREQUISITES
 
