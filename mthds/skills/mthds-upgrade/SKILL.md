@@ -72,7 +72,9 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
-- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.9.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. The special form `UP_TO_DATE update-check=disabled` means the user has explicitly turned update-check off via config — also proceed to Step 1; do not warn.
+- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.9.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. Two "explicit-quiet" variants share the same prefix and are also clean — proceed to Step 1 without warning, and do not relay the quiet state unless the user is troubleshooting:
+  - `UP_TO_DATE update-check=disabled` — the user has turned update-check off via config.
+  - `UP_TO_DATE update-check=snoozed` — the user has an active snooze on the current version key; an upgrade would otherwise be available, but they explicitly asked for quiet.
 
 - No output → WARN. The env-check produced no output at all, which usually means `mthds-agent` itself is broken or the wrapper script bailed before printing. Tell the user the environment check could not be confirmed, then proceed cautiously to Step 1.
 
@@ -90,7 +92,9 @@ mthds-agent update-check --force
 ```
 
 Interpret the output:
-- `UP_TO_DATE ...`: All tools are up to date. Relay the verified versions to the user, then stop. The special form `UP_TO_DATE update-check=disabled` means the user has turned update-check off via config — also stop, but tell them the check did not actually consult the network this run.
+- `UP_TO_DATE ...`: All tools are up to date. Relay the verified versions to the user, then stop. Two "explicit-quiet" variants are also possible — tell the user the check did not actually run normally this time:
+  - `UP_TO_DATE update-check=disabled`: the user has turned update-check off via config — the check did not consult the network this run. To run a real check, suggest they re-enable update-check (`mthds-agent config set update-check true`) and re-run this skill.
+  - `UP_TO_DATE update-check=snoozed`: the user has an active snooze on the current version key — an upgrade is actually available but suppressed. Suggest `mthds-agent update-check --force` to bypass the snooze and see what would upgrade.
 - `UPGRADE_AVAILABLE <json>`: Upgrades are available. Read `../shared/upgrade-flow.md` and follow the upgrade flow.
 - `JUST_UPGRADED <json>`: Tools were just upgraded. Report what changed and stop.
 - `MTHDS_AGENT_OUTDATED <installed> <required>`: mthds-agent itself is outdated. Warn the user that their mthds-agent (v\<installed>) is older than v\<required> and suggest `npm install -g mthds@latest`, but do not block — proceed to Step 2.
