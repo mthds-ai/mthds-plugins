@@ -1,7 +1,7 @@
 ---
 name: mthds-check
 description: Check and validate MTHDS bundles for issues. Use when user says "validate this", "check my workflow", "check my method", "does this .mthds make sense?", "review this pipeline", "any issues?", "is this correct?". Reports problems without modifying files. Read-only analysis.
-min_mthds_version: 0.7.0
+min_mthds_version: 0.8.1
 allowed-tools:
   - Bash
   - Read
@@ -34,7 +34,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.7.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```

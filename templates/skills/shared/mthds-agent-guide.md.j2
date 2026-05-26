@@ -240,10 +240,10 @@ mthds-agent validate bundle bundle.mthds -L dir/ --graph
 ```
 
 Additional options:
-- `--format <format>` — Output format for the graph (default: `reactflow`)
+- `--graph-format <format>` — Output format for the graph (default: `reactflow`)
 - `--direction <dir>` — Graph layout direction (e.g., `TB` for top-to-bottom, `LR` for left-to-right)
 
-The JSON output includes `graph_files` with the paths to generated files.
+The path to the generated graph appears in the stderr logs; when `--format json` is set, it's also in the JSON envelope as `graph_files`.
 
 ### Execution Graphs
 

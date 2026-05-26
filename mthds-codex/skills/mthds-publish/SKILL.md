@@ -1,7 +1,7 @@
 ---
 name: mthds-publish
 description: Publish MTHDS methods to the MTHDS Hub (mthds.sh). Use when user says "publish this method", "publish to mthds", "publish my methods", "mthds publish", "register my method", or wants to publish a method package to the Hub.
-min_mthds_version: 0.7.0
+min_mthds_version: 0.8.1
 
 ---
 
@@ -31,7 +31,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.7.0" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```

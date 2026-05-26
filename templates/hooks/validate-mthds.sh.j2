@@ -3,9 +3,10 @@
 # Reads tool_input JSON from stdin, then runs (in order):
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
-#   3. mthds-agent validate bundle — semantic validation (blocks or warns)
+#   3. mthds-agent validate bundle — semantic validation (blocks on input-domain
+#      errors; emits agent additionalContext for config/runtime errors)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
-# Uses Node.js for JSON parsing (guaranteed on PATH since mthds-agent requires it).
+# Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
 set -euo pipefail
 
@@ -86,72 +87,69 @@ fi
 
 # =====================================================================
 # STAGE 3: mthds-agent validate bundle — semantic validation
+# Markdown stderr is the canonical agent-facing artifact. BLOCK on
+# input-domain errors (agent fixes the bundle); emit additionalContext
+# for config/runtime errors (agent informed, do not edit the file).
 # =====================================================================
 PARENT_DIR=$(dirname "$FILE_PATH")
 
 EXIT_CODE=0
 mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
 
-# --- Parse results ---
 if [[ "$EXIT_CODE" -eq 0 ]]; then
   exit 0
 fi
 
-# Error path: parse stderr JSON and decide in a single Node.js call
-ERR_JSON=$(cat "$TMPERR")
+# Strip pipelex's internal stack trace (## Error source section to EOF).
+# The current floor (mthds-agent >=0.8.1 → pipelex >=0.30.2) already drops
+# the section from markdown, so this is a no-op on the supported path;
+# kept as defense-in-depth in case a user runs a pipelex build that
+# re-introduces it (custom install, downstream fork, etc.).
+ERR_MD=$(sed '/^## Error source/,$d' "$TMPERR")
 
-node -e "
-const file = process.argv[1];
-const exitCode = process.argv[2];
-let d;
-try { d = JSON.parse(process.argv[3]); } catch { d = null; }
+# Empty/whitespace-only stderr → block with generic reason (no actionable content).
+if [[ -z "${ERR_MD//[[:space:]]/}" ]]; then
+  _block "Validation failed for $FILE_PATH (mthds-agent exited $EXIT_CODE with no stderr output)"
+  exit 0
+fi
 
-// No valid JSON or missing .error key → warn and pass
-if (!d || !d.error) {
-  process.stderr.write('[mthds-hook] Warning: mthds-agent validate exited with code ' + exitCode + ' but produced unexpected output:\n');
-  process.stderr.write((process.argv[3] || '') + '\n');
-  process.exit(0);
-}
+# Extract error_domain from the ## Details section. Pipelex emits each
+# field as `- **<key>:** <value>`. Empty when the surfaced error class has
+# no error_domain set and is not in pipelex's AGENT_ERROR_DOMAINS lookup.
+DOMAIN=$(printf '%s\n' "$ERR_MD" | sed -n 's/^- \*\*error_domain:\*\* *//p' | head -1 | tr -d '[:space:]')
 
-const domain = d.error_domain || '';
-const errType = d.error_type || '';
-const message = d.message || '';
-const hint = d.hint || '';
-const valErrs = Array.isArray(d.validation_errors) ? d.validation_errors : [];
-const dryRunErr = d.dry_run_error || null;
+case "$DOMAIN" in
+  config|runtime)
+    # Environment issue, not a bundle issue. Surface to user (stderr) AND
+    # agent (additionalContext) — both informed, neither blocks the write.
+    printf '[mthds-hook] Validation warning (domain=%s) for %s:\n%s\n' "$DOMAIN" "$FILE_PATH" "$ERR_MD" >&2
+    node -e '
+      const md = process.argv[1];
+      const file = process.argv[2];
+      const domain = process.argv[3];
+      const MAX = 9500;
+      const trimmed = md.length > MAX
+        ? md.slice(0, MAX) + "\n\n[truncated, " + (md.length - MAX) + " chars omitted]"
+        : md;
+      const header = "Validation warning for " + file + " (" + domain + " domain — environment issue, do not edit the file):\n\n";
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: header + trimmed
+        }
+      }) + "\n");
+    ' "$ERR_MD" "$FILE_PATH" "$DOMAIN" || {
+      _block "Hook error: could not format additionalContext for $FILE_PATH"
+    }
+    exit 0
+    ;;
+  *)
+    # input-domain (or unknown/empty — default to BLOCK for safety).
+    # Pass the trimmed markdown verbatim as the block reason; the agent
+    # reads it and revises the bundle.
+    _block "Validation failed for $FILE_PATH:
 
-function warn(msg) { process.stderr.write('[mthds-hook] ' + msg + '\n'); }
-function block(reason) { process.stdout.write(JSON.stringify({decision:'block',reason}) + '\n'); }
-
-// Config or runtime domain → WARN only (not fixable by editing .mthds)
-if (domain === 'config' || domain === 'runtime') {
-  warn('Warning: ' + message);
-  if (hint) warn('Hint: ' + hint);
-  process.exit(0);
-}
-
-// Structural validation_errors → BLOCK
-if (valErrs.length > 0) {
-  const pipes = [...new Set(valErrs.map(e => e.pipe_code || 'unknown'))].join(', ');
-  const details = valErrs.map(e => '- [' + (e.pipe_code || 'unknown') + '] ' + e.message).join('\n');
-  block(file + ' has ' + valErrs.length + ' validation error(s) in pipe(s): ' + pipes + '\n' + details);
-  process.exit(0);
-}
-
-// dry_run_error only (no validation_errors) → WARN
-if (dryRunErr) {
-  warn('Warning (dry-run): ' + message);
-  warn('Dry-run detail: ' + dryRunErr);
-  if (hint) warn('Hint: ' + hint);
-  process.exit(0);
-}
-
-// Other input-domain errors → WARN
-warn('Warning: ' + errType + ' — ' + message);
-if (hint) warn('Hint: ' + hint);
-process.exit(0);
-" "$FILE_PATH" "$EXIT_CODE" "$ERR_JSON" || {
-  _block "Stage 3 decision script crashed — treating as validation failure for $FILE_PATH"
-}
-
-exit 0
+$ERR_MD"
+    exit 0
+    ;;
+esac

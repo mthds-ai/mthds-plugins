@@ -105,14 +105,16 @@ The dev target overrides install commands to use local container paths for CCC t
 
 Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape, and both hooks ship inside the plugin.
 
+Both hooks share the same markdown-first decision model on Stage 3: BLOCK on input-domain (or missing / unknown — default to block for safety) errors with pipelex's trimmed markdown as the agent-actionable reason; emit `hookSpecificOutput.additionalContext` on config / runtime domain errors so the agent is informed without editing the file (environment issue, not a bundle issue).
+
 **Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
 - Matches `Write|Edit`; receives `tool_input.file_path` directly
-- Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks or warns)
+- Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks on input-domain errors, emits additionalContext on config/runtime)
 - Bundled in the Claude plugin (`hooks/hooks.json`) and auto-loaded by Claude Code
 
 **Codex (`mthds-agent codex hook`, in mthds-js):**
 - Matches `^apply_patch$`; parses `tool_input.command` (patch envelope) for `*** Update File: / Add File: / Move to:` headers
-- Stages: `plxt lint` → `plxt fmt`. Stage 3 stays disabled until `mthds-agent` ships offline-mode validation (the Codex sandbox blocks the eager S3 fetch).
+- Stages: `plxt lint` (blocks) → `plxt fmt` (blocks) → `pipelex-agent validate bundle` (blocks on input-domain errors, emits additionalContext on config/runtime). Pipelex's `validate bundle` path is offline-safe — no gateway or remote-config fetch — so Stage 3 runs cleanly inside the Codex sandbox.
 - Bundled in the Codex plugin as `hooks/codex-hooks.json` (generated from `templates/hooks/codex-hooks.json.j2`) and declared via the `hooks` field in `.codex-plugin/plugin.json`. Codex discovers it directly when `[features] plugin_hooks = true` — set by `mthds-agent codex apply-config`. Requires Codex 0.130+.
 - The hook command is just `mthds-agent codex hook`; validation logic lives in mthds-agent so it is versioned with the npm package, not the plugin.
 

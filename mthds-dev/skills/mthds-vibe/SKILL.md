@@ -2,7 +2,7 @@
 name: mthds-vibe
 description: Vibe-code a method bundle by writing MTHDS code directly in a single pass.
 disable-model-invocation: true
-min_mthds_version: 0.7.0
+min_mthds_version: 0.8.1
 allowed-tools:
   - Bash
   - Read
@@ -48,7 +48,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.7.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
