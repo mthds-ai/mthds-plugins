@@ -43,7 +43,7 @@ Defines variables shared by all targets:
 
 ```toml
 [vars]
-min_mthds_version = "0.3.3"
+min_mthds_version = "0.8.0"
 marketplace_name = "mthds-plugins"
 
 # Install/upgrade commands (prod defaults — registry packages)

@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.8.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.8.0`.
+All skills in this plugin require `mthds-agent >= 0.8.1`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.8.1`.
 
 ## IMPORTANT PREREQUISITES
 
@@ -240,10 +240,10 @@ mthds-agent validate bundle bundle.mthds -L dir/ --graph
 ```
 
 Additional options:
-- `--format <format>` — Output format for the graph (default: `reactflow`)
+- `--graph-format <format>` — Output format for the graph (default: `reactflow`)
 - `--direction <dir>` — Graph layout direction (e.g., `TB` for top-to-bottom, `LR` for left-to-right)
 
-The JSON output includes `graph_files` with the paths to generated files.
+The path to the generated graph appears in the stderr logs; when `--format json` is set, it's also in the JSON envelope as `graph_files`.
 
 ### Execution Graphs
 

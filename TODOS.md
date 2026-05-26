@@ -16,11 +16,9 @@ This is good for skill agents (LLMs read markdown better than JSON) — but it h
 
 Cross-repo coupling: the `min_mthds_version` bump shipped from here must not predate the `mthds-agent` release that floors pipelex `>=0.30.0`. That mthds-agent release is tracked in `../mthds-js/TODOS.md`. **Do not release this plugin before mthds-js ships the floor bump and a tagged version is available on npm.**
 
-### Upstream status (updated 2026-05-25)
+### Upstream status (updated 2026-05-26)
 
-- **pipelex**: `fix/Log-target` branch carries the stderr log-target fix + version 0.30.0. Not yet merged to `dev` or published to PyPI.
-- **mthds-js**: `fix/Pipelex-output-changes` branch carries five PipelexRunner JSON-parse fixes + floor bump to `>=0.30.0`. Not yet merged to `main` or published to npm. See `../mthds-js/TODOS.md` Checkpoints 2 and 3 for details.
-- **Sequence**: pipelex 0.30.0 to PyPI → mthds-js to npm → then this repo can execute Phases 1-5 and release.
+Upstream pipelex `0.30.0` and `0.30.1` shipped to PyPI; mthds-js `0.8.0` shipped to npm. The remaining cross-repo work and the markdown-first hook rewrite are captured in [`./wip/plan-validate-hook-rewrite.md`](./wip/plan-validate-hook-rewrite.md) — see that plan for the current state of pipelex 0.30.2, mthds-js 0.8.1, and the plugin v0.11.3 release sequence. The bullets and tables below describe the original (pre-rewrite) plan and are kept for posterity only.
 
 User decision (2026-05-23) ratifying the framing above:
 - ✅ Keep pipelex markdown default for skill agents (do not force `--format json` in passthrough).

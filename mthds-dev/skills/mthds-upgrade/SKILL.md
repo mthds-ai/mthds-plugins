@@ -1,7 +1,7 @@
 ---
 name: mthds-upgrade
 description: Upgrade MTHDS CLI tools to the latest compatible versions. Use when user says "upgrade mthds", "update mthds", "mthds upgrade", "update my tools", "upgrade pipelex", "update pipelex", "upgrade plxt", "update tools".
-min_mthds_version: 0.8.0
+min_mthds_version: 0.8.1
 allowed-tools:
   - Bash
   - Read
@@ -37,7 +37,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.8.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```

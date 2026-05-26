@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-min_mthds_version: 0.8.0
+min_mthds_version: 0.8.1
 allowed-tools:
   - Bash
   - Read
@@ -87,7 +87,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.8.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```

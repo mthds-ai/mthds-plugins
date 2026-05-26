@@ -1,7 +1,7 @@
 ---
 name: mthds-runner-setup
 description: Set up or reconfigure inference backends and API keys. Use when user gets InferenceSetupRequiredError, wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", or gets a config/credential error when running. Guides through Pipelex Gateway (recommended) or Bring Your Own Key setup.
-min_mthds_version: 0.8.0
+min_mthds_version: 0.8.1
 
 ---
 
@@ -31,7 +31,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.8.0" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.8.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
