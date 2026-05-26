@@ -23,11 +23,10 @@ mthds-agent update-check --force
 Interpret the output:
 - `UP_TO_DATE ...`: All tools are up to date. Relay the verified versions to the user, then stop. Two "explicit-quiet" variants are also possible — tell the user the check did not actually run normally this time:
   - `UP_TO_DATE update-check=disabled`: the user has turned update-check off via config — the check did not consult the network this run. To run a real check, suggest they re-enable update-check (`mthds-agent config set update-check true`) and re-run this skill.
-  - `UP_TO_DATE update-check=snoozed`: the user has an active snooze on the current version key — an upgrade is actually available but suppressed. Suggest `mthds-agent update-check --force` to bypass the snooze and see what would upgrade.
+  - `UP_TO_DATE update-check=snoozed`: the user has an active snooze on the current version key — an upgrade is actually available but suppressed. `--force` clears snooze, so re-running this skill (which calls `update-check --force`) should produce the real status; if you still see snoozed, that indicates a config issue.
 - `UPGRADE_AVAILABLE <json>`: Upgrades are available. Read `../shared/upgrade-flow.md` and follow the upgrade flow.
 - `JUST_UPGRADED <json>`: Tools were just upgraded. Report what changed and stop.
-- `MTHDS_AGENT_OUTDATED <installed> <required>`: mthds-agent itself is outdated. Warn the user that their mthds-agent (v\<installed>) is older than v\<required> and suggest `npm install -g mthds@latest`, but do not block — proceed to Step 2.
-- No output: WARN. `mthds-agent update-check` produced no output, which usually means the binary is broken or the wrapper bailed before printing. Tell the user the upgrade check could not be confirmed, then stop — do not assume "all current".
+- No output / non-zero exit / any other output: WARN. `mthds-agent update-check --force` produced no recognizable signal — the binary may be broken, missing a subcommand, or have failed before printing. Show the user any output verbatim, suggest reinstalling `mthds-agent` (`npm install -g mthds@latest`), then stop. Do not assume "all current".
 
 ### Step 2: Report Summary
 
