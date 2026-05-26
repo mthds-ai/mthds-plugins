@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.12.0] - 2026-05-26
+
+### Changed
+
+- **Env-check preamble rule split: `UP_TO_DATE` and "no output" are now distinct outcomes.** The previous rule read "No output or `UP_TO_DATE` → Proceed to Step 1", which silently swallowed a broken `mthds-agent` (where the wrapper would print nothing) as if it were a clean run. Paired with mthds-js 0.9.0's new explicit `UP_TO_DATE mthds-agent=X plxt=X plugin=X` line, the preamble now treats `UP_TO_DATE ...` as the only success signal and "no output" as a WARN — the env-check could not be confirmed, proceed cautiously. The split is at the template level (`templates/skills/shared/preamble.md.j2`); all generated SKILL.md files inherit the new wording on rebuild. The Codex bash wrapper (`bin/mthds-env-check`) is unchanged — it already forwards `$UPDATE_OUTPUT` verbatim, so the new line appears at the preamble without any wrapper-side change. Closes a class of "agent looked fine but env-check was silently broken" issues that previously surfaced only when something else later failed.
+- **Bump `min_mthds_version` from 0.8.1 to 0.9.0.** mthds-js 0.9.0 emits the explicit `UP_TO_DATE` line that the new preamble rule depends on, and adds the remote upstream probes that close the "silent when both stale" gap (npm + marketplace.json fetched in parallel, 24h-cached, fail-silent on offline). Consumers on an older `mthds-agent` get no `UP_TO_DATE` line and would trip the new "no output" WARN branch on every run — the env-check therefore fails its agent floor check with a clean upgrade prompt instead, routing them through the standard upgrade flow before they hit the WARN.
+
 ## [v0.11.3] - 2026-05-26
 
 ### Fixed

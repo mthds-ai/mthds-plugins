@@ -1,7 +1,7 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-min_mthds_version: 0.8.1
+min_mthds_version: 0.9.0
 allowed-tools:
   - Bash
   - Read
@@ -85,7 +85,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.8.1"
+[ -n "$_best_f" ] && exec "$_best_f" "0.9.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -120,11 +120,13 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
+- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.9.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. The special form `UP_TO_DATE update-check=disabled` means the user has explicitly turned update-check off via config — also proceed to Step 1; do not warn.
+
+- No output → WARN. The env-check produced no output at all, which usually means `mthds-agent` itself is broken or the wrapper script bailed before printing. Tell the user the environment check could not be confirmed, then proceed cautiously to Step 1.
+
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
 
-
-- No output or `UP_TO_DATE` → Proceed to Step 1.
 
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 

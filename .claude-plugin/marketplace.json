@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
-    "version": "0.11.3"
+    "version": "0.12.0"
   },
   "plugins": [
     {
