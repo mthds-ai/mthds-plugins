@@ -21,10 +21,11 @@ mthds-agent update-check --force
 ```
 
 Interpret the output:
-- No output or `UP_TO_DATE`: All tools are up to date. Tell the user and stop.
+- `UP_TO_DATE ...`: All tools are up to date. Relay the verified versions to the user, then stop. The special form `UP_TO_DATE update-check=disabled` means the user has turned update-check off via config — also stop, but tell them the check did not actually consult the network this run.
 - `UPGRADE_AVAILABLE <json>`: Upgrades are available. Read `../shared/upgrade-flow.md` and follow the upgrade flow.
 - `JUST_UPGRADED <json>`: Tools were just upgraded. Report what changed and stop.
 - `MTHDS_AGENT_OUTDATED <installed> <required>`: mthds-agent itself is outdated. Warn the user that their mthds-agent (v\<installed>) is older than v\<required> and suggest `npm install -g mthds@latest`, but do not block — proceed to Step 2.
+- No output: WARN. `mthds-agent update-check` produced no output, which usually means the binary is broken or the wrapper bailed before printing. Tell the user the upgrade check could not be confirmed, then stop — do not assume "all current".
 
 ### Step 2: Report Summary
 

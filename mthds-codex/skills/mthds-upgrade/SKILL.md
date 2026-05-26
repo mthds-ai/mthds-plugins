@@ -72,7 +72,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
-- `CODEX_CONFIG_NEEDS_SETUP` → Codex's `~/.codex/` is not set up for the mthds plugin, so the bundled `.mthds` validation hook will not load. The env-check may print a `#`-prefixed diagnostic line after the status — relay it if present. Resolve this before Step 1:
+- `CODEX_CONFIG_NEEDS_SETUP` → Codex's `~/.codex/` is not set up for the mthds plugin, so the bundled `.mthds` validation hook will not load. When this fires it is the **only** terminal status the env-check emits — `UP_TO_DATE` / `UPGRADE_AVAILABLE` / `JUST_UPGRADED` from `update-check` are suppressed because fixing the hook is the prerequisite (the user re-runs and gets fresh update info next time). The env-check may print a `#`-prefixed diagnostic line after the status — relay it if present. Resolve this before Step 1:
 
   1. **Preview** — run `mthds-agent codex apply-config --dry-run` and show the user the output. `WOULD_APPLY` lists the keys it will add under `applied`; `ALREADY_OK` means no keys need adding. Either way, relay any `warnings` entries — those (e.g. read-only sandbox, hooks disabled) need a hand-fix `apply-config` will not perform. If `ALREADY_OK` with no warnings, treat as resolved and go to Step 1.
   2. **Ask** — use AskUserQuestion: "Apply Codex config now?" with options "Apply now" / "Skip".
@@ -94,10 +94,11 @@ mthds-agent update-check --force
 ```
 
 Interpret the output:
-- No output or `UP_TO_DATE`: All tools are up to date. Tell the user and stop.
+- `UP_TO_DATE ...`: All tools are up to date. Relay the verified versions to the user, then stop. The special form `UP_TO_DATE update-check=disabled` means the user has turned update-check off via config — also stop, but tell them the check did not actually consult the network this run.
 - `UPGRADE_AVAILABLE <json>`: Upgrades are available. Read `../shared/upgrade-flow.md` and follow the upgrade flow.
 - `JUST_UPGRADED <json>`: Tools were just upgraded. Report what changed and stop.
 - `MTHDS_AGENT_OUTDATED <installed> <required>`: mthds-agent itself is outdated. Warn the user that their mthds-agent (v\<installed>) is older than v\<required> and suggest `npm install -g mthds@latest`, but do not block — proceed to Step 2.
+- No output: WARN. `mthds-agent update-check` produced no output, which usually means the binary is broken or the wrapper bailed before printing. Tell the user the upgrade check could not be confirmed, then stop — do not assume "all current".
 
 ### Step 2: Report Summary
 
