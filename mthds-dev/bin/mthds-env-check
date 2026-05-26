@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # mthds-env-check — check mthds-agent installation and version
 # Usage: mthds-env-check <min_version> [--codex]
-# Output status codes (via stdout):
+# Output status codes (via stdout). Exactly one terminal status is emitted per
+# run; update-check status and CODEX_CONFIG_NEEDS_SETUP are mutually exclusive.
+# With --codex, the Codex config check runs FIRST: if it fails, we emit
+# CODEX_CONFIG_NEEDS_SETUP and exit before calling update-check. This is the
+# deliberate ordering — update-check's just-upgraded-from marker is a one-shot
+# (consumed on read), so running it before deciding to suppress the output
+# would lose the JUST_UPGRADED announcement forever. Fixing the Codex hook is
+# the prerequisite anyway; the user re-runs and update-check fires on the next
+# invocation.
 #   MTHDS_AGENT_MISSING              — mthds-agent not on PATH
 #   MTHDS_AGENT_VERSION_UNKNOWN      — could not parse installed version
 #   MTHDS_AGENT_OUTDATED <inst> <req> — installed version too old
-#   MTHDS_UPDATE_CHECK_FAILED ...    — update-check command failed
+#   MTHDS_UPDATE_CHECK_FAILED ...    — update-check command failed (multi-line: status + error)
 #   UPGRADE_AVAILABLE ...            — from mthds-agent update-check
 #   JUST_UPGRADED ...                — from mthds-agent update-check
 #   UP_TO_DATE                       — from mthds-agent update-check
 #   CODEX_CONFIG_NEEDS_SETUP         — only with --codex; ~/.codex/ not set up for plugin
-#   (no output)                      — up to date, nothing to report
 set -u
 exec 2>/dev/null
 
@@ -46,7 +53,47 @@ if [ "$ia" -lt "$ra" ] 2>/dev/null ||
   exit 0
 fi
 
-# Version is sufficient — check for available updates
+# Codex-only: confirm ~/.codex/ is set up for the mthds plugin. A single
+# `apply-config --check` covers all of it: sandbox network access, the
+# [features] plugin_hooks key the bundled hook needs, and the absence of any
+# obsolete hook entry. Without these the PostToolUse(apply_patch) validation
+# hook silently does not run. We only check this when explicitly invoked from
+# a Codex preamble (--codex), since the same binary serves Claude Code where
+# this concern doesn't apply.
+#
+# This MUST run before update-check: update-check's just-upgraded-from marker
+# is consumed on first read (one-shot), so calling update-check and then
+# suppressing its output would silently lose the JUST_UPGRADED announcement.
+# Instead, when Codex is broken we exit early and skip update-check entirely;
+# the marker stays intact and fires on the next run after the user fixes the
+# config and restarts.
+if [ "$PLATFORM_FLAG" = "--codex" ]; then
+  CODEX_ERR_FILE=$(mktemp 2>/dev/null) || CODEX_ERR_FILE=""
+  if [ -n "$CODEX_ERR_FILE" ]; then
+    if ! mthds-agent codex apply-config --check >/dev/null 2>"$CODEX_ERR_FILE"; then
+      echo "CODEX_CONFIG_NEEDS_SETUP"
+      # Surface stderr so support has a clue when this status is reported by
+      # users — global `exec 2>/dev/null` (line ~22) would otherwise destroy
+      # the diagnostic. mthds-agent's `agentError` writes pretty-printed JSON
+      # across multiple lines; capping at 20 lines keeps a pathological
+      # stderr from spamming the preamble while still preserving the JSON
+      # body (typical error envelopes are under 10 lines).
+      [ -s "$CODEX_ERR_FILE" ] && head -n 20 "$CODEX_ERR_FILE" | sed 's/^/# /'
+      rm -f "$CODEX_ERR_FILE"
+      exit 0
+    fi
+    rm -f "$CODEX_ERR_FILE"
+  else
+    if ! mthds-agent codex apply-config --check >/dev/null 2>&1; then
+      echo "CODEX_CONFIG_NEEDS_SETUP"
+      exit 0
+    fi
+  fi
+fi
+
+# Codex check passed (or wasn't requested) — now safe to run update-check.
+# Its just-upgraded-from marker is consumed on read; we want to consume it
+# here only when we're going to emit its result.
 UPDATE_ERR_FILE=$(mktemp 2>/dev/null) || {
   echo "MTHDS_UPDATE_CHECK_FAILED exit=mktemp"
   exit 0
@@ -55,35 +102,11 @@ UPDATE_OUTPUT=$(mthds-agent update-check 2>"$UPDATE_ERR_FILE")
 UPDATE_EXIT=$?
 UPDATE_ERR=$(cat "$UPDATE_ERR_FILE" 2>/dev/null)
 rm -f "$UPDATE_ERR_FILE"
+
 if [ $UPDATE_EXIT -ne 0 ]; then
   echo "MTHDS_UPDATE_CHECK_FAILED exit=$UPDATE_EXIT"
   [ -n "$UPDATE_ERR" ] && echo "$UPDATE_ERR"
   [ -n "$UPDATE_OUTPUT" ] && echo "$UPDATE_OUTPUT"
 elif [ -n "$UPDATE_OUTPUT" ]; then
   echo "$UPDATE_OUTPUT"
-fi
-
-# Codex-only: confirm ~/.codex/ is set up for the mthds plugin. A single
-# `apply-config --check` covers all of it: sandbox network access, the
-# [features] plugin_hooks key the bundled hook needs, and the absence of any
-# obsolete hook entry. Without these the PostToolUse(apply_patch) validation
-# hook silently does not run. We only check this when explicitly invoked from
-# a Codex preamble (--codex), since the same binary serves Claude Code where
-# this concern doesn't apply.
-if [ "$PLATFORM_FLAG" = "--codex" ]; then
-  CODEX_ERR_FILE=$(mktemp 2>/dev/null) || CODEX_ERR_FILE=""
-  if [ -n "$CODEX_ERR_FILE" ]; then
-    if ! mthds-agent codex apply-config --check >/dev/null 2>"$CODEX_ERR_FILE"; then
-      echo "CODEX_CONFIG_NEEDS_SETUP"
-      # Surface the first line of stderr so support has a clue when this
-      # status is reported by users — global `exec 2>/dev/null` (line 15)
-      # would otherwise destroy the diagnostic.
-      [ -s "$CODEX_ERR_FILE" ] && head -n 1 "$CODEX_ERR_FILE" | sed 's/^/# /'
-    fi
-    rm -f "$CODEX_ERR_FILE"
-  else
-    if ! mthds-agent codex apply-config --check >/dev/null 2>&1; then
-      echo "CODEX_CONFIG_NEEDS_SETUP"
-    fi
-  fi
 fi
