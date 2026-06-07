@@ -126,6 +126,28 @@ Notes:
 - The plugin and the `mthds-agent` CLI it shells out to are decoupled: the plugin calls whatever `mthds-agent` is on PATH. To test against a local CLI build, `npm install -g ../mthds-js` (or `npm link`).
 - A session-only alternative that leaves your global config untouched: `claude --plugin-dir /absolute/path/to/mthds-plugins/mthds`. Same plugin name, so the local copy shadows the installed one for that session; iterate with `make build` + `/reload-plugins`.
 
+## Iterating on a local pipelex runtime at the same time
+
+When you are developing this plugin **and** a pipelex feature in parallel, point the `pipelex` runtime at your local worktree so the plugin exercises your in-progress runtime instead of the published PyPI release. This is the preferred setup for co-developing the plugin and pipelex.
+
+Why this is the right lever: the plugin never imports pipelex — its skills and its PostToolUse hooks shell out to `mthds-agent`, which spawns `pipelex` / `pipelex-agent` **by bare name**, resolved through `PATH`. The only reliable way to redirect that lookup is to make the `pipelex` command itself resolve to your worktree. A repo-scoped `PATH` override is not usable here: Claude Code's `settings.json` `env` field does not expand `${PATH}` (a literal value would break `PATH` for the whole session), and direnv does not fire in Claude's non-interactive Bash tool.
+
+Reinstall the `pipelex` uv tool as an **editable** pointer to your pipelex worktree (worktrees of `pipelex/` live alongside it as `_<name>/` — e.g. `../_recursive`):
+
+```bash
+uv tool install --force --editable /absolute/path/to/pipelex-worktree
+```
+
+This is editable, so edits in the worktree take effect immediately — no reinstall between iterations. It also re-points `pipelex-agent` and `pipelex-dev`, which is what `mthds-agent` and the Codex hook actually invoke. Note the trade-off: it is the *global* `pipelex` command, so every shell and every repo now runs the worktree until you revert.
+
+Verify and revert:
+
+```bash
+pipelex --version                                              # sanity check
+grep editable ~/.local/share/uv/tools/pipelex/uv-receipt.toml # confirms the source is your worktree, not PyPI
+uv tool install --force pipelex                                # revert to the published PyPI release
+```
+
 ## PostToolUse Hook
 
 Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape, and both hooks ship inside the plugin.
