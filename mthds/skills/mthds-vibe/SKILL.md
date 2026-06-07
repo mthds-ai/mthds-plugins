@@ -1,6 +1,6 @@
 ---
 name: mthds-vibe
-description: Vibe-code a method bundle by writing MTHDS code directly in a single pass.
+description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
 min_mthds_version: 0.9.0
 allowed-tools:
@@ -13,19 +13,29 @@ allowed-tools:
 
 ---
 
-# Vibe-write a MTHDS bundle
+# Build a MTHDS bundle top-down (recursive refinement)
 
-Write MTHDS code (a TOML-based declarative language) for a complete `bundle.mthds` in a single pass. The PostToolUse hook and an explicit `validate bundle` step catch errors after the write.
+Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole job as a single pipe *signature* (the client contract — inputs, output, semantics). Then refine one signature at a time, one level down, into operators and controllers, leaving the not-yet-built parts as further signatures. Validate **leniently** (`--allow-signatures`) after each layer; the library is always valid and always resumable. Stop when no signatures remain (strict validation passes → runnable), or stop early and keep the leniently-valid scaffold.
 
 ## Scope (what this skill can emit)
 
-This skill covers:
-
 - Bundle headers: `domain`, `description`, `main_pipe`, `system_prompt`.
-- Concepts: simple, refining, structured (with field types `text`, `integer`, `boolean`, `number`, `date`, `concept`, `list`).
-- Pipes: `PipeLLM`, `PipeCompose`, `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeFunc`.
+- Concepts: simple, refining, structured (field types `text`, `integer`, `boolean`, `number`, `date`, `concept`, `list`).
+- Pipes: `PipeSignature` (contract-only header), `PipeLLM`, `PipeCompose`, `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeFunc`.
 
 **Outside this skill's scope:** `dict` field types, `PipeStructure`, inline `templating_style` blocks, and other advanced features. When the user asks for those, write the closest in-scope equivalent and call out the deviation; do not silently emit unsupported constructs.
+
+---
+
+## How it works — read this first
+
+- **The artifact is a library, not one file.** A directory of same-domain `.mthds` files, loaded together with `-L`. The runtime merges them into one domain; pipes and concepts reference each other across files by bare code.
+- **Construction is additive.** A `PipeSignature` is a forward declaration ("header"); the concrete pipe is its "definition". Each refinement **adds a new `<code>.mthds` file**; no existing file is ever rewritten — no merge step. At merge, a concrete satisfies the signature of the same code (the definition wins), so the same code legitimately appears as a header in one file and a concrete in another.
+- **Invariant:** every unbuilt pipe is a reachable signature, so the assembled library passes lenient validation (`--allow-signatures`) at every step.
+- **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
+- **The backlog is the bundle's own todo list.** It is exactly `pending_signatures` from validate (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
+
+See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
 ---
 
@@ -98,98 +108,116 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 Do not write `.mthds` files until the environment check passes. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
 
-> **No backend setup needed**: This skill works without inference backends or API keys. Building and validating a `.mthds` file does not require running it. Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.
+> **No backend setup needed**: building and validating never run the method, so no inference backends or API keys are required. Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.
 
 ---
 
-## Step 1 — Gather the Essentials
+## Step 1 — Capture the whole job as one signature (Layer 0)
 
-Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**. It is the single source of truth for syntax, field rules, and supported pipe types.
+Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**.
 
-Confirm in one short exchange (or infer from context):
+Determine the three things that *are* the requirement:
 
-- **Inputs** — what does the user have? (documents, images, text, structured data)
-- **Output** — what should the bundle produce?
-- **Transformations** — extraction, LLM analysis, batching, branching?
-- **Domain** — a `snake_case` namespace for the bundle.
+- **Input concept(s)** — what the client provides.
+- **Output concept** — what the client gets back.
+- **Description** — the semantics, in prose precise enough to implement against.
 
-If the user has already described the method clearly enough, skip the questions and proceed.
+**Specify the boundary concepts fully now.** The top input and output concepts are the client-facing data contract — give them their structure at Layer 0. Intermediate concepts come later, lazily.
 
-## Step 2 — Sketch the Shape (in-context, no files)
+**Write the root file** `mthds-wip/<bundle_dir>/bundle.mthds`:
 
-Briefly enumerate, in chat (not on disk):
-
-- The concepts you'll define (PascalCase names + one-line description; mark which refine native concepts vs. which have structure).
-- The pipes you'll define (snake_case names, `type`, inputs → output signatures), with the main pipe first.
-
-If the user has not weighed in, present this sketch in 5–15 lines and proceed to Step 3 immediately. Don't ask for confirmation unless the request was ambiguous — vibe mode trusts the model's first read.
-
-## Step 3 — Write the Bundle in One Pass
-
-**Save location:** Always write to `mthds-wip/<bundle_dir>/bundle.mthds`. Do not ask for a location.
-
-1. Create the directory: `mkdir -p mthds-wip/<bundle_dir>/`.
-2. Compose the full `bundle.mthds` content following [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md). Required structure:
+1. `mkdir -p mthds-wip/<bundle_dir>/`.
+2. Write `bundle.mthds` with the **Write** tool. It carries the `domain` header, `description`, `main_pipe`, optional `system_prompt`, the fully-specified boundary concepts, and the top pipe as a single `PipeSignature` whose code is the `main_pipe`:
 
    ```toml
    domain      = "<snake_case_domain>"
-   description = "<bundle description>"
-   main_pipe   = "<main_pipe_code>"
+   description = "<what the job means>"
+   main_pipe   = "<top_pipe_code>"
 
-   # concepts (simple in [concept], structured/refining in [concept.<Code>])
+   # boundary concepts — specified fully (structure if structured)
    # ...
 
-   # pipes (main pipe first, then sub-pipes in execution order)
-   # ...
+   [pipe.<top_pipe_code>]
+   type          = "PipeSignature"
+   description   = "<precise semantics of the whole job>"
+   inputs        = { <name> = "<InputConcept>" }
+   output        = "<OutputConcept>"
+   signature_for = "<intended impl type, e.g. PipeSequence>"
    ```
 
-3. Write the file with the **Write** tool to `mthds-wip/<bundle_dir>/bundle.mthds`. The PostToolUse hook runs `plxt lint`, `plxt fmt`, and `mthds-agent validate bundle` automatically on save.
+3. The root file is written **once and persists** — refinement never touches it again. The concrete main pipe is added later in its own `<top_pipe_code>.mthds` file (like any other definition; `main_pipe` is a reference, not the implementation).
 
-**Authoring rules** (lifted from the cheat sheet — verify against it if uncertain):
+Validate leniently (the one-signature library passes):
 
-- Domain is `snake_case`, may have dots. Reserved first segments: `native`, `mthds`, `pipelex`.
-- Concept codes are `PascalCase`, singular, no adjectives. Pipe codes are `snake_case`.
-- Inputs are `snake_case` keys with `PascalCase` concept values; multiplicity via `[]` or `[N]`.
-- `refines` and `structure` are mutually exclusive on a concept.
-- Every pipe needs `type`, `description`, `output`. `inputs` is optional in the schema but almost always present.
-- Every prompt variable MUST be a declared input, AND every declared input MUST be referenced by a prompt variable.
-- `PipeCondition` needs `default_outcome` even when outcomes look exhaustive.
-- `PipeImgGen` and `PipeSearch` need `prompt` (even a passthrough like `"$img_prompt"`).
-- `PipeBatch`: `input_item_name` must differ from `input_list_name` and from every other key in `inputs`.
-- `PipeParallel`: at least one of `add_each_output = true` or `combined_output` must be set.
-- Pipe references in `steps`, `branches`, `outcomes`, `branch_pipe_code` use bare pipe codes (no domain prefix) when staying in-domain.
-- Keep `inputs = { ... }` on a single line.
+```bash
+mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph
+```
 
-When in doubt about field names or shapes, **stop and re-read the cheat sheet section for that pipe type** rather than guessing.
+**Announce the captured contract in one line** (inputs → output, one-sentence semantics) before recursing, so the user can interject — non-blocking. *This is the only step with optional interactivity* (see Autonomy below).
 
-## Step 4 — Validate Explicitly
+---
 
-The PostToolUse hook validates on save, but run validation explicitly to surface errors deterministically (and to handle environments where the hook is disabled or limited):
+## Step 2 — Refine layer by layer (auto)
+
+Drain the signature backlog breadth-first, **serially** (one signature at a time — no parallel workers in this version). Repeat this loop until the backlog is empty:
+
+1. **Read the backlog.** Validate leniently and read `pending_signatures` from the JSON envelope on stdout:
+
+   ```bash
+   mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph --format json
+   ```
+
+   `pending_signatures` is the library-wide list of pipes still typed `PipeSignature`. Empty → go to Step 3.
+
+2. **Expand each pending signature, one at a time** (see "To expand one signature" below). Each expansion **adds exactly one new `<code>.mthds` file** and never edits an existing one. `--graph` re-renders `dry_run.html` each layer so the structure is visible as it grows.
+
+3. **Re-validate, recompute `pending_signatures`, repeat.** Expanding a controller forward-declares its children, which become newly pending; expanding an operator removes one. Draining the whole current pending set each round walks the tree breadth-first by construction.
+
+### To expand one signature
+
+Given one pending signature `S` (its frozen contract — `inputs`, `output`, `description`, `signature_for`):
+
+1. **Decide operator or controller.** The `signature_for` hint usually pre-answers it. Heuristic when absent or wrong: a single cognitive/IO step → operator; multiple steps, iteration, branching, or parallelism → controller.
+
+2. **Add `<S>.mthds`** to the bundle dir. Every non-root file carries **only** `domain = "<same_domain>"` for membership — omit `description`, `system_prompt`, `main_pipe` (those live in the root).
+
+   - **Operator (leaf):** write the concrete operator (`PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`) and fill its type-specific fields. No new signatures — this branch is done.
+   - **Controller (composite):** write the controller (`PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`), wire its sub-pipes, **forward-declare each not-yet-trivial sub-pipe as a new `PipeSignature` header** (contract + `signature_for`) in this same file, and declare any intermediate concepts the wiring needs. The new headers join the backlog.
+
+3. **Declare `inputs` and `output` explicitly**, repeating `S`'s contract. Pipes never infer `inputs` from prompt sigils, so a definition that omits them mismatches its header. Spelling is free — the contract reconciles by **concept identity** (bare↔qualified, native equivalents, multiplicity structural), so `output = "Brief"` and `output = "thisdomain.Brief"` match.
+
+4. **Prevent concept collisions (do this before introducing a new intermediate concept).** Check the concept code is not already declared anywhere in the assembled library or pending set; if it is, **derive a unique code** by namespacing from the parent pipe code. Each concept is declared **once**, in the file of the pipe that introduces it. (`ConceptLibraryError` is the loud backstop if a duplicate slips through.)
+
+5. **Refine concepts lazily.** Introduce an intermediate concept simple (often `refines` a native). Give it `structure` only when a downstream consumer reads a specific field (e.g. a prompt uses `$x.field`, or a construct maps `from = "x.field"`) — structure it at that moment, not before.
+
+### If validation fails after an expansion
+
+The failure is, by construction, in the file you just added — bounding the fix.
+
+- **Contract mismatch** (the definition's `inputs`/`output` diverges from its header): conform the **definition** to the frozen header. **Never edit the header** — the parent depends on that contract. (Changing a contract is a propagating change that means revising the parent too; if the header itself is genuinely wrong, stop and flag it rather than silently editing it.)
+- **Other semantic errors:** map the error to the relevant cheat-sheet section, fix the added file with the **Edit** tool, re-validate. See [Error Handling](../shared/error-handling.md).
+
+---
+
+## Step 3 — Finalize (strict validation)
+
+When `pending_signatures` is empty, validate **strictly** (drop `--allow-signatures`):
 
 ```bash
 mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --graph
 ```
 
-The `-L` flag isolates the bundle from other `.mthds` files in the project, preventing namespace collisions. `--graph` produces `dry_run.html` next to the bundle on success.
+Strict validation rejects any reachable signature, so passing it is the gate that says *runnable*. Fix any remaining whole-bundle semantic errors and re-run until it passes.
 
-## Step 5 — Iterate on Errors
+---
 
-If validation fails:
+## Step 4 — Deliver
 
-1. Read the error output. Each error has an `error_type` and (usually) a `pipe_code` or `concept_code`.
-2. Map the error to the relevant section of [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) and fix the file with the **Edit** tool.
-3. Re-run the validate command from Step 4.
-4. Repeat until validation passes.
-
-See [Error Handling](../shared/error-handling.md) for error type recovery patterns.
-
-## Step 6 — Deliver
-
-Once validation passes:
+Once strict validation passes:
 
 1. **Input schema** — Run `mthds-agent inputs bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/` and show the user the input JSON schema so they can see what the method expects. **Do NOT save it to `inputs.json`** — input preparation is handled exclusively by `/mthds-inputs`.
 
-2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle.
+2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle (refreshed at every layer).
 
 3. **Next steps** — Suggest:
    > Test with mock inference (no real inputs needed):
@@ -201,25 +229,35 @@ Once validation passes:
    > mthds-agent run bundle mthds-wip/<bundle_dir>/
    > ```
 
+**Early-stop variant.** If the user stops before the backlog is empty, deliver the leniently-valid scaffold instead: confirm it passes lenient validation, list the unimplemented signatures (the current `pending_signatures`), and explain that resuming means expanding them — no external state is needed, the bundle is its own todo list. A validated design skeleton is a legitimate deliverable.
+
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
 
 ---
 
-## Quick Mode Heuristic
+## Invariants & rules (keep these true at every step)
 
-This skill is automatic by default. Only switch to interactive if:
+- **Contract stability.** A definition preserves its header's `inputs`/`output` contract, matched by **concept identity** (not byte-string). Choose a signature's internals freely; never change its surface without revising the parent too.
+- **`main_pipe` is the anchor.** The top signature's code and its inputs/output are frozen after Layer 0. Its body arrives as a separate definition file; its identity and surface never change.
+- **Additive writes.** One concrete definition per file; headers persist after they're satisfied. Never overwrite an existing file — always add a new `<code>.mthds`.
+- **Concepts refine lazily.** Boundary concepts at Layer 0; intermediate concepts introduced simple, structured only when a consumer reads a field.
+- **Backlog = `{signatures} − {concretes}`.** Recomputed each layer from `pending_signatures` — never hand-tracked, never reconstructed as a depth tree.
 
-- The user explicitly asks for guidance ("walk me through").
-- The request is genuinely ambiguous about inputs/outputs/transformations after one re-read.
-- Validation has failed twice on the same construct — pause and ask the user to confirm intent before a third attempt.
+---
 
-Otherwise: read the cheat sheet, sketch briefly, write the file, validate, deliver.
+## Autonomy
+
+This skill is **automatic by default**.
+
+- **Requirements (Step 1)** — infer the contract and proceed; always *announce* it (non-blocking). Engage in discussion *only* when the request is genuinely ambiguous about inputs/output/semantics, or when the user signals they want to discuss.
+- **Recursion (Step 2+)** — always auto. No per-layer approval prompts. The leniently-valid checkpoints and `dry_run.html` are the review surface; the user can interrupt at any time.
+- Pause and ask only if validation fails twice on the same construct, or a header itself appears wrong (a propagating contract change).
 
 ---
 
 ## Reference
 
-- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read this before writing**. The MTHDS code subset this skill writes, with examples for every supported pipe type.
+- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
-- [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax if needed beyond `validate bundle` and `inputs bundle`.
+- [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.

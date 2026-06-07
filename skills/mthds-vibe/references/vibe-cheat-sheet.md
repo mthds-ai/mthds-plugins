@@ -406,6 +406,43 @@ function_name = "my_package.text_utils.capitalize"
 
 Only use this when the user has a registered function. Otherwise prefer PipeCompose or PipeLLM.
 
+### PipeSignature — a contract-only header (forward declaration)
+
+A `PipeSignature` declares a pipe by its **contract only** — `description`, `inputs`, `output`, and an optional `signature_for` hint — with **no implementation**. It is the C-style *forward declaration* that top-down (recursive) building relies on: commit to what a pipe takes and returns before writing how it works.
+
+```toml
+[pipe.summarize_doc]
+type          = "PipeSignature"
+description   = "Produce a summary of a document (contract only)."
+inputs        = { doc = "Document" }
+output        = "Summary"
+signature_for = "PipeLLM"   # optional hint: the intended implementation type
+```
+
+**Rules:**
+- **No implementation fields** — no `prompt`, `steps`, `branch_pipe_code`, `outcomes`, etc. The signature is purely the contract.
+- `inputs` and `output` are declared **explicitly**, exactly as any pipe — pipes never infer `inputs` from prompt sigils. Multiplicity (`[]`, `[N]`) works as usual.
+- `signature_for` records the *intended* next-level type. It is a **hint, not a binding contract** — the implementation may override it. It may **not** be `"PipeSignature"`. Omit it if unsure.
+
+**`signature_for` → operator or controller** (the next-level decision when you expand a signature):
+- **Operator (leaf)** — a single step: `PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`. Replace the signature with the concrete operator; that branch is done.
+- **Controller (composite)** — multiple steps, iteration, branching, or parallelism: `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`. Replace the signature with the controller, wire its sub-pipes, and forward-declare each not-yet-built sub-pipe as its own `PipeSignature`.
+
+**Header ↔ definition contract.** A concrete pipe satisfies a signature of the same code when their `inputs`/`output` match **by concept identity** — bare↔qualified (`Brief` ≡ `thisdomain.Brief`) and native (`Text` ≡ `native.Text`) spellings are equivalent, multiplicity compared structurally. Spelling need not be byte-identical, but both sides must declare `inputs`/`output` explicitly. A definition whose contract differs from its header is a hard error.
+
+**Lenient vs strict validation:**
+
+```bash
+# Lenient — accepts reachable signatures (each mints a mock of its declared output).
+# Use after each layer while signatures still remain.
+mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --graph
+
+# Strict (default) — rejects any reachable signature. Passing == runnable.
+mthds-agent validate bundle bundle.mthds -L dir/ --graph
+```
+
+A successful validate reports `pending_signatures` — the library-wide list of pipes still typed `PipeSignature` (empty when the method is complete). It is the build's todo list. Live execution of a signature always fails (`PipeSignatureNotExecutableError`), so finalize to strict before running.
+
 ## 7. Prompt Template Shorthands
 
 Applies to: `prompt` (PipeLLM, PipeImgGen, PipeSearch), `system_prompt` (PipeLLM), `template` (PipeCompose), and `{ template = "..." }` in construct fields.
@@ -455,6 +492,9 @@ When the bundle stays in one domain (the common case), use bare names everywhere
 - ❌ `default_value` on `concept`- or `list`-typed fields — not allowed.
 - ❌ Referencing a variable in a prompt without declaring it in `inputs` — validation will fail.
 - ❌ Declaring an `input` that no prompt references — also rejected.
+- ❌ Adding implementation fields (`prompt`, `steps`, …) to a `PipeSignature` — it is contract-only.
+- ❌ `signature_for = "PipeSignature"` — must name a real implementation type, or omit it entirely.
+- ❌ A definition whose `inputs`/`output` contract differs from its header's — they must match by concept identity.
 
 ## 11. End-to-End Example
 

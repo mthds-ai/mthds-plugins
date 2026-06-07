@@ -212,6 +212,33 @@ mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipe
 mthds-agent run bundle mthds-wip/pipeline_01/
 ```
 
+## Lenient Validation — `--allow-signatures`
+
+A bundle that contains `PipeSignature` pipes (contract-only headers, used by top-down/recursive building) fails **strict** validation by default. Pass `--allow-signatures` to validate **leniently** — reachable signatures are accepted, each minting a mock of its declared output:
+
+```bash
+mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
+```
+
+`mthds-agent` forwards the flag verbatim to the pipelex CLI (`.allowUnknownOption()`), so no `mthds-agent`-side option is required.
+
+- **Lenient (`--allow-signatures`)** — accepts a bundle whose dependency graph reaches signatures. Use it after each layer of a recursive build, while signatures still remain.
+- **Strict (default)** — rejects any reachable signature. Passing strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
+
+On a bundle with **no** signatures, lenient and strict are identical — `--allow-signatures` is a no-op there.
+
+### Reading `pending_signatures`
+
+A successful `validate bundle` reports `pending_signatures` — the library-wide list of pipes still typed `PipeSignature` (namespaced refs; empty when the method is complete). It is the build's todo list: the remaining work is exactly the declared signatures with no concrete definition yet.
+
+To read it as JSON, pin **both** format streams. `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted. So `--format json` alone flips errors to JSON too. Pinning them together gives a machine-parseable success envelope while keeping errors as markdown on stderr:
+
+```bash
+mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format json --error-format markdown
+```
+
+The success JSON on stdout then carries `pending_signatures` (plus `validated_pipes`, `total_pipes`).
+
 ## Package Management
 
 The `mthds-agent package` commands manage MTHDS package manifests (`METHODS.toml`).
@@ -261,7 +288,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 |---------|---------|---------|
 | `mthds-agent init` | Initialize pipelex configuration (non-interactive) | `mthds-agent init -g --config '{"backends": ["openai"]}'` |
 | `mthds-agent run bundle` | Execute a pipeline (compact output by default; use `--with-memory` for full envelope) | `mthds-agent run bundle <bundle-dir>/` |
-| `mthds-agent validate bundle` | Validate a bundle (use `--graph` to generate flowchart HTML) | `mthds-agent validate bundle bundle.mthds --graph` |
+| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient/recursive validation) | `mthds-agent validate bundle bundle.mthds --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON | `mthds-agent inputs bundle bundle.mthds` |
 | `mthds-agent concept` | Validate and structure a concept from JSON spec (returns raw TOML) | `mthds-agent concept --spec '{...}'` |
 | `mthds-agent pipe` | Validate and structure a pipe from JSON spec (returns raw TOML). Field names: `type`, `pipe_code`, and optionally `model`. Omit `model` to use defaults; set it only for specialized needs or explicit user requests | `mthds-agent pipe --spec '{"type": "PipeLLM", "pipe_code": "my_pipe", "prompt": "...", ...}'` |
