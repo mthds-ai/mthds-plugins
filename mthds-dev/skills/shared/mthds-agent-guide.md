@@ -34,10 +34,10 @@ When a user needs to run methods with live inference, direct them to `/mthds-run
 ## Agent CLI
 
 Agents must use `mthds-agent` exclusively. Output format varies by command:
-- **JSON on stdout**: `run`, `validate`, `inputs`, `init`, `install`, `package` commands
+- **JSON on stdout**: `run`, `inputs`, `init`, `install`, `package` commands
+- **Markdown on stdout**: `validate` (success report — `# Validation passed`, with a `## Pending signatures` section when signatures remain), `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
 - **Raw TOML on stdout**: `concept`, `pipe` commands (return TOML directly, not wrapped in JSON)
-- **Markdown on stdout**: `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
-- **Errors**: JSON on stderr with exit code 1 (except `plxt` passthrough commands which emit raw text — see command table)
+- **Errors**: JSON on stderr with exit code 1 for the JSON-output commands above. **`validate` emits markdown errors on stderr by default** — it has independent `--format` (success/stdout) and `--error-format` (errors/stderr) controls; see "Lenient Validation" below. `plxt` passthrough commands emit raw text on stderr (see command table).
 
 ## Global Options
 
@@ -123,7 +123,7 @@ This works directly with `jq` and other JSON tools.
 }
 ```
 
-Other `mthds-agent` commands (validate, inputs, etc.) continue to output their existing JSON format with `"success": true`.
+Other `mthds-agent` commands (`inputs`, etc.) output their JSON envelope with `"success": true`. `validate bundle` is the exception — it defaults to **markdown**; pass `--format json` to get its `"success": true` envelope (see "Lenient Validation" below).
 
 ### Error Handling
 
@@ -227,17 +227,41 @@ mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
 
 On a bundle with **no** signatures, lenient and strict are identical — `--allow-signatures` is a no-op there.
 
-### Reading `pending_signatures`
+### Reading runnability and `pending_signatures`
 
-A successful `validate bundle` reports `pending_signatures` — the library-wide list of pipes still typed `PipeSignature` (namespaced refs; empty when the method is complete). It is the build's todo list: the remaining work is exactly the declared signatures with no concrete definition yet.
+A successful `validate bundle` states, in plain English, whether the method is **runnable**, and lists the pipes still typed `PipeSignature` — the build's todo list: declared signatures with no concrete definition yet (namespaced `domain.code` refs; empty when the method is complete).
 
-To read it as JSON, pin **both** format streams. `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted. So `--format json` alone flips errors to JSON too. Pinning them together gives a machine-parseable success envelope while keeping errors as markdown on stderr:
+**Markdown (default) — an LLM reads this directly, no flags needed.** On success the output ends with a runnability verdict:
+
+- **Runnable** (no signatures remain) — no `## Pending signatures` section, just:
+
+  ```
+  ✅ All pipes are concretely implemented — no `PipeSignature` placeholders remain. Strict validation will pass; this method is runnable.
+  ```
+
+- **Not yet runnable** — a `## Pending signatures (N)` heading, then the verdict, then one bullet per pending `domain.code` ref:
+
+  ```
+  ## Pending signatures (N)
+
+  ⚠️ This method is NOT yet runnable — N pipe(s) are still `PipeSignature` placeholders and must be implemented before running:
+
+  - `domain.code`
+  ```
+
+**JSON — for a *program* that extracts a field** (e.g. the PostToolUse hook). Pin **both** format streams: `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted, so `--format json` alone flips errors to JSON too. Pinning them together gives a machine-parseable success envelope while keeping errors as markdown on stderr:
 
 ```bash
 mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format json --error-format markdown
 ```
 
-The success JSON on stdout then carries `pending_signatures` (plus `validated_pipes`, `total_pipes`).
+The success JSON on stdout then carries:
+
+- `is_runnable` — boolean; `true` ⇔ `pending_signatures` is empty. The structured "is the method done / runnable?" signal — prefer it over inferring from the array length.
+- `pending_signatures` — the array of namespaced refs still declared as `PipeSignature` (use it to drive *which* placeholders to implement next).
+- plus `validated_pipes`, `total_pipes`.
+
+**Scope:** the runnability verdict and `is_runnable` / `pending_signatures` appear **only on `validate bundle`** (including `validate bundle --pipe`). `validate all` and `validate pipe` don't compute them — don't key off these fields there.
 
 ## Package Management
 

@@ -25,7 +25,7 @@ Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole j
 - **Construction is additive.** A `PipeSignature` is a forward declaration ("header"); the concrete pipe is its "definition". Each refinement **adds a new `<code>.mthds` file**; no existing file is ever rewritten — no merge step. At merge, a concrete satisfies the signature of the same code (the definition wins), so the same code legitimately appears as a header in one file and a concrete in another.
 - **Invariant:** every unbuilt pipe is a reachable signature, so the assembled library passes lenient validation (`--allow-signatures`) at every step.
 - **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
-- **The backlog is the bundle's own todo list.** It is exactly `pending_signatures` from validate (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
+- **The backlog is the bundle's own todo list.** It is exactly the `## Pending signatures` list that validate reports (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
 
 See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
@@ -164,13 +164,16 @@ mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bu
 
 Drain the signature backlog breadth-first, **serially** (one signature at a time — no parallel workers in this version). Repeat this loop until the backlog is empty:
 
-1. **Read the backlog.** Validate leniently and read `pending_signatures` from the JSON envelope on stdout:
+1. **Read the backlog.** Validate leniently; validate states runnability in plain English and lists what remains:
 
    ```bash
-   mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph --format json
+   mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph
    ```
 
-   `pending_signatures` is the library-wide list of pipes still typed `PipeSignature`. Empty → go to Step 3.
+   - **Still pending** → the markdown shows a `## Pending signatures (N)` heading, a `⚠️ This method is NOT yet runnable …` line, and one bullet per library-wide pipe still typed `PipeSignature`. That bullet list is the backlog.
+   - **Done** → the markdown shows `✅ All pipes are concretely implemented … this method is runnable.` and **no** `## Pending signatures` section. The backlog is empty → go to Step 3.
+
+   (No `--format json` — the agent reads this markdown directly; the verdict line and the backlog are both plain text. Errors on failure stay markdown too.)
 
 2. **Expand each pending signature, one at a time** (see "To expand one signature" below). Each expansion **adds exactly one new `<code>.mthds` file** and never edits an existing one. `--graph` re-renders `dry_run.html` each layer so the structure is visible as it grows.
 
@@ -204,13 +207,13 @@ The failure is, by construction, in the file you just added — bounding the fix
 
 ## Step 3 — Finalize (strict validation)
 
-When `pending_signatures` is empty, validate **strictly** (drop `--allow-signatures`):
+Once validate reports the `✅ … this method is runnable` verdict (no signatures remain), validate **strictly** (drop `--allow-signatures`):
 
 ```bash
 mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --graph
 ```
 
-Strict validation rejects any reachable signature, so passing it is the gate that says *runnable*. Fix any remaining whole-bundle semantic errors and re-run until it passes.
+Strict validation rejects any reachable signature, so passing it is the gate that says *runnable* (it reprints the same ✅ verdict). Fix any remaining whole-bundle semantic errors and re-run until it passes.
 
 ---
 
@@ -232,7 +235,7 @@ Once strict validation passes:
    > mthds-agent run bundle mthds-wip/<bundle_dir>/
    > ```
 
-**Early-stop variant.** If the user stops before the backlog is empty, deliver the leniently-valid scaffold instead: confirm it passes lenient validation, list the unimplemented signatures (the current `pending_signatures`), and explain that resuming means expanding them — no external state is needed, the bundle is its own todo list. A validated design skeleton is a legitimate deliverable.
+**Early-stop variant.** If the user stops before the backlog is empty, deliver the leniently-valid scaffold instead: confirm it passes lenient validation, list the unimplemented signatures (validate's current `## Pending signatures` list), and explain that resuming means expanding them — no external state is needed, the bundle is its own todo list. A validated design skeleton is a legitimate deliverable.
 
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
 
@@ -244,7 +247,7 @@ Once strict validation passes:
 - **`main_pipe` is the anchor.** The top signature's code and its inputs/output are frozen after Layer 0. Its body arrives as a separate definition file; its identity and surface never change.
 - **Additive writes.** One concrete definition per file; headers persist after they're satisfied. Never overwrite an existing file — always add a new `<code>.mthds`.
 - **Concepts refine lazily.** Boundary concepts at Layer 0; intermediate concepts introduced simple, structured only when a consumer reads a field.
-- **Backlog = `{signatures} − {concretes}`.** Recomputed each layer from `pending_signatures` — never hand-tracked, never reconstructed as a depth tree.
+- **Backlog = `{signatures} − {concretes}`.** Recomputed each layer from validate's `## Pending signatures` list — never hand-tracked, never reconstructed as a depth tree.
 
 ---
 

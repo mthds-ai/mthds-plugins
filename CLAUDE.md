@@ -156,6 +156,8 @@ Both hooks share the same markdown-first decision model on Stage 3: BLOCK on inp
 
 **`--format` vs `--error-format` (non-obvious, easy to get wrong).** `mthds-agent validate` passes through to `pipelex-agent validate`, which has **two independent** output controls: `--format markdown|json` governs the **success** envelope on **stdout**, and `--error-format markdown|json` governs the **error** report on **stderr**. The trap: `--error-format` **inherits `--format`** when omitted, so `--format json` *alone* flips **both** streams to JSON. The Stage 3 classifier greps markdown on stderr (`- **error_domain:** input`), so it breaks if errors come back as JSON. Rule: whenever you want JSON success output (e.g. to read `pending_signatures`), pin **`--format json --error-format markdown`** together — that gives a machine-parseable success envelope while keeping the error classifier's markdown-on-stderr contract intact. This is one invocation, not two. (Canonical reference for the CLI's two-stream design: `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
 
+For a full audit of **every** `mthds-agent` call across the plugin (both hooks + all skills), its consumer (software vs LLM), how it exploits stdout/stderr, and whether each format choice is correct — plus the empirically-verified per-command default formats and the open findings to fix — see `docs/mthds-agent-output-audit.md` (working doc).
+
 **Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
 - Matches `Write|Edit`; receives `tool_input.file_path` directly
 - Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks on input-domain errors, emits additionalContext on config/runtime)

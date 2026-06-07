@@ -20,7 +20,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **File discovery:** parses `tool_input.command` (the raw apply_patch envelope) for `*** Update File:` / `*** Add File:` / `*** Move to:` headers
 - **Scope:** validates every `.mthds` file that exists on disk after the patch applies (rename source paths and `*** Delete File:` targets are silently skipped)
 - **Sandbox:** hooks run inside the Codex sandbox with restricted network access
-- **Stages:** plxt lint, plxt fmt only — Stage 3 (`mthds-agent validate bundle`) stays disabled until offline-mode validation lands in mthds-agent
+- **Stages:** plxt lint, plxt fmt, `pipelex-agent validate bundle` (all three). Stage 3 calls `pipelex-agent` directly (not `mthds-agent`); it blocks on input-domain errors and emits `additionalContext` on config/runtime errors
 - **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js. The validation runtime lives in the npm package, not the plugin.
 - **Wiring:** the plugin bundles `hooks/codex-hooks.json` and points the Codex plugin manifest's `hooks` field at it. Codex discovers it directly — no per-user install step. Loading it requires `[features] plugin_hooks = true` (see below).
 
@@ -32,15 +32,15 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 
 ### Validation runtime lives in mthds-agent, not the plugin
 
-The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry whose command is the literal string `mthds-agent codex hook`. The actual validation logic is that subcommand, shipped in the mthds-js npm package. Keeping it there gives a single source of truth across platforms (the Claude bash hook and the Codex subcommand run the same plxt stages) and lets the validation logic be versioned with mthds-agent rather than the plugin. `mthds-agent` is already on PATH after `npm install -g mthds`, which every other skill in the plugin needs anyway.
+The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry whose command is the literal string `mthds-agent codex hook`. The actual validation logic is that subcommand, shipped in the mthds-js npm package. Keeping it there gives a single source of truth across platforms (the Claude bash hook and the Codex subcommand run the same validation stages) and lets the validation logic be versioned with mthds-agent rather than the plugin. `mthds-agent` is already on PATH after `npm install -g mthds`, which every other skill in the plugin needs anyway.
 
 ### Plugin-bundled hooks are opt-in
 
 Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`. The flag is off by default, so `mthds-agent codex apply-config` sets it (along with the sandbox network key). Until the flag is on, the bundled hook simply does not load — the plugin's skill preamble runs `apply-config --check` and, when setup is incomplete, offers to run `apply-config` for the user (preview via `--dry-run`, confirm, apply). Plugin-bundled hook discovery requires Codex 0.130+.
 
-### `mthds-agent validate` still disabled in the Codex sandbox
+### Stage 3 validation in the Codex sandbox (now enabled)
 
-`mthds-agent validate bundle` fetches a remote Pipelex configuration from S3 on startup. The Codex sandbox blocks this network call and the command hangs. Validation itself is local — the remote config is not actually needed for structural checks — so the fix is to make the remote fetch lazy / skippable in `mthds-agent`. Until then, the Codex hook runs only plxt lint + plxt fmt; Claude Code runs all three stages.
+Earlier, `mthds-agent validate bundle` fetched a remote Pipelex configuration on startup; the Codex sandbox blocked that network call and the command hung, so Stage 3 was disabled there. That is resolved. The Codex hook now runs Stage 3 by calling `pipelex-agent validate bundle <file> -L <dir>` directly, and pipelex's `validate bundle` path is **offline-safe** — no gateway or remote-config fetch — so it runs cleanly inside the sandbox. It classifies on the **markdown** error report on stderr (greps `- **error_domain:** …`): block on input-domain (or missing/unknown — default to block for safety), emit `additionalContext` on config/runtime. Both hooks now run all three stages.
 
 ### Sandbox network access
 
@@ -96,7 +96,8 @@ The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is insta
 
 ## What's next
 
-The remaining gaps are upstream-blocked:
+The remaining gap is upstream-blocked:
 
 - **`plugin_hooks` defaults to off.** While it is opt-in, `apply-config` must set it. Once Codex enables plugin hooks by default, that half of `apply-config` becomes unnecessary and the Codex install flow collapses toward the Claude Code shape.
-- **mthds-agent offline-mode validation.** Stage 3 (`mthds-agent validate bundle`) stays disabled in the Codex hook until the eager remote-config fetch is made lazy/skippable, so structural validation can run without network.
+
+(Stage 3 validation in the Codex sandbox — previously listed here as blocked — is now resolved: pipelex's `validate bundle` is offline-safe and the Codex hook runs it directly.)
