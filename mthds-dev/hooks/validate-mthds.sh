@@ -3,8 +3,10 @@
 # Reads tool_input JSON from stdin, then runs (in order):
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
-#   3. mthds-agent validate bundle — semantic validation (blocks on input-domain
-#      errors; emits agent additionalContext for config/runtime errors)
+#   3. mthds-agent validate bundle — semantic validation, lenient
+#      (--allow-signatures: in-progress PipeSignature headers don't block;
+#      blocks on input-domain errors; emits agent additionalContext for
+#      config/runtime errors and for leftover unimplemented signatures)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
 # Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
@@ -86,7 +88,19 @@ if [[ "$FMT_EXIT" -ne 0 ]]; then
 fi
 
 # =====================================================================
-# STAGE 3: mthds-agent validate bundle — semantic validation
+# STAGE 3: mthds-agent validate bundle — semantic validation (lenient)
+# Validated leniently (--allow-signatures): a bundle whose graph reaches
+# PipeSignature headers still passes, so recursive/stepwise builds aren't
+# blocked mid-construction. On a signature-free bundle lenient ≡ strict,
+# so this is a no-op for vibe/build/hand-edits. The strict gate lives in
+# the skill's finalize step + `run` (which always rejects signatures).
+#
+# Two output streams, pinned independently (see mthds-plugins/CLAUDE.md
+# "--format vs --error-format"): --format json puts the SUCCESS envelope
+# as JSON on stdout (so pending_signatures is machine-readable for the
+# nudge below); --error-format markdown keeps the ERROR report as markdown
+# on stderr, so the failure classifier below is byte-for-byte unchanged.
+#
 # Markdown stderr is the canonical agent-facing artifact. BLOCK on
 # input-domain errors (agent fixes the bundle); emit additionalContext
 # for config/runtime errors (agent informed, do not edit the file).
@@ -94,9 +108,29 @@ fi
 PARENT_DIR=$(dirname "$FILE_PATH")
 
 EXIT_CODE=0
-mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
 
 if [[ "$EXIT_CODE" -eq 0 ]]; then
+  # Lenient success. Read pending_signatures from the JSON success envelope
+  # on stdout: the library-wide list of pipes still typed PipeSignature
+  # (empty when complete). Headers persist additively after they're
+  # satisfied, so this field — NOT a grep for "PipeSignature" — is the
+  # source of truth for what remains. If any remain, emit a NON-BLOCKING
+  # additionalContext nudge so the agent implements them before running.
+  PENDING=$(_jv "$(cat "$TMPOUT")" "Array.isArray(d.pending_signatures)?d.pending_signatures.join(', '):''") || PENDING=""
+  if [[ -n "$PENDING" ]]; then
+    node -e '
+      const pending = process.argv[1];
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: "Bundle is valid (lenient). Signatures still unimplemented (PipeSignature placeholders): "
+            + pending
+            + ". They mock their output on dry-run; implement them before running the method for real."
+        }
+      }) + "\n");
+    ' "$PENDING" || true
+  fi
   exit 0
 fi
 

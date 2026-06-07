@@ -68,6 +68,26 @@ def _stub_mthds_agent_validate(bin_dir: Path, stderr_content: str, exit_code: in
     )
 
 
+def _stub_mthds_agent_validate_success(bin_dir: Path, stdout_json: str) -> Path:
+    """Create an mthds-agent stub whose 'validate' prints JSON on stdout and exits 0.
+
+    Models the lenient success envelope (--format json). Records the argv it was
+    invoked with to mthds_agent_args.txt so a test can assert the invocation shape
+    (--allow-signatures, the pinned format streams, -L <library dir>).
+
+    Returns:
+        Path to the args file the stub writes its argv to.
+    """
+    stdout_file = bin_dir / "mthds_agent_stdout.json"
+    stdout_file.write_text(stdout_json)
+    args_file = bin_dir / "mthds_agent_args.txt"
+    _make_stub(
+        bin_dir / "mthds-agent",
+        f'#!/bin/bash\nif [[ "$1" == "validate" ]]; then printf "%s\\n" "$@" > "{args_file}"; cat "{stdout_file}"; exit 0; fi\nexit 0\n',
+    )
+    return args_file
+
+
 class TestHookValidateMthds:
     """Integration tests for the full validate-mthds.sh hook pipeline."""
 
@@ -389,3 +409,119 @@ class TestHookValidateMthds:
         # The truncated markdown body itself should not exceed the cap + the
         # truncation marker — keep a generous upper bound for header + marker.
         assert len(ctx) < 10000
+
+    # --- Stage 3 lenient validation (--allow-signatures) ---
+    # The hook validates leniently so recursive/stepwise builds aren't blocked
+    # mid-construction, and on success reads pending_signatures from the JSON
+    # envelope to emit a non-blocking nudge. Errors stay markdown-on-stderr
+    # (--error-format markdown), so the failure classifier (and its tests
+    # above) are byte-for-byte unchanged.
+
+    def test_validate_invoked_with_allow_signatures_and_library_dir(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """R1/N3: Stage 3 invokes validate leniently against the library dir.
+
+        Proves the template actually passes --allow-signatures, the pinned
+        format streams (--format json / --error-format markdown), and
+        -L <parent>/ — the invocation shape recursive builds depend on, and the
+        granularity that lets a domain-only child member file (D2) validate
+        against the whole assembled library on every save.
+        """
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        args_file = _stub_mthds_agent_validate_success(bin_dir, "{}")
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        recorded = args_file.read_text().splitlines()
+        assert recorded[:3] == ["validate", "bundle", str(mthds_file)]
+        assert "--allow-signatures" in recorded
+        assert "--format" in recorded
+        assert "json" in recorded
+        assert "--error-format" in recorded
+        assert "markdown" in recorded
+        assert "-L" in recorded
+        assert f"{mthds_file.parent}/" in recorded
+
+    def test_signature_free_success_no_nudge(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """R1: signature-free bundle (no pending_signatures key) → no nudge, no stdout.
+
+        Lenient validation of a signature-free bundle is identical to strict:
+        the success envelope carries no pending_signatures, so the hook stays
+        silent exactly as it did before --allow-signatures was added.
+        """
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps({"success": True, "validated_pipes": ["foo"], "total_pipes": 1})
+        _stub_mthds_agent_validate_success(bin_dir, envelope)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_input_domain_still_blocks_under_lenient_flags(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """R2: input-domain error → STILL blocks with the trimmed markdown reason.
+
+        --error-format markdown keeps the error report as markdown-on-stderr
+        even though --format json governs the success envelope (decision D3,
+        confirmed empirically in Phase 0), so the failure classifier is intact.
+        """
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        markdown = (
+            "# Error: ValidateBundleError\n"
+            "\n"
+            "Bundle depends on PipeSignature placeholders; re-run with `--allow-signatures`.\n"
+            "\n"
+            "## Details\n"
+            "\n"
+            "- **error_domain:** input\n"
+        )
+        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert parsed["decision"] == "block"
+        assert "ValidateBundleError" in parsed["reason"]
+        assert str(mthds_file) in parsed["reason"]
+
+    def test_config_domain_still_emits_additional_context_under_lenient_flags(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """R3: config/runtime-domain error → STILL emits additionalContext, does not block."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        markdown = "# Error: TelemetryConfigValidationError\n\nbad config\n\n## Details\n\n- **error_domain:** config\n"
+        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert "decision" not in parsed
+        assert "config domain" in parsed["hookSpecificOutput"]["additionalContext"]
+        assert "domain=config" in result.stderr
+
+    def test_pending_signatures_emit_nudge(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """N1: leftover signatures → non-blocking additionalContext listing them."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps(
+            {
+                "success": True,
+                "pending_signatures": ["research_brief.find_key_findings", "research_brief.assemble_brief"],
+            }
+        )
+        _stub_mthds_agent_validate_success(bin_dir, envelope)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert "decision" not in parsed  # non-blocking
+        hook_output = parsed["hookSpecificOutput"]
+        assert hook_output["hookEventName"] == "PostToolUse"
+        ctx = hook_output["additionalContext"]
+        assert "find_key_findings" in ctx
+        assert "assemble_brief" in ctx
+
+    def test_empty_pending_signatures_no_nudge(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """N2: complete bundle (pending_signatures == []) → no nudge, no stdout."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps({"success": True, "pending_signatures": []})
+        _stub_mthds_agent_validate_success(bin_dir, envelope)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        assert result.stdout == ""

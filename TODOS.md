@@ -99,29 +99,49 @@ Record before continuing (filled 2026-06-07):
 
 Design refs: §5.1, §5.2. This is independent of the skill rewrite and is the smallest shippable unit. Do it first.
 
-- [ ] **1.1 — Unblock.** Add `--allow-signatures` to the Stage 3 `validate bundle` call in `templates/hooks/validate-mthds.sh.j2` (line ~97). Rationale: on a signature-free bundle, lenient ≡ strict, so this is a no-op for vibe/build/hand-edits and unblocks recursive saves. The strict gate moves to the skill's explicit finalize step + `run`.
-- [ ] **1.2 — Leftover-signature nudge (success path).** Per **decision D3** (Phase 0 confirmed the single-invocation path): Stage 3 uses **one** invocation with both format streams pinned — `... -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown`. `--error-format markdown` keeps errors as markdown-on-stderr so the existing classifier (lines 108–155) is **byte-for-byte untouched** (no two-invocation fallback); `--format json` puts the success envelope as JSON on stdout. On lenient success (currently the hook `exit 0`s at line ~100 without reading stdout), parse the `pending_signatures` array from validate's JSON stdout via the hook's existing `node` `_jv` helper (do **not** `grep -q '"PipeSignature"'` — headers persist additively after they're satisfied, so a grep false-positives; do **not** scrape the markdown section). If non-empty, emit a **non-blocking** `hookSpecificOutput.additionalContext` note listing them ("signatures remain — implement before running").
-- [ ] **1.3 — Regenerate.** `make build`; confirm the change appears in both `mthds/hooks/validate-mthds.sh` and `mthds-dev/hooks/validate-mthds.sh` (the dev target feeds the Docker integration tests).
+- [x] **1.1 — Unblock.** Add `--allow-signatures` to the Stage 3 `validate bundle` call in `templates/hooks/validate-mthds.sh.j2` (line ~97). Rationale: on a signature-free bundle, lenient ≡ strict, so this is a no-op for vibe/build/hand-edits and unblocks recursive saves. The strict gate moves to the skill's explicit finalize step + `run`.
+- [x] **1.2 — Leftover-signature nudge (success path).** Per **decision D3** (Phase 0 confirmed the single-invocation path): Stage 3 uses **one** invocation with both format streams pinned — `... -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown`. `--error-format markdown` keeps errors as markdown-on-stderr so the existing classifier (lines 108–155) is **byte-for-byte untouched** (no two-invocation fallback); `--format json` puts the success envelope as JSON on stdout. On lenient success (currently the hook `exit 0`s at line ~100 without reading stdout), parse the `pending_signatures` array from validate's JSON stdout via the hook's existing `node` `_jv` helper (do **not** `grep -q '"PipeSignature"'` — headers persist additively after they're satisfied, so a grep false-positives; do **not** scrape the markdown section). If non-empty, emit a **non-blocking** `hookSpecificOutput.additionalContext` note listing them ("signatures remain — implement before running").
+- [x] **1.3 — Regenerate.** `make build`; confirm the change appears in both `mthds/hooks/validate-mthds.sh` and `mthds-dev/hooks/validate-mthds.sh` (the dev target feeds the Docker integration tests).
 
 ### ⛔ CHECKPOINT 1 — hook is lenient + safe (HARD STOP)
 
 This is a clean, independently-shippable boundary. Verify thoroughly before moving on.
 
 Verification:
-- [ ] `make build && make agent-test` (silent on success) — the unit suite.
-- [ ] **internal-tools integration suite** (the safety net for the hook/install system): `make build && make agent-test` per the integration-test rule; if Docker is off, ask the user to start it — do not skip.
-- [ ] Manual: saving a signature-containing `.mthds` is **not** blocked; saving a signature-free bundle behaves **exactly** as before (same block/warn behavior). A bundle with leftover signatures surfaces the non-blocking nudge.
-- [ ] **Regression tests (IRON RULE — mandatory, the Stage 3 invocation change can silently break the existing classifier):**
-      - **R1** signature-free bundle under `--allow-signatures --format json` → byte-identical block/warn/pass vs today.
-      - **R2** input-domain error under the new flags → STILL blocks with the trimmed markdown reason (the Phase 0 error-routing confirm, hardened into a test).
-      - **R3** config/runtime-domain error under the new flags → STILL emits `additionalContext`, does not block.
-- [ ] **New-path tests:** N1 leftover signatures → nudge lists them; N2 complete bundle (empty `pending_signatures`) → **no** nudge (no false reminder); N3 child member file (domain-only) saved → hook validates the library cleanly (automated form of the D2 Phase 0 check).
+- [x] `make build && make agent-test` (silent on success) — the unit suite. → green; also `make check` (freshness + ruff + pyright + marketplace) all pass.
+- [x] **internal-tools integration suite** (the safety net for the hook/install system): `make build && make agent-test` per the integration-test rule; if Docker is off, ask the user to start it — do not skip. → **PASS (2026-06-08, Docker up).** Ran `make -C ../internal-tools build` (both images `internal-tools-fresh-install` + `internal-tools-upgrade-from-old` built, exit 0) then `make -C ../internal-tools agent-test`: **`# ALL integration test scripts passed`** for *both* the fresh-install and upgrade-from-old scenarios, exit 0. (Benign orphan-container warnings for `cac-carol-dev`/`cac-nelly` from unrelated harnesses — not this suite.) The suite installs the **dev**-target hook into the container, so this exact `--allow-signatures` change was exercised.
+- [x] Manual: saving a signature-containing `.mthds` is **not** blocked; saving a signature-free bundle behaves **exactly** as before (same block/warn behavior). A bundle with leftover signatures surfaces the non-blocking nudge. → Done with the **real** toolchain (mthds-agent 0.9.0 → editable `_recursive` pipelex) against `/tmp/mthds-smoke/lib/` (signatures) and `/tmp/mthds-free/lib/` (signature-free). See record below.
+- [x] **Regression tests (IRON RULE — mandatory, the Stage 3 invocation change can silently break the existing classifier):**
+      - **R1** signature-free bundle under `--allow-signatures --format json` → byte-identical block/warn/pass vs today. → `test_signature_free_success_no_nudge` (+ real-CLI TEST C silent pass); existing success/block/warn tests still green under the new flags.
+      - **R2** input-domain error under the new flags → STILL blocks with the trimmed markdown reason (the Phase 0 error-routing confirm, hardened into a test). → `test_input_domain_still_blocks_under_lenient_flags` (+ real-CLI: a wrong-field bundle blocked with `error_domain: input`).
+      - **R3** config/runtime-domain error under the new flags → STILL emits `additionalContext`, does not block. → `test_config_domain_still_emits_additional_context_under_lenient_flags`.
+- [x] **New-path tests:** N1 leftover signatures → nudge lists them; N2 complete bundle (empty `pending_signatures`) → **no** nudge (no false reminder); N3 child member file (domain-only) saved → hook validates the library cleanly (automated form of the D2 Phase 0 check). → `test_pending_signatures_emit_nudge` (N1), `test_empty_pending_signatures_no_nudge` (N2), `test_validate_invoked_with_allow_signatures_and_library_dir` + real-CLI TEST A on the domain-only child (N3/D2).
 
-Record before continuing:
-- Final Stage 3 invocation line (verbatim): _______
-- How the success-path nudge reads `pending_signatures` (flag, parse path): _______
-- Integration-test result (pass/fail + any flake notes): _______
-- Anything about hook timeout / per-file whole-library validation cost worth knowing: _______
+Record before continuing (filled 2026-06-07):
+
+- **Final Stage 3 invocation line (verbatim):**
+  ```bash
+  mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+  ```
+  (`templates/hooks/validate-mthds.sh.j2` line ~111; renders identically into both `mthds/hooks/validate-mthds.sh` and `mthds-dev/hooks/validate-mthds.sh` — the prod/dev difference is only the install-command strings, none of which live in Stage 3.) The failure-path classifier (the `sed`/`error_domain` block) is **byte-for-byte unchanged**.
+
+- **How the success-path nudge reads `pending_signatures` (flag, parse path):** On `EXIT_CODE -eq 0`, before the `exit 0`, read the success envelope from JSON **stdout** (`$TMPOUT`) via the hook's existing `_jv` node helper:
+  ```bash
+  PENDING=$(_jv "$(cat "$TMPOUT")" "Array.isArray(d.pending_signatures)?d.pending_signatures.join(', '):''") || PENDING=""
+  ```
+  Empty array, missing key, or unparseable stdout all yield `PENDING=""` → no nudge (verified in isolation). If non-empty, a dedicated `node -e` emits a **non-blocking** `hookSpecificOutput.additionalContext` (no `decision`) listing the codes: *"Bundle is valid (lenient). Signatures still unimplemented (PipeSignature placeholders): &lt;list&gt;. They mock their output on dry-run; implement them before running the method for real."* `|| true` / `|| PENDING=""` guards keep `set -e` from turning a nudge-formatting hiccup into a non-zero hook exit. Uses the field directly — **not** a `grep -q '"PipeSignature"'` (headers persist additively after they're satisfied, so a grep false-positives).
+
+- **Tests added** (`tests/integration/test_hook_validate_mthds.py`, in the existing `TestHookValidateMthds` class; new helper `_stub_mthds_agent_validate_success` returns a JSON-stdout success stub that also records its argv): `test_validate_invoked_with_allow_signatures_and_library_dir` (R1 invocation shape / N3 — asserts `--allow-signatures`, both format flags, and `-L <parent>/` are passed), `test_signature_free_success_no_nudge` (R1), `test_input_domain_still_blocks_under_lenient_flags` (R2), `test_config_domain_still_emits_additional_context_under_lenient_flags` (R3), `test_pending_signatures_emit_nudge` (N1), `test_empty_pending_signatures_no_nudge` (N2). **Full `make agent-test` green** (26 hook tests + the rest of the unit suite). `make check` green (freshness, ruff, pyright, marketplace).
+
+- **Real-CLI manual results** (the stub suite can't exercise the actual CLI under the new flags — this does): mthds-agent 0.9.0 → editable `_recursive` pipelex (still version string `0.31.0`).
+  - TEST A — saving the **domain-only child** `make_brief.mthds` (no `main_pipe`, the D2 case): exit 0, **non-blocking** nudge `"… smoke_test.polish_brief, smoke_test.write_draft …"`. Confirms the hook validating a child save works end-to-end and the nudge reads `pending_signatures` from the real JSON envelope.
+  - TEST B — saving the **root** `bundle.mthds`: exit 0, same nudge. Both A and B emit `hookSpecificOutput.additionalContext`, neither emits `decision:block`.
+  - TEST C — a **signature-free** valid `PipeLLM` bundle: exit 0, **zero** stdout bytes → silent, exactly as before `--allow-signatures`.
+  - Incidental R2 (real CLI): a bundle with a wrong field (`prompt_template`) returned `{"decision":"block", reason: "# Error: ValidateBundleError … - **error_domain:** input …"}` under the new flags → confirms errors still arrive as **markdown on stderr** and the classifier still blocks (decision D3 / Phase-0 R3 residual now confirmed empirically through the rendered hook).
+
+- **Integration-test result (pass/fail + any flake notes):** plugin's own pytest integration suite (`tests/integration/test_hook_validate_mthds.py`, bash-stub based, no Docker) — **all pass, no flakes**. **internal-tools Docker suite (2026-06-08): PASS** — `make -C ../internal-tools build` (both images built, exit 0) then `make -C ../internal-tools agent-test` → `# ALL integration test scripts passed` for both fresh-install and upgrade-from-old, exit 0. No flakes; only benign orphan-container warnings (`cac-carol-dev`/`cac-nelly`, unrelated harnesses). All CHECKPOINT 1 gates green.
+
+- **Anything about hook timeout / per-file whole-library validation cost worth knowing:** The hook validates the **whole assembled library** (`-L "$PARENT_DIR/"`) on every per-file save, so cost scales with library size, not the edited file — inherent to the multi-file model and unchanged by this phase (`--allow-signatures` adds only a cheap signature pre-pass). On the small smoke library each real `mthds-agent validate` ran sub-second; no timeout concern observed. The pytest integration harness caps each hook run at 30 s (`timeout=30` in `_run_hook`) and the full file ran in ~16 s across all 26 stub tests. Watch this at Phase 6 dogfood on a genuinely large multi-layer library, where per-save whole-library validation latency could become noticeable.
 
 ---
 
@@ -271,7 +291,8 @@ Record before shipping:
 
 ## Files touched (running map — fill as you edit)
 
-- `templates/hooks/validate-mthds.sh.j2` — _______
+- `templates/hooks/validate-mthds.sh.j2` — ✅ Phase 1: Stage 3 now `--allow-signatures --format json --error-format markdown`; added success-path `pending_signatures` nudge (non-blocking `additionalContext`). Header comments updated. Regenerated into `mthds/hooks/validate-mthds.sh` + `mthds-dev/hooks/validate-mthds.sh`.
+- `tests/integration/test_hook_validate_mthds.py` — ✅ Phase 1: added `_stub_mthds_agent_validate_success` helper + 6 tests (R1/R2/R3 regression, N1/N2/N3 new-path).
 - `templates/skills/mthds-vibe/SKILL.md.j2` — _______
 - `skills/mthds-vibe/references/vibe-cheat-sheet.md` — _______
 - `templates/skills/shared/mthds-agent-guide.md.j2` — _______
