@@ -36,6 +36,21 @@ Non-root definition files carry only `domain = "<same_domain>"` (membership), om
 
 **Shipped** on `feature/Support-recursive-design` (commit `aadf86d5`): a shared `merge_domain_metadata_field` helper, wired from both `LibraryCrateFactory.make_from_blueprints` and `DomainLibrary.add_domain`, merges order-independently and treats an omitted field as "no opinion" (warns only on two genuinely different non-empty values). Non-root files can now carry only `domain = "..."` with no warnings, and the root's header always wins. Full record: `_recursive/HANDOFF-domain-metadata-merge.md`.
 
+## Fan-out / parallel signature expansion + the `agents/` plugin component (deferred to follow-up)
+
+Decided during the eng review of [recursive/design.md](recursive/design.md) (2026-06-07, decision D1). The recursive builder's parallel fan-out — the dedicated `mthds-signature-expander` worker spawned per pending signature on a multi-signature layer (design.md §4.4) — is **deferred to a follow-up PR**. v1 runs the layer loop **inline/serial on both targets** (Claude and Codex); correctness is identical, only per-layer parallelism and per-signature context isolation are dropped.
+
+What's deferred with it (the whole of the original Phase 3):
+
+- The `mthds-signature-expander` worker agent (`templates/agents/mthds-signature-expander.md.j2`) and the `expand-signature` shared partial (`templates/skills/shared/expand-signature.md.j2`) — in v1 the expansion instructions live **inline** in the skill's Step 2 (single consumer; a shared partial would be premature abstraction).
+- The build-system support for a new `agents/` component class: `scripts/gen_skill_docs.py` (`AGENT_TEMPLATES` + a per-platform gate mirroring `HOOK_TEMPLATES_BY_PLATFORM`), `scripts/check.py` (a no-`agents/`-in-Codex guard), and the freshness/orphan scanning for `agents/`.
+- The **open auto-discovery question**: does Claude Code auto-discover a plugin's `agents/` directory, or is a `plugin.json`/manifest field required? This is unanswered and is one reason the fan-out chunk was pulled out of v1.
+
+Why deferred: it is the single most novel/risky piece of the project (a component class the build system has never emitted), it carries the unanswered auto-discovery question, and the design itself already gates it behind `{% if platform != "codex" %}` — so re-introducing it later is a localized template change. Ship the correct recursive loop first; add parallelism as a fast-follow once real builds show whether per-signature context isolation matters.
+
+When fan-out lands, also re-introduce the parallel-worker concept-collision handling (the section above) — serial v1 prevents collisions up front (check-before-introduce; design.md §4.4 / decision D5), which does not cover concurrent siblings.
+
 ## Related
 
 - [revisit-vibe-scope-limits.md](revisit-vibe-scope-limits.md) — deferred decision on lifting vibe's `dict` / `PipeStructure` scope limits.
+- [recursive/eval-harness.md](recursive/eval-harness.md) — deferred skill-behavior eval harness (decision D7); v1 ships dogfood-only.
