@@ -20,6 +20,16 @@ Later, consider **true substitutability (LSP)** instead of exact match:
 
 Why deferred: substitutability needs the resolved concept-refinement graph, which doesn't exist at the blueprint-level merge — so it would have to move to a post-instantiation validation pass. Exact match is conservative (only rejects, never wrongly accepts) and machine-generated builds emit identical spelling, so it doesn't bite the recursive flow. Revisit if hand-authored multi-file libraries need refinement-compatible swaps. Full rationale: the "Contract conformance" section of `_recursive/TODOS.md`.
 
+> Note: the *raw-string → normalized* upgrade of the contract check (bare↔qualified, native, structural multiplicity — identity, not refinement) has **shipped** (`_recursive/HANDOFF-recursive-followups.md` Task 2). Only the refinement-aware substitutability above stays deferred.
+
+## Concept-name collisions across parallel workers (deferred — observe first)
+
+Part A reconciles a pipe *signature* with its *concrete* (the C-header model), so parallel workers adding pipe **definition** files never collide on pipe codes. But **intermediate concepts** have no signature form: two sibling workers in the same fan-out layer, each expanding a controller, can independently introduce an intermediate concept with the same code in the same domain → a hard `ConceptLibraryError` at the layer's lenient validation (design.md §4.4 "Contract & collisions").
+
+The additive model can't cheaply recover by renaming — that means editing already-written files and every reference, the very thing additive avoids. Candidate fixes (none chosen): the orchestrator **pre-allocates** concept namespaces/prefixes per worker before dispatch; workers derive concept codes deterministically from their own pipe code; or a concept-level reconciliation for byte-identical declarations.
+
+**Deferred on purpose:** the user wants to **see the collision happen in a real recursive build first**, to design the right fix against an actual case rather than speculatively. Until then the hard `ConceptLibraryError` is the loud, safe backstop.
+
 ## Related
 
 - [revisit-vibe-scope-limits.md](revisit-vibe-scope-limits.md) — deferred decision on lifting vibe's `dict` / `PipeStructure` scope limits.
