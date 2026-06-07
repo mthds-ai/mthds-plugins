@@ -101,6 +101,31 @@ The dev target overrides install commands to use local container paths for CCC t
 - **Marketplace version**: `.claude-plugin/marketplace.json metadata.version` — independent, bumped on any release.
 - **min_mthds_version**: `targets/defaults.toml [vars].min_mthds_version` — shared across all targets, overridable per target.
 
+## Local development with Claude Code
+
+To dogfood local changes instead of the published GitHub plugin, point the `mthds-plugins` marketplace at this checkout. By default that marketplace is registered from `mthds-ai/mthds-plugins` (GitHub), so a session runs the *published* prod plugin, not your edits.
+
+**One-time setup** — run inside Claude Code, replacing the path with the absolute path to this checkout (the directory containing this file). Removing a marketplace uninstalls its plugins, and re-adding does not auto-reinstall them, so the `install` step is required:
+
+```
+/plugin marketplace remove mthds-plugins
+/plugin marketplace add /absolute/path/to/mthds-plugins
+/plugin install mthds@mthds-plugins
+/reload-plugins
+```
+
+The `mthds` plugin now resolves from `./mthds` (the prod output) in this repo, and every new session uses local automatically. To switch back to the published version: `/plugin marketplace remove mthds-plugins`, then `/plugin marketplace add mthds-ai/mthds-plugins`, then `/plugin install mthds@mthds-plugins`.
+
+**Iteration loop** — after editing any `.j2` template or `targets/*.toml`:
+
+1. `make build` — regenerate the `mthds/` output from templates (see Editing workflow above)
+2. `/reload-plugins` (in Claude Code) — pick up the rebuilt skills and hooks without restarting
+
+Notes:
+- The marketplace serves the **prod** output (`mthds/`). The `mthds-dev/` output uses container install paths and is only consumed by the `internal-tools` Docker integration tests — don't install it on your host.
+- The plugin and the `mthds-agent` CLI it shells out to are decoupled: the plugin calls whatever `mthds-agent` is on PATH. To test against a local CLI build, `npm install -g ../mthds-js` (or `npm link`).
+- A session-only alternative that leaves your global config untouched: `claude --plugin-dir /absolute/path/to/mthds-plugins/mthds`. Same plugin name, so the local copy shadows the installed one for that session; iterate with `make build` + `/reload-plugins`.
+
 ## PostToolUse Hook
 
 Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape, and both hooks ship inside the plugin.
