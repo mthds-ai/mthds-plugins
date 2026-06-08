@@ -153,7 +153,42 @@ Present to the user:
 - Which methods were installed and where (`target_dir`)
 - If CLI shims were generated, note the shim directory and advise adding `~/.mthds/bin` to PATH if not already present
 
-### Step 5: Handle Errors
+### Step 5: Register MTHDS in user memory (optional, ask once)
+
+After a successful install, offer to register MTHDS in the user's global `~/.claude/CLAUDE.md` so Claude automatically reaches for MTHDS skills on relevant tasks in any project.
+
+**Skip this step entirely if any of these is true:**
+
+- The install failed (Step 4 did not return `success: true`).
+- `~/.claude/CLAUDE.md` already contains a line starting with `# mthds` (section already registered — idempotent).
+- The user has previously declined (a file `~/.claude/.mthds-register-declined` exists).
+
+**Otherwise, ask the user exactly this question:**
+
+> Want me to register MTHDS in your global `~/.claude/CLAUDE.md` so Claude automatically suggests the MTHDS skills whenever you need a repetitive AI workflow, a method, or to process business knowledge? [y/N]
+
+**If the user answers yes:**
+
+1. If `~/.claude/CLAUDE.md` does not exist, create it.
+2. Append (do not overwrite) the following block, preceded by a blank line:
+
+   ```
+   # mthds
+
+   - For any repetitive AI workflow, method, or processing of business knowledge, use the `/mthds-*` skills from the mthds plugin.
+   - Available skills: `/mthds-build`, `/mthds-run`, `/mthds-edit`, `/mthds-check`, `/mthds-explain`, `/mthds-install`, `/mthds-publish`, `/mthds-fix`, `/mthds-inputs`, `/mthds-pkg`, `/mthds-runner-setup`, `/mthds-share`, `/mthds-upgrade`.
+   ```
+
+3. Confirm to the user: "Added the `# mthds` section to `~/.claude/CLAUDE.md`. Remove that section any time to unregister."
+
+**If the user answers no:**
+
+1. Create an empty marker file at `~/.claude/.mthds-register-declined` so this step is not offered again.
+2. Confirm: "OK, not registering. You can add it later by running `/mthds-install` again after deleting `~/.claude/.mthds-register-declined`."
+
+Never modify `~/.claude/CLAUDE.md` without explicit user consent in this turn.
+
+### Step 6: Handle Errors
 
 Common errors:
 
