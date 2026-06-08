@@ -50,6 +50,14 @@ Why deferred: it is the single most novel/risky piece of the project (a componen
 
 When fan-out lands, also re-introduce the parallel-worker concept-collision handling (the section above) — serial v1 prevents collisions up front (check-before-introduce; design.md §4.4 / decision D5), which does not cover concurrent siblings.
 
+## Codex hook leftover-signature nudge (deferred to follow-up)
+
+The Claude bash hook emits a **non-blocking** `additionalContext` nudge on a lenient-valid save that still has unimplemented signatures, listing the `pending_signatures` (Phase 1.2). The Codex hook (`mthds-agent codex hook` in `mthds-js/src/agent/commands/codex-hook.ts`) ships only `--allow-signatures` for v1 (Phase 5.1) — **no equivalent nudge**.
+
+Why deferred: the Codex hook only inspects validate output **on failure** and reads errors as **markdown on stderr**, which `classifyStage3Result()` greps. Adding a success-path `pending_signatures` note means reading the **success** envelope, which requires `--format json` — and on the pipelex CLI `--format` *inherits into* `--error-format` unless `--error-format markdown` is also pinned, so it re-opens the exact error-format coupling the Claude side had to solve (the two-stream pinning, mthds-plugins CLAUDE.md §"`--format` vs `--error-format`"). For v1 it's not worth that risk: the orchestrator skill tracks `pending_signatures` itself, so the nudge is redundant guidance, not a correctness gate.
+
+When picked up: mirror the Claude approach — pass `--allow-signatures --format json --error-format markdown` in `runPipelexValidate`, parse `pending_signatures` from the JSON success stdout, and emit a non-blocking `additionalContext` listing them (no `decision`). The `classifyStage3Result()` markdown-on-stderr path stays unchanged because `--error-format markdown` is pinned. Extend `codex-hook.test.ts` (the DI `runPipelexValidate` mock would need to return stdout too).
+
 ## Related
 
 - [revisit-vibe-scope-limits.md](revisit-vibe-scope-limits.md) — deferred decision on lifting vibe's `dict` / `PipeStructure` scope limits.
