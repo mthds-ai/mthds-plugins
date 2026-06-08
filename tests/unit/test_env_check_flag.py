@@ -51,6 +51,10 @@ def _render(skill: str, *, env_check: bool) -> str:
     return template.render(**{**_default_vars(), "env_check": env_check})
 
 
+def _render_doc(rel_path: str, *, env_check: bool) -> str:
+    return _env().get_template(rel_path).render(**{**_default_vars(), "env_check": env_check})
+
+
 class TestEnvCheckFlag:
     def test_default_is_true(self) -> None:
         assert _default_vars()["env_check"] is True
@@ -77,34 +81,55 @@ class TestEnvCheckFlag:
         assert "### Step 2: Identify the Target" in rendered_off
         assert "\n\n\n\n" not in rendered_off  # no run of blank lines from the cut
 
-    def test_off_omits_preamble_and_session_hook_artifacts(self) -> None:
+    def test_off_omits_preamble_session_hook_and_upgrade_flow(self) -> None:
         # Gating the in-skill sections is not enough: env_check = false must also
-        # stop emitting the standalone preamble doc and the doctor/version
-        # session hook, which would otherwise ship as dead, contradictory files.
+        # stop emitting the standalone env-check artifacts — the preamble doc, the
+        # doctor/version session hook, and the (now-orphaned) upgrade-flow doc —
+        # which would otherwise ship as dead, contradictory files.
         base_vars = cast("dict[str, str | bool]", _default_vars())
         rendered_on = render_templates(TEMPLATES_DIR, REPO_ROOT, {**base_vars, "env_check": True})
         rendered_off = render_templates(TEMPLATES_DIR, REPO_ROOT, {**base_vars, "env_check": False})
         on_paths = {path.as_posix() for path in rendered_on}
         off_paths = {path.as_posix() for path in rendered_off}
 
-        preamble = (REPO_ROOT / "skills" / "shared" / "preamble.md").as_posix()
-        session_hook = (REPO_ROOT / "hooks" / "session-start.sh").as_posix()
+        artifacts = [
+            (REPO_ROOT / "skills" / "shared" / "preamble.md").as_posix(),
+            (REPO_ROOT / "hooks" / "session-start.sh").as_posix(),
+            (REPO_ROOT / "skills" / "shared" / "upgrade-flow.md").as_posix(),
+        ]
+        for artifact in artifacts:
+            assert artifact in on_paths, f"{artifact} should be present when env_check=true"
+            assert artifact not in off_paths, f"{artifact} must be omitted when env_check=false"
 
-        assert preamble in on_paths
-        assert session_hook in on_paths
-        assert preamble not in off_paths
-        assert session_hook not in off_paths
+    def test_off_strips_bootstrap_prereqs_from_guide(self) -> None:
+        # A pre-provisioned target must not be told to bootstrap/verify the
+        # toolchain in the shared CLI guide.
+        on = _render_doc("skills/shared/mthds-agent-guide.md.j2", env_check=True)
+        off = _render_doc("skills/shared/mthds-agent-guide.md.j2", env_check=False)
+        for marker in ["## IMPORTANT PREREQUISITES", "mthds-agent bootstrap"]:
+            assert marker in on, f"guide: {marker!r} expected when on"
+            assert marker not in off, f"guide: {marker!r} must be gated when off"
 
-    def test_off_omits_env_check_binary(self, tmp_path: Path) -> None:
-        # The env-check binary is unused once the sections are gated out, so a
-        # env_check = false target must not ship it — while keeping other bin/ files.
+    def test_off_rewords_vibe_env_check_prerequisite(self) -> None:
+        # mthds-vibe must not gate bundle authoring on an env check that does not
+        # exist in a env_check=false target.
+        on = _render("mthds-vibe", env_check=True)
+        off = _render("mthds-vibe", env_check=False)
+        assert "until the environment check passes" in on
+        assert "until the environment check passes" not in off
+        assert "Do not write `.mthds` files manually" in off
+
+    def test_off_omits_bin_directory(self, tmp_path: Path) -> None:
+        # bin/ only holds the self-install script (which would install the wrong
+        # plugin target) and the env-check binary, so a locked-down target gets no
+        # bin/ at all — while an env_check = true target keeps it.
         out_off = tmp_path / "off"
         out_off.mkdir()
         setup_static_assets(REPO_ROOT, out_off, TEMPLATES_DIR, None, env_check=False)
-        assert not (out_off / "bin" / "mthds-env-check").exists()
-        assert (out_off / "bin" / "install.sh").is_file()
+        assert not (out_off / "bin").exists()
 
         out_on = tmp_path / "on"
         out_on.mkdir()
         setup_static_assets(REPO_ROOT, out_on, TEMPLATES_DIR, None, env_check=True)
         assert (out_on / "bin" / "mthds-env-check").is_file()
+        assert (out_on / "bin" / "install.sh").is_file()

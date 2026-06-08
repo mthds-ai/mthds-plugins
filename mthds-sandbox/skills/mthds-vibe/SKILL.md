@@ -29,9 +29,9 @@ This skill covers:
 
 ---
 
-Do not write `.mthds` files until the environment check passes. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
+Do not write `.mthds` files manually. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
 
-> **No backend setup needed**: This skill works without inference backends or API keys. Building and validating a `.mthds` file does not require running it. Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.
+> **No backend setup needed**: This skill works without inference backends or API keys. Building and validating a `.mthds` file does not require running it.
 
 ---
 

@@ -87,13 +87,19 @@ EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 # Artifacts that only make sense when env_check is enabled. A target that sets
 # env_check = false (a pre-provisioned, locked-down environment where the agent
 # must never check/upgrade the toolchain) must not emit the env-check preamble,
-# the env-check binary, or the version/doctor session hook at all — gating the
-# in-skill sections is not enough; these standalone files would otherwise ship
-# as dead, contradictory weight. Targets with env_check = true (prod/dev/codex)
-# are unaffected.
-ENV_CHECK_SHARED_TEMPLATES = frozenset({"skills/shared/preamble.md.j2"})
+# the upgrade-flow reference, the version/doctor session hook, or the bin/
+# directory (self-install script + env-check binary) at all — gating the in-skill
+# sections is not enough; these standalone files would otherwise ship as dead,
+# contradictory weight. Targets with env_check = true (prod/dev/codex) are
+# unaffected. The whole bin/ directory is omitted (a locked-down target self-
+# installs nothing, so its install.sh would install the WRONG plugin target).
+ENV_CHECK_SHARED_TEMPLATES = frozenset(
+    {
+        "skills/shared/preamble.md.j2",
+        "skills/shared/upgrade-flow.md.j2",
+    }
+)
 ENV_CHECK_HOOK_TEMPLATES = frozenset({"hooks/session-start.sh.j2"})
-ENV_CHECK_BIN_FILES = frozenset({"mthds-env-check"})
 
 
 @dataclass
@@ -350,19 +356,14 @@ def setup_static_assets(
     single plugin subdir (Codex's local marketplace, Claude's local plugin
     install) cannot follow symlinks pointing to siblings of the plugin root.
 
-    env_check = false targets do not get the env-check binary: it is unused
-    once the env-check sections are gated out, and shipping it in a locked-down
-    sandbox is dead, contradictory weight.
+    env_check = false targets get no bin/ at all: it only holds the self-install
+    script (which would install the WRONG plugin target in a locked-down sandbox)
+    and the env-check binary (unused once the env-check sections are gated out).
     """
     bin_src = base_dir / "bin"
     bin_dst = output_dir / "bin"
-    if bin_src.is_dir():
+    if bin_src.is_dir() and env_check:
         _refresh_copy(bin_src, bin_dst)
-        if not env_check:
-            for bin_name in ENV_CHECK_BIN_FILES:
-                gated_bin = bin_dst / bin_name
-                if gated_bin.is_file():
-                    gated_bin.unlink()
 
     if include_skills is not None:
         skill_names = include_skills

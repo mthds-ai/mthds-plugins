@@ -36,6 +36,15 @@ def _render(skill: str, *, can_run_methods: bool) -> str:
     return template.render(**{**_default_vars(), "can_run_methods": can_run_methods})
 
 
+def _render_doc(rel_path: str, *, can_run_methods: bool) -> str:
+    env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), keep_trailing_newline=True)
+    return env.get_template(rel_path).render(**{**_default_vars(), "can_run_methods": can_run_methods})
+
+
+# Skills that carry the "No backend setup needed → /mthds-runner-setup" pointer.
+RUNNER_SETUP_SKILLS = ["mthds-build", "mthds-check", "mthds-edit", "mthds-explain", "mthds-inputs", "mthds-fix", "mthds-vibe"]
+
+
 class TestCanRunMethodsFlag:
     def test_default_is_true(self) -> None:
         assert _default_vars()["can_run_methods"] is True
@@ -60,3 +69,35 @@ class TestCanRunMethodsFlag:
         off = _render("mthds-build", can_run_methods=False)
         assert "Input schema" in off
         assert "NEVER write `inputs.json` manually" in off
+
+    def test_off_strips_run_content_from_shared_guide(self) -> None:
+        # The shared CLI guide must not instruct a can_run_methods=false target to
+        # set up runners, run methods, or pipe their output.
+        on = _render_doc("skills/shared/mthds-agent-guide.md.j2", can_run_methods=True)
+        off = _render_doc("skills/shared/mthds-agent-guide.md.j2", can_run_methods=False)
+        for marker in ["### Runner Setup", "mthds-agent run bundle", "## Piping Methods", "## Inputs"]:
+            assert marker in on, f"guide: {marker!r} expected when on"
+            assert marker not in off, f"guide: {marker!r} must be gated when off"
+
+    def test_off_strips_run_recovery_from_error_handling(self) -> None:
+        # Error recovery that runs methods / configures runners only applies when
+        # the target can run — gate it so the sandbox never follows it.
+        on = _render_doc("skills/shared/error-handling.md.j2", can_run_methods=True)
+        off = _render_doc("skills/shared/error-handling.md.j2", can_run_methods=False)
+        for marker in ["/mthds-runner-setup", "mthds-agent doctor", "mthds-agent run bundle"]:
+            assert marker in on, f"error-handling: {marker!r} expected when on"
+            assert marker not in off, f"error-handling: {marker!r} must be gated when off"
+
+    @pytest.mark.parametrize("skill", RUNNER_SETUP_SKILLS)
+    def test_off_drops_runner_setup_pointer(self, skill: str) -> None:
+        # The "No backend setup needed" blockquote points at /mthds-runner-setup,
+        # which is not part of a can_run_methods=false surface.
+        assert "/mthds-runner-setup" in _render(skill, can_run_methods=True), f"{skill} expected the pointer when on"
+        assert "/mthds-runner-setup" not in _render(skill, can_run_methods=False), f"{skill} must drop the pointer when off"
+
+    def test_off_fixes_inputs_image_anchor(self) -> None:
+        # The Image Generation section is gated out, so its in-page link must go
+        # too (else a broken anchor) — while the Document Generation link stays.
+        off = _render("mthds-inputs", can_run_methods=False)
+        assert "(#image-generation)" not in off
+        assert "(#document-generation)" in off

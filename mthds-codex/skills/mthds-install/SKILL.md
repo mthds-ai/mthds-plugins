@@ -164,7 +164,7 @@ After a successful install, offer to register MTHDS in the user's global `~/.cla
 **Skip this step entirely if any of these is true:**
 
 - The install failed (Step 4 did not return `success: true`).
-- `~/.claude/CLAUDE.md` already contains a line starting with `# mthds` (section already registered — idempotent).
+- `~/.claude/CLAUDE.md` already contains a line that is exactly `# mthds` (section already registered — idempotent; match the whole line, not a `# mthds`-prefix like `# mthds-dev`).
 - The user has previously declined (a file `~/.claude/.mthds-register-declined` exists).
 
 **Otherwise, ask the user exactly this question:**
@@ -180,7 +180,7 @@ After a successful install, offer to register MTHDS in the user's global `~/.cla
    # mthds
 
    - For any repetitive AI workflow, method, or processing of business knowledge, use the `/mthds-*` skills from the mthds plugin.
-   - Available skills: `/mthds-build`, `/mthds-run`, `/mthds-edit`, `/mthds-check`, `/mthds-explain`, `/mthds-install`, `/mthds-publish`, `/mthds-fix`, `/mthds-inputs`, `/mthds-pkg`, `/mthds-runner-setup`, `/mthds-share`, `/mthds-upgrade`.
+   - Available skills: `/mthds-build`, `/mthds-run`, `/mthds-edit`, `/mthds-check`, `/mthds-explain`, `/mthds-fix`, `/mthds-inputs`, `/mthds-vibe`, `/mthds-install`, `/mthds-publish`, `/mthds-pkg`, `/mthds-runner-setup`, `/mthds-share`, `/mthds-upgrade`.
    ```
 
 3. Confirm to the user: "Added the `# mthds` section to `~/.claude/CLAUDE.md`. Remove that section any time to unregister."
