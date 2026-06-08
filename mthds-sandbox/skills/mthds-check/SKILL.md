@@ -1,14 +1,12 @@
 ---
 name: mthds-check
 description: Check and validate MTHDS bundles for issues. Use when user says "validate this", "check my workflow", "check my method", "does this .mthds make sense?", "review this pipeline", "any issues?", "is this correct?". Reports problems without modifying files. Read-only analysis.
-min_mthds_version: {{ min_mthds_version }}
-{% if platform != "codex" -%}
+min_mthds_version: 0.9.0
 allowed-tools:
   - Bash
   - Read
   - Grep
   - Glob
-{% endif -%}
 ---
 
 # Check MTHDS bundles
@@ -17,12 +15,6 @@ Validate and review MTHDS bundles based on the MTHDS standard without making cha
 
 ## Process
 
-{% if env_check -%}
-### Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.

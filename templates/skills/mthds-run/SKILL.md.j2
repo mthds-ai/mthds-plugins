@@ -10,12 +10,15 @@ Execute MTHDS method bundles and interpret their JSON output.
 
 ## Process
 
+{% if env_check -%}
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
+{% if env_check -%}
 ### Step 1 — Pipelex Runtime Check (mandatory)
 
 Running methods requires the Pipelex runtime to be installed and configured.
@@ -34,6 +37,7 @@ mthds-agent doctor  # outputs markdown
 
 - **If healthy**: proceed to Step 2.
 
+{% endif -%}
 ### Step 2: Identify the Target
 
 | Target | Command |

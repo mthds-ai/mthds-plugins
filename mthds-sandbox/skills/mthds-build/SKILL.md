@@ -1,7 +1,15 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.9.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Build AI Method using the MTHDS standard
@@ -58,12 +66,6 @@ Create new MTHDS bundles through an adaptive, phase-based approach. This skill g
 
 ---
 
-{% if env_check -%}
-## Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
@@ -337,23 +339,6 @@ After the command succeeds:
 
 2. **Flowchart**: Tell the user that an interactive flowchart (`dry_run.html`) was generated during validation next to the bundle.
 
-{% if can_run_methods -%}
-3. **Next steps — test with mock inference**: Suggest a dry run to verify the method structure works:
-   > To test this method with mock inference (no real inputs needed):
-   > ```
-   > mthds-agent run bundle <output_dir>/ --dry-run --mock-inputs
-   > ```
-
-4. **Next steps — prepare inputs and run**:
-   > To prepare inputs for a real run, use `/mthds-inputs`. It can generate a placeholder template, create synthetic test data, or integrate your own files. Then:
-   > ```
-   > mthds-agent run bundle <output_dir>/
-   > ```
-
-   Replace `<output_dir>` with the actual output directory path used throughout the build.
-
-{% endif -%}
-
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or asks to run with real data, you MUST invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, file copying, and multiple input strategies. Writing `inputs.json` by hand bypasses all of this and produces broken paths.
 
 ---
@@ -370,7 +355,7 @@ After the command succeeds:
 - `$variable` - Inline insertion (short text)
 - `@?variable` - Conditional block insertion (only renders if variable is truthy)
 - `$var.field` - Access nested field (dotted paths work with all three patterns)
-- Raw Jinja2 `{{ '{{' }} {{ '}}' }}` / `{{ '{%' }} {{ '%}' }}` also supported
+- Raw Jinja2 `{{ }}` / `{% %}` also supported
 - These work in PipeLLM, PipeImgGen, PipeSearch, and PipeCompose templates
 
 ### Naming Conventions

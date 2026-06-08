@@ -1,10 +1,16 @@
 ---
 name: mthds-vibe
 description: Vibe-code a method bundle by writing MTHDS code directly in a single pass.
-{% if platform != "codex" -%}
 disable-model-invocation: true
-{% endif -%}
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.9.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Vibe-write a MTHDS bundle
@@ -22,13 +28,6 @@ This skill covers:
 **Outside this skill's scope:** `dict` field types, `PipeStructure`, inline `templating_style` blocks, and other advanced features. When the user asks for those, write the closest in-scope equivalent and call out the deviation; do not silently emit unsupported constructs.
 
 ---
-
-{% if env_check -%}
-## Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 
 Do not write `.mthds` files until the environment check passes. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
 
@@ -124,19 +123,6 @@ Once validation passes:
 1. **Input schema** — Run `mthds-agent inputs bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/` and show the user the input JSON schema so they can see what the method expects. **Do NOT save it to `inputs.json`** — input preparation is handled exclusively by `/mthds-inputs`.
 
 2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle.
-
-{% if can_run_methods -%}
-3. **Next steps** — Suggest:
-   > Test with mock inference (no real inputs needed):
-   > ```
-   > mthds-agent run bundle mthds-wip/<bundle_dir>/ --dry-run --mock-inputs
-   > ```
-   > Prepare real inputs with `/mthds-inputs`, then run:
-   > ```
-   > mthds-agent run bundle mthds-wip/<bundle_dir>/
-   > ```
-
-{% endif -%}
 
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
 

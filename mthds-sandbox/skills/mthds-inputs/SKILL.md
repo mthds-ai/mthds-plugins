@@ -1,7 +1,15 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.9.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Prepare Inputs for MTHDS methods
@@ -60,12 +68,6 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 
 ---
 
-{% if env_check -%}
-## Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
@@ -335,48 +337,6 @@ Combines user data with synthetic generation for any remaining gaps.
 
 ---
 
-{% if can_run_methods -%}
-## Image Generation
-
-Use the `synthesize_image` Pipelex pipeline to generate test images.
-
-**Command:**
-
-First, create an input file (e.g., `<output_dir>/image_request.json`):
-```json
-{
-  "request": {
-    "concept": "synthetic_data.ImageRequest",
-    "content": {
-      "category": "<category>",
-      "description": "<optional description>"
-    }
-  }
-}
-```
-
-Then run:
-```bash
-mthds-agent run bundle pipelex/builder/synthetic_inputs/synthesize_image.mthds -L pipelex/builder/synthetic_inputs/ --inputs <output_dir>/image_request.json
-```
-
-**Image Categories:**
-
-| Category | Use For | Example Description |
-|----------|---------|---------------------|
-| `photograph` | Real-world photos, product images, portraits | "A professional headshot of a business person" |
-| `screenshot` | UI mockups, app screens, web pages | "A mobile banking app dashboard showing account balance" |
-| `chart` | Data visualizations, graphs, plots | "A bar chart showing quarterly sales by region" |
-| `diagram` | Technical diagrams, flowcharts, architecture | "A system architecture diagram with microservices" |
-| `document_scan` | Scanned papers, receipts, forms | "A scanned invoice from a hardware store" |
-| `handwritten` | Handwritten notes, signatures | "Handwritten meeting notes on lined paper" |
-
-**Output**: The pipeline saves the generated image to `<output_dir>/inputs/` and returns the file path.
-
-For image synthesis error handling, see [Error Handling Reference](../shared/error-handling.md).
-
-{% endif -%}
-
 ---
 
 ## Document Generation
@@ -548,19 +508,6 @@ PYEOF
 After assembling the inputs, confirm readiness:
 
 > Inputs are ready. `inputs.json` has been saved with real values — no placeholders remain.
-
-{% if can_run_methods -%}
-Then offer to run:
-
-```bash
-# Dry run with the prepared inputs (directory mode auto-detects bundle, inputs, library dir)
-mthds-agent run bundle <bundle-dir>/ --dry-run
-
-# Full run (uses actual AI/extraction models)
-mthds-agent run bundle <bundle-dir>/
-```
-
-{% endif -%}
 
 ---
 

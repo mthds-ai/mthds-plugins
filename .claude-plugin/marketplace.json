@@ -18,6 +18,11 @@
       "name": "mthds-dev",
       "description": "Development build of MTHDS skills — for iteration and testing.",
       "source": "./mthds-dev"
+    },
+    {
+      "name": "mthds-sandbox",
+      "description": "MTHDS build-assistant skills for locked-down sandboxes — no environment checks, no method execution.",
+      "source": "./mthds-sandbox"
     }
   ]
 }

@@ -1,7 +1,15 @@
 ---
 name: mthds-edit
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.9.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Edit MTHDS bundles
@@ -54,12 +62,6 @@ Modify existing MTHDS method bundles.
 
 ## Process
 
-{% if env_check -%}
-### Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
@@ -95,18 +97,6 @@ Do not write `.mthds` files manually, do not do any other work. The CLI is requi
 
 6. **Present completion**:
    - If inputs were regenerated (step 5 triggered), show the path to the updated file.
-{%- if can_run_methods %}
-   - Provide a concrete CLI example. If `inputs.json` contains placeholder values, suggest the safe dry-run command first:
-     > To try the updated method now, use /mthds-run or from the terminal:
-     > ```
-     > mthds-agent run bundle <bundle-dir>/ --dry-run --mock-inputs
-     > ```
-     >
-     > To run with real data, use /mthds-inputs to prepare your inputs (provide your own files, or generate synthetic test data), then:
-     > ```
-     > mthds-agent run bundle <bundle-dir>/
-     > ```
-{%- endif %}
 
 ## Common Edit Operations
 

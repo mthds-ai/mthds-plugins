@@ -1,7 +1,15 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.9.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Explain MTHDS bundles
@@ -10,12 +18,6 @@ Analyze and explain existing MTHDS method bundles in plain language.
 
 ## Process
 
-{% if env_check -%}
-### Step 0 — Environment Check (mandatory, do this FIRST)
-
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
@@ -81,16 +83,6 @@ mthds-agent validate bundle <file>.mthds -L <bundle-dir>/ --graph
 ```
 
 This generates `dry_run.html` next to the bundle — a static flowchart of the method structure.
-
-{% if can_run_methods -%}
-For a live execution graph showing actual runtime data, use `/mthds-run`:
-```bash
-mthds-agent run bundle <bundle-dir>/
-```
-
-This produces `live_run.html` alongside the execution results.
-
-{% endif -%}
 
 ## Reference
 
