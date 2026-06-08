@@ -84,6 +84,17 @@ HOOK_TEMPLATES_BY_PLATFORM = {
 # Files that should be made executable after rendering.
 EXECUTABLE_OUTPUTS = {"validate-mthds.sh", "session-start.sh"}
 
+# Artifacts that only make sense when env_check is enabled. A target that sets
+# env_check = false (a pre-provisioned, locked-down environment where the agent
+# must never check/upgrade the toolchain) must not emit the env-check preamble,
+# the env-check binary, or the version/doctor session hook at all — gating the
+# in-skill sections is not enough; these standalone files would otherwise ship
+# as dead, contradictory weight. Targets with env_check = true (prod/dev/codex)
+# are unaffected.
+ENV_CHECK_SHARED_TEMPLATES = frozenset({"skills/shared/preamble.md.j2"})
+ENV_CHECK_HOOK_TEMPLATES = frozenset({"hooks/session-start.sh.j2"})
+ENV_CHECK_BIN_FILES = frozenset({"mthds-env-check"})
+
 
 @dataclass
 class TargetConfig:
@@ -160,6 +171,13 @@ def load_target_config(targets_dir: Path, target_name: str, defaults: dict[str, 
             template_vars[key] = value if isinstance(value, bool) else str(value)
     template_vars["plugin_name"] = plugin["name"]
 
+    # The session-start hook runs `mthds-agent doctor` + version display, so it
+    # is an env-check artifact: env_check = false drops the session-start.sh
+    # file. Wiring it via session_start_hook would then reference a missing file.
+    if template_vars.get("session_start_hook") and not template_vars.get("env_check", True):
+        msg = f"{target_path.name}: session_start_hook=true requires env_check=true (the session hook runs mthds-agent doctor)"
+        raise SystemExit(msg)
+
     include_skills: list[str] | None = None
     skills_section = raw.get("skills", {})
     if "include" in skills_section:
@@ -221,6 +239,11 @@ def render_templates(
         keep_trailing_newline=True,
     )
 
+    # env_check = false targets omit the env-check artifacts entirely (the
+    # preamble doc and the doctor/version session hook). The .j2 must still
+    # exist (integrity), it is simply not rendered for these targets.
+    env_check = bool(template_vars.get("env_check", True))
+
     # Collect shared templates (must all exist — fail loudly if missing)
     shared_j2_paths: list[Path] = []
     for name in SHARED_TEMPLATES:
@@ -228,6 +251,8 @@ def render_templates(
         if not path.is_file():
             msg = f"Declared shared template not found: {name}"
             raise SystemExit(msg)
+        if not env_check and name in ENV_CHECK_SHARED_TEMPLATES:
+            continue
         shared_j2_paths.append(path)
 
     # Collect hook templates (platform-specific — must all exist)
@@ -239,6 +264,8 @@ def render_templates(
         if not path.is_file():
             msg = f"Declared hook template not found: {name}"
             raise SystemExit(msg)
+        if not env_check and name in ENV_CHECK_HOOK_TEMPLATES:
+            continue
         hook_j2_paths.append(path)
 
     # Collect skill templates (templates/skills/*/SKILL.md.j2)
@@ -309,17 +336,33 @@ def _refresh_copy(src: Path, dst: Path) -> None:
     shutil.copytree(src, dst)
 
 
-def setup_static_assets(base_dir: Path, output_dir: Path, templates_dir: Path, include_skills: list[str] | None) -> None:
+def setup_static_assets(
+    base_dir: Path,
+    output_dir: Path,
+    templates_dir: Path,
+    include_skills: list[str] | None,
+    *,
+    env_check: bool = True,
+) -> None:
     """Copy static assets (bin/, references/) into the output directory.
 
     The output dir must be self-contained: marketplace installs that copy a
     single plugin subdir (Codex's local marketplace, Claude's local plugin
     install) cannot follow symlinks pointing to siblings of the plugin root.
+
+    env_check = false targets do not get the env-check binary: it is unused
+    once the env-check sections are gated out, and shipping it in a locked-down
+    sandbox is dead, contradictory weight.
     """
     bin_src = base_dir / "bin"
     bin_dst = output_dir / "bin"
     if bin_src.is_dir():
         _refresh_copy(bin_src, bin_dst)
+        if not env_check:
+            for bin_name in ENV_CHECK_BIN_FILES:
+                gated_bin = bin_dst / bin_name
+                if gated_bin.is_file():
+                    gated_bin.unlink()
 
     if include_skills is not None:
         skill_names = include_skills
@@ -365,8 +408,9 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
     else:
         # Non-root target: write to output directory
         if not dry_run:
+            env_check = bool(config.template_vars.get("env_check", True))
             output_dir.mkdir(parents=True, exist_ok=True)
-            setup_static_assets(base_dir, output_dir, templates_dir, config.include_skills)
+            setup_static_assets(base_dir, output_dir, templates_dir, config.include_skills, env_check=env_check)
 
         for src_path, content in rendered.items():
             # Map base_dir-relative output to target output dir
