@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Recursive Method Building — PR overview</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#1d2433; --muted:#5b6573;
+    --accent:#3b5bdb; --accent-soft:#eaeefb; --teal:#0d9488; --teal-soft:#e3f4f1;
+    --amber:#c2700a; --amber-soft:#fbf0dd; --green:#0a7d4f; --green-soft:#e2f3ea;
+    --red:#c0392b; --red-soft:#fbe8e6; --border:#e3e6ec; --code-bg:#0f1830; --code-ink:#e6ecf7;
+    --shadow:0 1px 2px rgba(20,30,60,.05),0 6px 22px rgba(20,30,60,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 22px 96px}
+  header.top{
+    position:sticky;top:0;z-index:20;background:rgba(246,247,249,.86);
+    backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);
+  }
+  header.top .inner{max-width:980px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header.top h1{font-size:17px;margin:0;font-weight:680;letter-spacing:-.2px}
+  header.top .branch{font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);background:var(--panel);border:1px solid var(--border);padding:5px 8px;border-radius:7px}
+  .pill{font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+  .pill.warn{background:var(--amber-soft);color:var(--amber);border-color:#f0dcb6}
+  .hero{padding:42px 0 8px}
+  .hero .kicker{color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:12.5px;margin:0 0 10px}
+  .hero h2{font-size:34px;line-height:1.12;letter-spacing:-.6px;margin:0 0 12px;font-weight:760}
+  .hero p.sub{font-size:18px;color:var(--muted);margin:0;max-width:70ch}
+  h3.sec{font-size:23px;letter-spacing:-.3px;margin:46px 0 6px;padding-top:14px;font-weight:720}
+  h4{font-size:16.5px;margin:26px 0 8px;font-weight:680}
+  .lead{color:var(--muted);margin:4px 0 18px;max-width:74ch}
+  p{max-width:74ch}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:#eef0f4;padding:.12em .4em;border-radius:5px;color:#243}
+  pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:11px;overflow:auto;box-shadow:var(--shadow);margin:14px 0}
+  pre code{background:none;color:inherit;padding:0;font-size:13px;line-height:1.62}
+  .tok-key{color:#7fb4ff}.tok-str{color:#9fe6b8}.tok-com{color:#7d89a8;font-style:italic}.tok-flag{color:#ffcf8b}.tok-type{color:#e0a3ff}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);margin:16px 0}
+  .tldr{background:linear-gradient(180deg,#fff, #fbfcff);border:1px solid #d7def6;border-left:5px solid var(--accent);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow);margin:22px 0 8px}
+  .tldr h3{margin:0 0 10px;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+  .tldr ul{margin:8px 0 0;padding-left:20px}
+  .tldr li{margin:7px 0}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+  .toc a{font-size:13.5px;background:var(--panel);border:1px solid var(--border);padding:7px 12px;border-radius:9px;color:var(--ink)}
+  .toc a:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .note{border-radius:11px;padding:14px 16px;margin:16px 0;border:1px solid}
+  .note .t{font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+  .note.good{background:var(--green-soft);border-color:#bfe6d2}
+  .note.warn{background:var(--amber-soft);border-color:#f0dcb6}
+  .note.bad{background:var(--red-soft);border-color:#f3cbc5}
+  .note.info{background:var(--accent-soft);border-color:#cdd8f7}
+  .mermaid{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin:16px 0;text-align:center;overflow:auto}
+  .cap{font-size:13px;color:var(--muted);text-align:center;margin:-6px 0 18px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px;background:var(--panel);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:#f0f2f7;font-weight:680;font-size:13px;letter-spacing:.02em}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .b-op{background:var(--green-soft);color:var(--green)}
+  .b-ctl{background:var(--accent-soft);color:var(--accent)}
+  .b-sig{background:var(--amber-soft);color:var(--amber)}
+  details{background:var(--panel);border:1px solid var(--border);border-radius:11px;margin:12px 0;box-shadow:var(--shadow);overflow:hidden}
+  details>summary{cursor:pointer;padding:13px 16px;font-weight:640;list-style:none;display:flex;align-items:center;gap:9px}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{content:"▸";color:var(--accent);font-size:13px;transition:transform .15s}
+  details[open]>summary::before{transform:rotate(90deg)}
+  details .body{padding:2px 16px 16px}
+  .tabs{margin:16px 0}
+  .tab-bar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:0}
+  .tab-btn{appearance:none;border:none;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--muted);padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .layer{display:flex;gap:14px;margin:0}
+  .layer .rail{display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
+  .layer .dot{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .layer .line{width:2px;flex:1;background:var(--border);margin:2px 0}
+  .layer:last-child .line{display:none}
+  .layer .content{padding:0 0 22px}
+  .layer .content h5{margin:4px 0 4px;font-size:15.5px}
+  .layer .content p{margin:0;color:var(--muted);font-size:14.5px}
+  .pendpill{display:inline-block;font:12px/1 ui-monospace,Menlo,monospace;background:var(--amber-soft);color:var(--amber);border:1px solid #f0dcb6;padding:4px 8px;border-radius:7px;margin-top:6px}
+  .pendpill.zero{background:var(--green-soft);color:var(--green);border-color:#bfe6d2}
+  footer{margin-top:54px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:13.5px}
+  .kbd{font:12px ui-monospace,Menlo,monospace;background:#eef0f4;border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  hr.soft{border:none;border-top:1px solid var(--border);margin:34px 0}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <h1>Recursive Method Building</h1>
+    <span class="branch">feature/Recursive-building</span>
+    <span style="flex:1"></span>
+    <span class="pill warn">code-complete · green · gated on pipelex release</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <p class="kicker">PR overview · mthds-plugins</p>
+    <h2>Building <code>.mthds</code> methods top-down, valid at every step</h2>
+    <p class="sub">This PR rewrites the <code>mthds-vibe</code> skill from a single-pass generator into a <b>stepwise-refinement</b> builder: capture the whole job as one pipe <i>signature</i>, then refine it layer by layer into a runnable method that validates at every intermediate save.</p>
+  </section>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <ul>
+      <li><b>New primitive: <code>PipeSignature</code></b> — a contract-only forward declaration (a C-style header) for a pipe: its <code>inputs</code>, <code>output</code>, and intended type, with no implementation yet.</li>
+      <li><b>New methodology: top-down layered refinement.</b> Start with the whole job as one signature; each step <i>adds one file</i> that implements one signature — as an <span class="badge b-op">operator</span> (leaf) or a <span class="badge b-ctl">controller</span> that forward-declares its own children. The backlog is the library's own <code>pending_signatures</code> list, drained breadth-first until empty.</li>
+      <li><b>The artifact is always valid.</b> We validate <i>leniently</i> (<code>--allow-signatures</code>) after each layer — unimplemented signatures mint a mock of their output — then <i>strictly</i> once at the end. We made <b>both</b> validation hooks (Claude + Codex) lenient so in-progress saves aren't blocked, with a non-blocking nudge listing what's left.</li>
+      <li><b>It works.</b> Dogfooded end-to-end on a real 3-layer method (<code>incident_report</code>): every intermediate save passed the lenient hook, the final strict gate held, and the finished method ran (dry-run).</li>
+      <li><b>One hard limitation we hit:</b> concepts <b>cannot be lazily structured across files</b>. A concept's shape must be fixed in the file that introduces it. We document the workaround (<i>structure-at-introduction</i> + hoisting) — see <a href="#limits">§ The concept wall</a>.</li>
+      <li><b>Status:</b> all code/skill/doc changes landed and green; the only thing left is the <b>release</b>, gated on the unreleased pipelex runtime support (Part A+B).</li>
+    </ul>
+  </div>
+
+  <nav class="toc">
+    <a href="#why">Why</a>
+    <a href="#signature">PipeSignature</a>
+    <a href="#method">The loop</a>
+    <a href="#valid">Lenient vs strict</a>
+    <a href="#additive">Additive multi-file model</a>
+    <a href="#example">Worked example</a>
+    <a href="#changed">What changed</a>
+    <a href="#limits">The concept wall</a>
+    <a href="#status">Status &amp; next</a>
+  </nav>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="why">Why — from one shot to refinement</h3>
+  <p class="lead">The old <code>mthds-vibe</code> tried to emit a whole method in a single pass. For anything multi-step that means holding the entire pipe graph and all its concepts in one go — and the in-progress file is invalid until the very last line, so the validation hook fights you the whole way down.</p>
+  <p>The fix mirrors how engineers actually decompose: <b>commit to a contract first, implement later.</b> Write the signature of the top pipe, then refine one signature at a time, one level down, leaving the not-yet-built parts as further signatures. Every intermediate state is a complete, valid, resumable library — the half-built method is its own todo list.</p>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="signature">The primitive — <code>PipeSignature</code></h3>
+  <p class="lead">A <code>PipeSignature</code> declares a pipe by its <b>contract only</b>: <code>description</code>, <code>inputs</code>, <code>output</code>, and an optional <code>signature_for</code> hint. No <code>prompt</code>, no <code>steps</code> — just the promise of what the pipe takes and returns.</p>
+
+  <div class="grid2">
+    <div>
+      <h4>The header (a forward declaration)</h4>
+<pre><code><span class="tok-key">[pipe.build_incident_report]</span>
+<span class="tok-key">type</span>          = <span class="tok-str">"PipeSignature"</span>
+<span class="tok-key">description</span>   = <span class="tok-str">"Notes → structured report"</span>
+<span class="tok-key">inputs</span>        = { notes = <span class="tok-type">"Document"</span> }
+<span class="tok-key">output</span>        = <span class="tok-type">"IncidentReport"</span>
+<span class="tok-key">signature_for</span> = <span class="tok-str">"PipeSequence"</span>  <span class="tok-com"># hint only</span></code></pre>
+    </div>
+    <div>
+      <h4>The concrete (added later, reconciles)</h4>
+<pre><code><span class="tok-key">[pipe.build_incident_report]</span>
+<span class="tok-key">type</span>   = <span class="tok-str">"PipeSequence"</span>
+<span class="tok-key">inputs</span> = { notes = <span class="tok-type">"Document"</span> }      <span class="tok-com"># same…</span>
+<span class="tok-key">output</span> = <span class="tok-type">"IncidentReport"</span>           <span class="tok-com"># …contract</span>
+<span class="tok-key">steps</span>  = [
+  { pipe = <span class="tok-str">"extract_notes"</span>, result = <span class="tok-str">"pages"</span> },
+  <span class="tok-com"># …</span>
+]</code></pre>
+    </div>
+  </div>
+
+  <div class="note info">
+    <div class="t">ℹ︎ <code>signature_for</code> is a hint, not a binding</div>
+    It records the <i>intended</i> next-level type so the expander knows whether to write an operator or a controller. It may be overridden, it may not be <code>"PipeSignature"</code>, and it can be omitted. The decision rule: a single cognitive/IO step → <span class="badge b-op">operator</span>; multiple steps, iteration, branching, or parallelism → <span class="badge b-ctl">controller</span>.
+  </div>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="method">The methodology — refine layer by layer</h3>
+  <p class="lead">One signature in, its implementation out. If it's an operator, the branch is done. If it's a controller, it wires sub-pipes and <b>forward-declares each not-yet-built child as a new signature</b> — those new headers join the backlog. Repeat until the backlog is empty.</p>
+
+  <div class="mermaid">
+flowchart TD
+  S1["<b>Step 1 · Layer 0</b><br/>Capture the whole job as ONE PipeSignature<br/>in the root <i>bundle.mthds</i>"]
+  V{"validate <b>--allow-signatures</b><br/>any pending_signatures?"}
+  S2["<b>Step 2</b> · pop one pending signature<br/>add exactly ONE new &lt;code&gt;.mthds file"]
+  OP["<b>operator</b> (leaf)<br/>PipeLLM · Extract · Compose · …<br/>branch done"]
+  CT["<b>controller</b> (composite)<br/>PipeSequence · Batch · Parallel · Condition<br/>forward-declares child signatures"]
+  S3["<b>Step 3</b> · <b>strict</b> validate<br/>(drop --allow-signatures)"]
+  S4["<b>Step 4</b> · deliver<br/>runnable method"]
+  S1 --> V
+  V -->|"backlog not empty"| S2
+  S2 --> OP
+  S2 --> CT
+  OP --> V
+  CT -->|"new headers join backlog"| V
+  V -->|"backlog empty"| S3 --> S4
+  classDef sig fill:#fbf0dd,stroke:#c2700a,color:#7a4708;
+  classDef ctl fill:#eaeefb,stroke:#3b5bdb,color:#26356f;
+  classDef op fill:#e2f3ea,stroke:#0a7d4f,color:#0a5536;
+  classDef step fill:#ffffff,stroke:#9aa6bd,color:#1d2433;
+  class S1,S2,S3,S4 step; class CT ctl; class OP op;
+  </div>
+  <p class="cap">Step 2 is the whole engine: pop → add one file → re-validate → recompute the backlog. Controllers grow the backlog; operators shrink it. Draining the full current set each round walks the tree breadth-first by construction.</p>
+
+  <h4>Autonomy</h4>
+  <p>The loop is <b>automatic</b>. The only optional interaction is at Step 1 (announce the captured top-level contract so the user can interject). After that, the leniently-valid checkpoints and the regenerated <code>dry_run.html</code> are the review surface; the user can interrupt at any time.</p>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="valid">Always-valid — lenient vs strict</h3>
+  <p class="lead">The invariant that makes this safe: <b>every unbuilt pipe is a reachable signature, so the assembled library passes lenient validation at every step.</b></p>
+
+  <table>
+    <thead><tr><th>Mode</th><th>Flag</th><th>Reachable signature…</th><th>Used</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Lenient</b></td>
+        <td><code>--allow-signatures</code></td>
+        <td>…is accepted; mints a <i>mock</i> of its declared output on dry-run</td>
+        <td>after every layer, and by the save hooks</td>
+      </tr>
+      <tr>
+        <td><b>Strict</b></td>
+        <td><i>(default)</i></td>
+        <td>…is <b>rejected</b> — passing means no placeholders remain</td>
+        <td>once, at finalize (Step 3) + always by <code>run</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note good">
+    <div class="t">✓ On a signature-free bundle, lenient ≡ strict</div>
+    So flipping the hooks to lenient is a <b>no-op</b> for <code>mthds-build</code>, hand-edits, and finished methods. It only unblocks in-progress recursive saves. The strict gate didn't disappear — it moved to the explicit finalize step and to <code>run</code>, which always reject signatures. An unfinished method can never be run by accident.
+  </div>
+
+  <p>A successful validate reports <code>pending_signatures</code> — the library-wide list of pipes still typed <code>PipeSignature</code>. That list <b>is</b> the backlog. It's never hand-tracked or reconstructed as a tree; it's recomputed from the library each layer.</p>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="additive">The additive multi-file model</h3>
+  <p class="lead">The artifact is a <b>library</b>, not one file: a directory of same-domain <code>.mthds</code> files loaded together with <code>-L</code>. Construction is purely additive — each refinement <b>adds a new <code>&lt;code&gt;.mthds</code> file</b>; no existing file is ever rewritten, and there is no merge step.</p>
+
+  <p>At load, a concrete pipe satisfies a signature <i>of the same code</i> — the definition wins. So the same code legitimately appears as a header in one file and as a concrete in another. The two reconcile by <b>concept identity</b>, not byte-string: bare ↔ qualified (<code>Brief</code> ≡ <code>domain.Brief</code>), native equivalents (<code>Text</code> ≡ <code>native.Text</code>), multiplicity compared structurally.</p>
+
+  <div class="card" style="text-align:center">
+  <svg viewBox="0 0 880 300" width="100%" style="max-width:840px" font-family="-apple-system,Segoe UI,Roboto,sans-serif" role="img" aria-label="Header and concrete reconcile into one merged library pipe">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#5b6573"/>
+      </marker>
+    </defs>
+    <!-- file 1: header -->
+    <rect x="20" y="24" width="300" height="120" rx="12" fill="#fff" stroke="#f0dcb6"/>
+    <text x="38" y="50" font-size="13" font-weight="700" fill="#c2700a">bundle.mthds</text>
+    <rect x="38" y="62" width="264" height="66" rx="8" fill="#fbf0dd" stroke="#e7c98f"/>
+    <text x="50" y="84" font-size="12.5" font-family="ui-monospace,Menlo" fill="#7a4708">[pipe.build_incident_report]</text>
+    <text x="50" y="102" font-size="12" font-family="ui-monospace,Menlo" fill="#7a4708">type = "PipeSignature"</text>
+    <text x="50" y="119" font-size="12" font-family="ui-monospace,Menlo" fill="#7a4708">Document → IncidentReport</text>
+    <text x="38" y="142" font-size="11.5" fill="#8a7350">header — persists, never edited</text>
+
+    <!-- file 2: concrete -->
+    <rect x="560" y="24" width="300" height="120" rx="12" fill="#fff" stroke="#cdd8f7"/>
+    <text x="578" y="50" font-size="13" font-weight="700" fill="#3b5bdb">build_incident_report.mthds</text>
+    <rect x="578" y="62" width="264" height="66" rx="8" fill="#eaeefb" stroke="#b8c6f3"/>
+    <text x="590" y="84" font-size="12.5" font-family="ui-monospace,Menlo" fill="#26356f">[pipe.build_incident_report]</text>
+    <text x="590" y="102" font-size="12" font-family="ui-monospace,Menlo" fill="#26356f">type = "PipeSequence"</text>
+    <text x="590" y="119" font-size="12" font-family="ui-monospace,Menlo" fill="#26356f">Document → IncidentReport</text>
+    <text x="578" y="142" font-size="11.5" fill="#5566a8">concrete — added later</text>
+
+    <!-- reconcile arrows -->
+    <path d="M320 96 H430" stroke="#5b6573" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+    <path d="M560 96 H450" stroke="#5b6573" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+    <rect x="380" y="78" width="120" height="36" rx="9" fill="#0d9488"/>
+    <text x="440" y="101" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">reconcile</text>
+    <text x="440" y="134" font-size="11.5" fill="#5b6573" text-anchor="middle">by concept identity</text>
+
+    <!-- merged -->
+    <path d="M440 150 V196" stroke="#5b6573" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+    <rect x="250" y="200" width="380" height="74" rx="12" fill="#fff" stroke="#bfe6d2"/>
+    <text x="440" y="226" font-size="13" font-weight="700" fill="#0a7d4f" text-anchor="middle">merged library pipe — the definition wins</text>
+    <text x="440" y="248" font-size="12" fill="#3b4658" text-anchor="middle">one runnable PipeSequence, same code, same contract</text>
+    <text x="440" y="266" font-size="11.5" fill="#7c8aa0" text-anchor="middle">no merge step · no file overwritten · order-independent</text>
+  </svg>
+  </div>
+  <p class="cap">The same pipe code as a header in one file and a concrete in another — they reconcile at load. This is what lets refinement be append-only.</p>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="example">Worked example — the <code>incident_report</code> dogfood</h3>
+  <p class="lead">We built a real 3-layer method end-to-end, acting as the skill, in a live session where the real save hook fired on every write. Job: raw incident notes (a <code>Document</code>) → a structured <code>IncidentReport</code> (<code>summary</code>, <code>severity</code>, <code>timeline[]</code>, <code>remediation[]</code>).</p>
+
+  <h4>Final call tree (11 pipes / 11 files)</h4>
+  <div class="mermaid">
+flowchart TD
+  R["build_incident_report<br/><i>PipeSequence</i><br/>Document → IncidentReport"]
+  EN["extract_notes<br/><i>PipeExtract</i>"]
+  SI["summarize_incident<br/><i>PipeLLM</i>"]
+  AT["analyze_timeline<br/><i>PipeSequence</i>"]
+  AR["assess_remediation<br/><i>PipeSequence</i>"]
+  ASM["assemble_report<br/><i>PipeCompose</i>"]
+  DE["detect_events<br/><i>PipeLLM</i>"]
+  OT["order_timeline<br/><i>PipeLLM</i>"]
+  DG["detect_gaps<br/><i>PipeLLM</i>"]
+  PS["propose_steps<br/><i>PipeLLM</i>"]
+  R --> EN
+  R --> SI
+  R --> AT
+  R --> AR
+  R --> ASM
+  AT --> DE
+  AT --> OT
+  AR --> DG
+  AR --> PS
+  classDef ctl fill:#eaeefb,stroke:#3b5bdb,color:#26356f;
+  classDef op fill:#e2f3ea,stroke:#0a7d4f,color:#0a5536;
+  class R,AT,AR ctl;
+  class EN,SI,ASM,DE,OT,DG,PS op;
+  </div>
+  <p class="cap"><span class="badge b-ctl">controllers</span> in blue, <span class="badge b-op">operators</span> in green. The two sub-sequences (<code>analyze_timeline</code>, <code>assess_remediation</code>) are where depth and the concept collision below came from.</p>
+
+  <h4>How the backlog drained</h4>
+  <div class="card">
+    <div class="layer"><div class="rail"><div class="dot">0</div><div class="line"></div></div><div class="content">
+      <h5>Capture the whole job</h5>
+      <p>Wrote the root <code>bundle.mthds</code>: the structured <code>IncidentReport</code> boundary concept + the top pipe as one <code>PipeSignature</code>.</p>
+      <span class="pendpill">pending: 1 → build_incident_report</span>
+    </div></div>
+    <div class="layer"><div class="rail"><div class="dot">1</div><div class="line"></div></div><div class="content">
+      <h5>Expand the single signature (the inline / single-pending case)</h5>
+      <p>Added <code>build_incident_report.mthds</code> (the <code>PipeSequence</code> + 4 child headers + the structured intermediate concepts), and immediately defined the obvious operator <code>extract_notes</code>.</p>
+      <span class="pendpill">pending: 4 → summarize · analyze_timeline · assess_remediation · assemble</span>
+    </div></div>
+    <div class="layer"><div class="rail"><div class="dot">2</div><div class="line"></div></div><div class="content">
+      <h5>Drain four, one at a time (the multi-pending serial case)</h5>
+      <p>Two operators (<code>summarize_incident</code>, <code>assemble_report</code>) finished their branches; two controllers (<code>analyze_timeline</code>, <code>assess_remediation</code>) each forward-declared two children.</p>
+      <span class="pendpill">pending: 4 → detect_events · order_timeline · detect_gaps · propose_steps</span>
+    </div></div>
+    <div class="layer"><div class="rail"><div class="dot">3</div><div class="line"></div></div><div class="content">
+      <h5>Drain the leaves → done</h5>
+      <p>Four <code>PipeLLM</code> operators. Backlog empty → strict validation passes → runnable.</p>
+      <span class="pendpill zero">pending: 0 ✓ strict validation passes</span>
+    </div></div>
+  </div>
+  <p class="cap"><code>dry_run.html</code> regenerated each layer (11 → 61 → 88 → 103 KB). Final <code>run --dry-run --mock-inputs</code> produced a correctly-shaped <code>IncidentReport</code>.</p>
+
+  <h4>Two failure modes we deliberately triggered (and recovered from)</h4>
+  <p>Both were caught by the live save hook, which <b>blocked</b> the write and handed back an agent-actionable reason. Each error is real output from the dogfood.</p>
+
+  <details>
+    <summary>Contract mismatch — definition diverges from its frozen header</summary>
+    <div class="body">
+      <p>We wrote <code>assemble_report</code> with <code>output = "Timeline"</code> while its header says <code>IncidentReport</code>:</p>
+<pre><code><span class="tok-com"># Error: ValidateBundleError</span>
+Pipe 'incident_report.assemble_report' is declared with mismatched contracts:
+  assemble_report.mthds       … output=<span class="tok-type">'Timeline'</span>
+  build_incident_report.mthds … output=<span class="tok-type">'IncidentReport'</span>
+A forward declaration (PipeSignature) and the matching declaration
+must agree on inputs and output.</code></pre>
+      <p><b>Recovery rule:</b> conform the <b>definition</b> to the frozen header — never edit the header (the parent depends on that contract). We rewrote <code>assemble_report</code> as the correct <code>PipeCompose</code> construct → <code>IncidentReport</code>.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Concept collision — two controllers want the same concept name (D5)</summary>
+    <div class="body">
+      <p>Both sub-sequences naturally wanted a <code>RawFindings</code> concept. Reusing the code triggers the loud backstop:</p>
+<pre><code><span class="tok-com"># Error: ValidateBundleError</span>
+Concept 'incident_report.RawFindings' is declared in two different
+bundle files: analyze_timeline.mthds and assess_remediation.mthds.
+Please remove one of the declarations or rename one of the concepts.</code></pre>
+      <p><b>Prevention rule (D5):</b> before introducing an intermediate concept, check it isn't already declared, and derive a unique code namespaced from the parent (<code>RawFindings</code> → <code>RemediationFinding</code>). Serial execution makes this nearly free; the duplicate-declaration error stays the backstop. <i>(Parallel-sibling collisions are a separate, deferred concern — they return with fan-out.)</i></p>
+    </div>
+  </details>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="changed">What changed in this PR</h3>
+
+  <table>
+    <thead><tr><th>Area</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td><b>Claude save hook</b><br><code>templates/hooks/validate-mthds.sh.j2</code></td><td>Stage 3 now runs <b>lenient</b> (<code>--allow-signatures</code>) and emits a non-blocking <code>pending_signatures</code> nudge on success. Failure path unchanged.</td></tr>
+      <tr><td><b>Codex save hook</b><br><code>mthds-js · codex-hook.ts</code></td><td>Added <code>--allow-signatures</code> for parity. Nudge deferred for v1 (skill tracks the backlog itself).</td></tr>
+      <tr><td><b>The skill</b><br><code>templates/skills/mthds-vibe/SKILL.md.j2</code></td><td>Single-pass body replaced by the Step 0–4 recursive flow (inline/serial on both targets). Renders identically to Claude &amp; Codex; only frontmatter differs.</td></tr>
+      <tr><td><b>References + docs</b></td><td><code>PipeSignature</code> section in the vibe cheat sheet; <code>--allow-signatures</code> + <code>pending_signatures</code> in the agent guide; a lenient-validation section in the hooks doc.</td></tr>
+    </tbody>
+  </table>
+
+  <h4>The one non-obvious bit: two output streams</h4>
+  <p>To read <code>pending_signatures</code> as JSON <i>and</i> keep the error classifier working, the Claude hook pins both stream controls. <code>--format</code> governs the <b>success</b> envelope on stdout; <code>--error-format</code> governs the <b>error</b> report on stderr — and <code>--error-format</code> <i>inherits</i> <code>--format</code> when omitted. So <code>--format json</code> alone would JSON-ify errors and break the markdown classifier.</p>
+
+  <div class="tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="pick(this,0)">Before (strict)</button>
+      <button class="tab-btn" onclick="pick(this,1)">After (lenient + nudge)</button>
+    </div>
+    <div class="tab-panel active">
+<pre><code><span class="tok-com"># Stage 3 — blocked every in-progress save</span>
+mthds-agent validate bundle <span class="tok-str">"$FILE"</span> <span class="tok-flag">-L</span> <span class="tok-str">"$DIR/"</span></code></pre>
+    </div>
+    <div class="tab-panel">
+<pre><code><span class="tok-com"># Stage 3 — lenient; one invocation, both streams pinned</span>
+mthds-agent validate bundle <span class="tok-str">"$FILE"</span> <span class="tok-flag">-L</span> <span class="tok-str">"$DIR/"</span> \
+  <span class="tok-flag">--allow-signatures</span> <span class="tok-flag">--format</span> json <span class="tok-flag">--error-format</span> markdown
+
+<span class="tok-com"># success → read pending_signatures from JSON stdout → non-blocking nudge</span>
+<span class="tok-com"># failure → errors stay markdown on stderr → classifier UNCHANGED (blocks input-domain)</span></code></pre>
+    </div>
+  </div>
+
+  <div class="note info">
+    <div class="t">ℹ︎ Scope note (decision D1)</div>
+    v1 runs the layer loop <b>inline/serial on both targets</b>. The parallel fan-out (a per-signature worker sub-agent + a new <code>agents/</code> plugin component) is deferred to a follow-up. Correctness is identical; only per-signature parallelism and context isolation are dropped.
+  </div>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="limits">The concept wall — what doesn't work</h3>
+  <p class="lead">Signatures give pipes a clean header/definition split. <b>Concepts have no such split.</b> The additive model imposes three hard rules on concepts, and together they forbid the "lazy structuring" we originally wrote into the skill. We proved each with a throwaway probe — all fail with <code>error_domain: input</code>, even under <code>--allow-signatures</code>.</p>
+
+  <div class="grid2">
+    <div class="note bad"><div class="t">✗ Rule 1 — must be declared</div>A referenced-but-undeclared concept is a hard error. Every concept a pipe names must be declared <i>somewhere</i> in the assembled library at every layer.</div>
+    <div class="note bad"><div class="t">✗ Rule 2 — declared exactly once</div>The same concept in two files is a hard error (<code>declared in two different bundle files</code>). You cannot split a declaration, nor add structure to it from a second file.</div>
+  </div>
+  <div class="note bad"><div class="t">✗ Rule 3 — a field-read needs the field to exist</div>Reading <code>x.field</code> on a <i>simple</i> concept fails at dry-run (<code>Cannot resolve path 'x.field': attribute 'field' not found</code>) — lenient validation does <b>not</b> mock-tolerate it.</div>
+
+  <details>
+    <summary>The three probes (real output)</summary>
+    <div class="body">
+<pre><code><span class="tok-com"># Rule 1 — concept referenced, declared nowhere</span>
+'Widget' in pipe.make_widget.output is not declared in domain 'probe'
+
+<span class="tok-com"># Rule 2 — same concept declared in two files</span>
+Concept 'probe.Widget' is declared in two different bundle files:
+  'bundle.mthds' and 'refine_widget.mthds'. … rename one of the concepts.
+
+<span class="tok-com"># Rule 3 — field-read on a simple concept (even under --allow-signatures)</span>
+Dry run failed … Cannot resolve path 'widget.label':
+  attribute 'label' not found</code></pre>
+    </div>
+  </details>
+
+  <p>Put together with <i>"never edit an existing file"</i>: <b>a concept's shape must be fixed in the single file that introduces it.</b> You cannot introduce a concept simple and add fields later — by the time a consumer field-reads it, the introducing file is already written and frozen, and a second declaration is illegal. So <i>"introduce simple, structure when a consumer reads a field"</i> — the wording we originally shipped — is not achievable across files.</p>
+
+  <h4>The workaround we adopted: structure-at-introduction + hoisting</h4>
+  <p>Decide a concept's shape from the consumers the introducing controller wires. If any consumer <b>field-reads</b> it, declare it <b>structured now</b>. If it's only ever consumed <b>whole</b> (<code>@x</code> in a prompt, or mapped wholesale), keep it <b>simple</b>. When a <i>sibling</i> field-reads a concept, <b>hoist</b> it to the common parent that wires both producer and consumer, and structure it there.</p>
+
+  <div class="mermaid">
+flowchart TD
+  P["parent controller<br/><b>introduces &amp; structures</b> the concept"]
+  PR["producer step<br/>→ concept X (structured)"]
+  CO["consumer step<br/>reads X.field"]
+  P --> PR
+  P --> CO
+  PR -. "X carries the field" .-> CO
+  classDef ctl fill:#eaeefb,stroke:#3b5bdb,color:#26356f;
+  classDef op fill:#e2f3ea,stroke:#0a7d4f,color:#0a5536;
+  class P ctl; class PR,CO op;
+  </div>
+  <p class="cap">In the dogfood this is exactly why <code>IncidentSummary</code>/<code>Timeline</code>/<code>Remediation</code> were structured up in <code>build_incident_report.mthds</code> (the parent that wires both producers and the <code>assemble_report</code> consumer), while <code>RawFindings</code> stayed simple (consumed whole).</p>
+
+  <div class="note warn">
+    <div class="t">⚠︎ The genuine gap (logged as a future pipelex feature)</div>
+    True cross-layer lazy structuring would need <b>additive concept refinement</b> — letting a later file add structure to a concept declared simple elsewhere. That's a pipelex runtime change, out of v1 scope. Until then, structure-at-introduction is the discipline, and the dogfood confirms it works in practice.
+  </div>
+
+  <!-- ============================================================ -->
+  <h3 class="sec" id="status">Status &amp; what's next</h3>
+  <div class="grid2">
+    <div class="note good"><div class="t">✓ Done &amp; green</div>Hook (Claude + Codex), skill rewrite, references/docs, unit + Docker integration suites, and the end-to-end dogfood. All on <code>feature/Recursive-building</code>.</div>
+    <div class="note warn"><div class="t">⛔ Release gate (one dependency)</div>The feature rides on pipelex runtime support (signature/concrete reconciliation, library-level concept resolution, <code>pending_signatures</code>) that is still <b>unreleased</b> (in the worktree's <code>[Unreleased]</code>).</div>
+  </div>
+  <p>When that pipelex release lands: bump the pipelex pin + mthds-js version, raise the plugin's <code>min_mthds_version</code> floor, then <code>/release</code>. The whole feature is held behind that single gate (decision D4) so old-pipelex users can't hit an opaque library error at the first refinement.</p>
+
+  <details>
+    <summary>Deferred to follow-ups</summary>
+    <div class="body">
+      <ul>
+        <li><b>Parallel fan-out</b> — per-signature worker sub-agent + the new <code>agents/</code> plugin component (D1). Re-introduces parallel-sibling concept-collision handling.</li>
+        <li><b>Codex leftover-signature nudge</b> — mirror the Claude two-stream approach in the Codex hook.</li>
+        <li><b>Cross-file concept refinement</b> — the pipelex feature that would unlock true lazy structuring.</li>
+        <li><b>Flatten-to-single-file</b> delivery option; <b>eval harness</b> for skill behavior.</li>
+      </ul>
+    </div>
+  </details>
+
+  <footer>
+    Recursive Method Building · <code>mthds-plugins</code> · branch <code>feature/Recursive-building</code>.
+    Diagrams render client-side via the Mermaid CDN (needs network); if a diagram doesn't appear, its source text is still readable in place.
+  </footer>
+
+</div>
+
+<script>
+  function pick(btn, i){
+    var t = btn.closest('.tabs');
+    var b = t.querySelectorAll('.tab-btn');
+    var p = t.querySelectorAll('.tab-panel');
+    for (var j=0;j<b.length;j++){ b[j].classList.toggle('active', j===i); }
+    for (var k=0;k<p.length;k++){ p[k].classList.toggle('active', k===i); }
+  }
+</script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'neutral',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: true }
+  });
+  async function renderIn(root){
+    var nodes = Array.prototype.slice.call((root||document).querySelectorAll('.mermaid:not([data-processed])'));
+    if (nodes.length){ try { await mermaid.run({ nodes: nodes }); } catch(e){ console.error('mermaid', e); } }
+  }
+  await renderIn(document);
+  // Re-render any diagram revealed inside a <details> after first paint (avoids hidden 0-width layout).
+  document.querySelectorAll('details').forEach(function(d){
+    d.addEventListener('toggle', function(){ if (d.open) renderIn(d); });
+  });
+</script>
+
+</body>
+</html>

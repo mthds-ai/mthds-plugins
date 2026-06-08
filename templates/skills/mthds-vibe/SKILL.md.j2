@@ -53,7 +53,7 @@ Determine the three things that *are* the requirement:
 - **Output concept** — what the client gets back.
 - **Description** — the semantics, in prose precise enough to implement against.
 
-**Specify the boundary concepts fully now.** The top input and output concepts are the client-facing data contract — give them their structure at Layer 0. Intermediate concepts come later, lazily.
+**Specify the boundary concepts fully now.** The top input and output concepts are the client-facing data contract — give them their structure at Layer 0. Intermediate concepts come later, each introduced by the controller that owns it.
 
 **Write the root file** `mthds-wip/<bundle_dir>/bundle.mthds`:
 
@@ -120,9 +120,9 @@ Given one pending signature `S` (its frozen contract — `inputs`, `output`, `de
 
 3. **Declare `inputs` and `output` explicitly**, repeating `S`'s contract. Pipes never infer `inputs` from prompt sigils, so a definition that omits them mismatches its header. Spelling is free — the contract reconciles by **concept identity** (bare↔qualified, native equivalents, multiplicity structural), so `output = "Brief"` and `output = "thisdomain.Brief"` match.
 
-4. **Prevent concept collisions (do this before introducing a new intermediate concept).** Check the concept code is not already declared anywhere in the assembled library or pending set; if it is, **derive a unique code** by namespacing from the parent pipe code. Each concept is declared **once**, in the file of the pipe that introduces it. (`ConceptLibraryError` is the loud backstop if a duplicate slips through.)
+4. **Prevent concept collisions (do this before introducing a new intermediate concept).** Check the concept code is not already declared anywhere in the assembled library or pending set; if it is, **derive a unique code** by namespacing from the parent pipe code. Each concept is declared **once**, in the file of the pipe that introduces it. (A duplicate is the loud backstop: validate fails with `Concept '<code>' is declared in two different bundle files … rename one of the concepts`.)
 
-5. **Refine concepts lazily.** Introduce an intermediate concept simple (often `refines` a native). Give it `structure` only when a downstream consumer reads a specific field (e.g. a prompt uses `$x.field`, or a construct maps `from = "x.field"`) — structure it at that moment, not before.
+5. **Fix each concept's shape when you introduce it — you cannot add fields later.** A concept is declared **once**, in its introducing file; the additive model never lets a later file add structure (a second declaration is the same hard "declared in two different bundle files" error). So decide the shape from the consumers this controller wires: if any downstream consumer **field-reads** the concept (`$x.field`, or a construct `from = "x.field"`), declare it **structured now** — a field-read on a simple concept fails even under lenient validation. If the concept is only ever consumed **whole** (`@x` in a prompt, or mapped wholesale), keep it **simple** (often `refines` a native). When a sibling field-reads a concept, hoist that concept up to the common parent controller that wires both its producer and that consumer, and structure it there.
 
 ### If validation fails after an expansion
 
@@ -174,7 +174,7 @@ Once strict validation passes:
 - **Contract stability.** A definition preserves its header's `inputs`/`output` contract, matched by **concept identity** (not byte-string). Choose a signature's internals freely; never change its surface without revising the parent too.
 - **`main_pipe` is the anchor.** The top signature's code and its inputs/output are frozen after Layer 0. Its body arrives as a separate definition file; its identity and surface never change.
 - **Additive writes.** One concrete definition per file; headers persist after they're satisfied. Never overwrite an existing file — always add a new `<code>.mthds`.
-- **Concepts refine lazily.** Boundary concepts at Layer 0; intermediate concepts introduced simple, structured only when a consumer reads a field.
+- **A concept's shape is fixed at introduction.** Boundary concepts structured at Layer 0; an intermediate concept's shape is decided in its introducing file — structured if any consumer field-reads it, simple if consumed whole — and cannot be changed in a later file.
 - **Backlog = `{signatures} − {concretes}`.** Recomputed each layer from validate's `## Pending signatures` list — never hand-tracked, never reconstructed as a depth tree.
 
 ---

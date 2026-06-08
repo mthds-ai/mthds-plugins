@@ -28,7 +28,9 @@ Part A reconciles a pipe *signature* with its *concrete* (the C-header model), s
 
 The additive model can't cheaply recover by renaming — that means editing already-written files and every reference, the very thing additive avoids. Candidate fixes (none chosen): the orchestrator **pre-allocates** concept namespaces/prefixes per worker before dispatch; workers derive concept codes deterministically from their own pipe code; or a concept-level reconciliation for byte-identical declarations.
 
-**Deferred on purpose:** the user wants to **see the collision happen in a real recursive build first**, to design the right fix against an actual case rather than speculatively. Until then the hard `ConceptLibraryError` is the loud, safe backstop.
+**Deferred on purpose:** the user wants to **see the collision happen in a real recursive build first**, to design the right fix against an actual case rather than speculatively. Until then the hard duplicate-declaration error is the loud, safe backstop.
+
+**6.3 dogfood observation (2026-06-08):** the *serial* case was exercised end-to-end. Two sibling controllers (`analyze_timeline`, `assess_remediation`) each naturally wanted a `RawFindings` concept; reusing the code surfaced the backstop — `ValidateBundleError: Concept 'incident_report.RawFindings' is declared in two different bundle files … rename one of the concepts` (**not** literally `ConceptLibraryError` as named above; the surfaced message is more actionable — it suggests the rename). The D5 check-before-introduce prevention (derive a unique code, `RawFindings` → `RemediationFinding`) worked cleanly. The **parallel-sibling** case remains deferred with fan-out — serial prevention does not cover concurrent workers that can't see each other's not-yet-written declarations.
 
 ## Domain metadata merge under the additive model (DONE — pipelex)
 
@@ -57,6 +59,14 @@ The Claude bash hook emits a **non-blocking** `additionalContext` nudge on a len
 Why deferred: the Codex hook only inspects validate output **on failure** and reads errors as **markdown on stderr**, which `classifyStage3Result()` greps. Adding a success-path `pending_signatures` note means reading the **success** envelope, which requires `--format json` — and on the pipelex CLI `--format` *inherits into* `--error-format` unless `--error-format markdown` is also pinned, so it re-opens the exact error-format coupling the Claude side had to solve (the two-stream pinning, mthds-plugins CLAUDE.md §"`--format` vs `--error-format`"). For v1 it's not worth that risk: the orchestrator skill tracks `pending_signatures` itself, so the nudge is redundant guidance, not a correctness gate.
 
 When picked up: mirror the Claude approach — pass `--allow-signatures --format json --error-format markdown` in `runPipelexValidate`, parse `pending_signatures` from the JSON success stdout, and emit a non-blocking `additionalContext` listing them (no `decision`). The `classifyStage3Result()` markdown-on-stderr path stays unchanged because `--error-format markdown` is pinned. Extend `codex-hook.test.ts` (the DI `runPipelexValidate` mock would need to return stdout too).
+
+## Cross-file concept structure refinement (deferred — pipelex feature)
+
+Surfaced by the 6.3 dogfood (2026-06-08). Under the additive model a concept is declared **exactly once**, in the file of the controller that introduces it, and its **structure cannot be added or changed in a later file** — three hard constraints (all verified, all `error_domain: input`, all enforced even under `--allow-signatures`): a referenced-but-undeclared concept fails (`not declared`); a concept declared in two files fails (`declared in two different bundle files`); a field-read on a simple concept fails at dry-run (`cannot resolve path 'x.field'`).
+
+Consequence: a concept's shape must be **fixed at introduction**. "Lazy structuring" (introduce simple, add fields later when a consumer appears) is **not** achievable across files — the skill prose was corrected in 6.5 to "structure-at-introduction; hoist a field-read concept to the common parent that wires both producer and consumer; only whole-consumed concepts stay simple."
+
+Later, consider a pipelex feature for **additive concept refinement** — letting a sibling/later file *add* structure to a concept declared simple elsewhere (or splitting a concept's declaration from its structure). That would make true cross-layer lazy structuring possible and remove the hoisting requirement. Out of v1 scope; the structure-at-introduction discipline is a clean workaround that the dogfood proved works in practice.
 
 ## Related
 

@@ -9,7 +9,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **File discovery:** receives the exact file path from `tool_input.file_path` in stdin JSON
 - **Scope:** validates one file per invocation
 - **Sandbox:** hooks run without network restrictions
-- **Stages:** plxt lint, plxt fmt, mthds-agent validate bundle (all three)
+- **Stages:** plxt lint, plxt fmt, mthds-agent validate bundle (all three). Stage 3 is **lenient** (`--allow-signatures`) and emits a non-blocking `pending_signatures` nudge on success — see [Lenient validation](#lenient-validation--allow-signatures-both-hooks)
 - **Implementation:** bash script `templates/hooks/validate-mthds.sh.j2` (rendered into `mthds/hooks/`)
 - **Wiring:** `hooks.json` is bundled inside the plugin and auto-loaded by Claude Code
 
@@ -20,7 +20,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **File discovery:** parses `tool_input.command` (the raw apply_patch envelope) for `*** Update File:` / `*** Add File:` / `*** Move to:` headers
 - **Scope:** validates every `.mthds` file that exists on disk after the patch applies (rename source paths and `*** Delete File:` targets are silently skipped)
 - **Sandbox:** hooks run inside the Codex sandbox with restricted network access
-- **Stages:** plxt lint, plxt fmt, `pipelex-agent validate bundle` (all three). Stage 3 calls `pipelex-agent` directly (not `mthds-agent`); it blocks on input-domain errors and emits `additionalContext` on config/runtime errors
+- **Stages:** plxt lint, plxt fmt, `pipelex-agent validate bundle` (all three). Stage 3 calls `pipelex-agent` directly (not `mthds-agent`); it is **lenient** (`--allow-signatures`) and blocks on input-domain errors and emits `additionalContext` on config/runtime errors. Unlike the Claude hook it does **not** emit the `pending_signatures` nudge — see [Lenient validation](#lenient-validation--allow-signatures-both-hooks)
 - **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js. The validation runtime lives in the npm package, not the plugin.
 - **Wiring:** the plugin bundles `hooks/codex-hooks.json` and points the Codex plugin manifest's `hooks` field at it. Codex discovers it directly — no per-user install step. Loading it requires `[features] plugin_hooks = true` (see below).
 
@@ -41,6 +41,17 @@ Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`.
 ### Stage 3 validation in the Codex sandbox (now enabled)
 
 Earlier, `mthds-agent validate bundle` fetched a remote Pipelex configuration on startup; the Codex sandbox blocked that network call and the command hung, so Stage 3 was disabled there. That is resolved. The Codex hook now runs Stage 3 by calling `pipelex-agent validate bundle <file> -L <dir>` directly, and pipelex's `validate bundle` path is **offline-safe** — no gateway or remote-config fetch — so it runs cleanly inside the sandbox. It classifies on the **markdown** error report on stderr (greps `- **error_domain:** …`): block on input-domain (or missing/unknown — default to block for safety), emit `additionalContext` on config/runtime. Both hooks now run all three stages.
+
+### Lenient validation — `--allow-signatures` (both hooks)
+
+Both hooks run Stage 3 **leniently**, passing `--allow-signatures` to `validate bundle`. A `PipeSignature` is a contract-only forward declaration; recursive/stepwise building (the `mthds-vibe` skill) saves bundles whose graph still reaches unimplemented signatures, and a strict validate would block every one of those intermediate saves. Lenient validation accepts a reachable signature (each mints a mock of its declared output), so in-progress builds aren't blocked. On a **signature-free** bundle lenient ≡ strict, so this is a no-op for `mthds-build`, hand-edits, and finished methods. The strict gate (which rejects any reachable signature) moves to the skill's explicit finalize step and to `run` — both of which always reject signatures, so an unfinished method can never be run.
+
+The two hooks diverge only on the **success nudge**:
+
+- **Claude hook** pins `--format json --error-format markdown` together (the two streams are independent — `--format` governs the success envelope on stdout, `--error-format` the error report on stderr, and `--error-format` *inherits* `--format` when omitted). That gives a machine-readable success envelope while keeping errors as markdown-on-stderr so the failure classifier is unchanged. On a successful lenient validate it reads the `pending_signatures` array from stdout and, if non-empty, emits a **non-blocking** `additionalContext` nudge listing the still-unimplemented signatures.
+- **Codex hook** ships only `--allow-signatures` (no `--format json`, no nudge) for v1. It inspects validate output only on **failure**, where errors stay markdown-on-stderr, so its classifier is untouched. The orchestrator skill tracks `pending_signatures` itself, so the Codex nudge is a deferred follow-up (see `wip/deferred-issues.md`), not a correctness gap.
+
+(Canonical reference for the two-stream `--format` / `--error-format` design: `mthds-plugins/CLAUDE.md` §"`--format` vs `--error-format`" and `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
 
 ### Sandbox network access
 
