@@ -60,13 +60,15 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 
 ---
 
+{% if env_check -%}
 ## Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+{% endif -%}
 Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
-> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
+> **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.{% if can_run_methods %} Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.{% endif %}
 
 ---
 
@@ -181,7 +183,7 @@ Fill each field according to its type and description.
 
 ### Generate File Inputs
 
-When inputs require actual files (Image, Document), use the appropriate generation method. See [Image Generation](#image-generation) and [Document Generation](#document-generation) below.
+When inputs require actual files (Image, Document), use the appropriate generation method. See {% if can_run_methods %}[Image Generation](#image-generation) and {% endif %}[Document Generation](#document-generation) below.
 
 ### Assemble and Save
 
@@ -333,6 +335,7 @@ Combines user data with synthetic generation for any remaining gaps.
 
 ---
 
+{% if can_run_methods -%}
 ## Image Generation
 
 Use the `synthesize_image` Pipelex pipeline to generate test images.
@@ -371,6 +374,8 @@ mthds-agent run bundle pipelex/builder/synthetic_inputs/synthesize_image.mthds -
 **Output**: The pipeline saves the generated image to `<output_dir>/inputs/` and returns the file path.
 
 For image synthesis error handling, see [Error Handling Reference](../shared/error-handling.md).
+
+{% endif -%}
 
 ---
 
@@ -544,6 +549,7 @@ After assembling the inputs, confirm readiness:
 
 > Inputs are ready. `inputs.json` has been saved with real values — no placeholders remain.
 
+{% if can_run_methods -%}
 Then offer to run:
 
 ```bash
@@ -553,6 +559,8 @@ mthds-agent run bundle <bundle-dir>/ --dry-run
 # Full run (uses actual AI/extraction models)
 mthds-agent run bundle <bundle-dir>/
 ```
+
+{% endif -%}
 
 ---
 

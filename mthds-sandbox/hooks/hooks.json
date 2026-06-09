@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*.mthds)",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/validate-mthds.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "if": "Write(*.mthds)",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/validate-mthds.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
