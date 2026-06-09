@@ -10,10 +10,12 @@ You've built a method — now let's run it. Before your first live inference run
 
 ## Process
 
+{% if env_check -%}
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+{% endif -%}
 ### Step 1 — Present Options
 
 Use AskUserQuestion to present the inference setup choice:

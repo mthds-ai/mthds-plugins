@@ -10,10 +10,12 @@ Generate share URLs for method packages and open them in the browser. Supports X
 
 ## Process
 
+{% if env_check -%}
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+{% endif -%}
 ### Step 1: Ask the User
 
 Before sharing, gather two pieces of information:

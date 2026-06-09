@@ -23,13 +23,16 @@ This skill covers:
 
 ---
 
+{% if env_check -%}
 ## Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
-Do not write `.mthds` files until the environment check passes. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
+{% endif -%}
 
-> **No backend setup needed**: This skill works without inference backends or API keys. Building and validating a `.mthds` file does not require running it. Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.
+Do not write `.mthds` files {% if env_check %}until the environment check passes{% else %}manually{% endif %}. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
+
+> **No backend setup needed**: This skill works without inference backends or API keys. Building and validating a `.mthds` file does not require running it.{% if can_run_methods %} Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.{% endif %}
 
 ---
 
@@ -122,6 +125,7 @@ Once validation passes:
 
 2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle.
 
+{% if can_run_methods -%}
 3. **Next steps** — Suggest:
    > Test with mock inference (no real inputs needed):
    > ```
@@ -131,6 +135,8 @@ Once validation passes:
    > ```
    > mthds-agent run bundle mthds-wip/<bundle_dir>/
    > ```
+
+{% endif -%}
 
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
 
