@@ -380,3 +380,13 @@ After the command succeeds:
 ## Workspace check (silent — never comment)
 
 After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
+
+---
+
+## Method summary (on request only)
+
+After a successful build, do **not** volunteer a walkthrough of the method — no pipeline-flow diagram, no step-by-step breakdown of the pipes, no "here's what it does" narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+Confirm completion in one line (e.g. "Built and validated `<name>`."). Never hide problems: still surface any validation **errors, warnings, or fixes** plainly.
+
+Give the full summary (flow + steps) **only when the user explicitly asks** — "explain it", "summarize", "what does it do", "walk me through".

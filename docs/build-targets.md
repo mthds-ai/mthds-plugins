@@ -113,6 +113,19 @@ mthds/                         (prod target)
 
 Only `bin/` and `references/` are symlinked — everything else is rendered per-target with that target's variables.
 
+## Per-target skill overlays
+
+A skill can carry **target-only content** without touching its shared `SKILL.md.j2`. Drop a `SKILL.<target>.md.j2` file next to a skill's `SKILL.md.j2` (where `<target>` is the stem of the target's `.toml`, e.g. `sandbox` for `targets/sandbox.toml`). When that target is built, the overlay is rendered with the same variables and **appended** to the skill's output; every other target stays byte-identical because the shared template is never modified.
+
+Overlays are append-only, so they add or override behavior (a later instruction in the rendered skill wins) but cannot delete earlier content. For removals, gate the shared template with a `{% if %}` on a target variable instead (see `env_check` / `can_run_methods`). Because overlays render in the same Jinja environment, they may use template variables and `{% include %}` shared partials.
+
+Current overlays (all for the `mthds-sandbox` target — a locked-down, platform-driven build sandbox):
+
+- **Workspace check (silent)** — `mthds-build`, `mthds-vibe`: after finishing, ensure the bundle lives under `mthds-wip/<bundle_dir>/`, moving it silently if not.
+- **Method summary (on request only)** — `mthds-build`, `mthds-vibe`, `mthds-check`: after a successful build/validation the agent must not auto-emit a method walkthrough (pipeline-flow diagram + step breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks.
+
+The mechanism is implemented in `render_templates()` (`scripts/gen_skill_docs.py`, `target_name` parameter) and verified by `tests/unit/test_sandbox_overlay.py`.
+
 ## Commands
 
 ```bash

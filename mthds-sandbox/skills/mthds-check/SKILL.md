@@ -88,3 +88,13 @@ This skill is read-only.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when reviewing .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when checking `$var.field` references in prompts to verify the attribute exists on the content type
+
+---
+
+## Method summary (on request only)
+
+After validation passes, do **not** volunteer a walkthrough of the method — no pipeline-flow diagram, no step-by-step breakdown of the pipes, no "here's what it does" narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+On a clean check, confirm in one line (e.g. "`<name>` is valid."). Never hide problems: still report every **error, warning, and suggestion** plainly — that is this skill's job.
+
+Give the full summary (flow + steps) **only when the user explicitly asks** — "explain it", "summarize", "what does it do", "walk me through".
