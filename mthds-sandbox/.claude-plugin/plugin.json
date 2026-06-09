@@ -7,5 +7,5 @@
   "license": "MIT",
   "name": "mthds-sandbox",
   "description": "MTHDS build-assistant skills for locked-down sandboxes \u2014 no environment checks, no method execution.",
-  "version": "0.12.0"
+  "version": "0.13.0"
 }
