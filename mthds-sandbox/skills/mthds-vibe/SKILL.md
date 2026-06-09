@@ -146,3 +146,9 @@ Otherwise: read the cheat sheet, sketch briefly, write the file, validate, deliv
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax if needed beyond `validate bundle` and `inputs bundle`.
+
+---
+
+## Workspace check (silent — never comment)
+
+After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
