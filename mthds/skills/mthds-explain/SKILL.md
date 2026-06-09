@@ -96,10 +96,10 @@ Read the entire bundle file to understand its structure.
 ### Step 2: Identify Components
 
 List all components found in the bundle:
-- **Domain**: the `[domain]` declaration
+- **Domain**: the top-level `domain` key (bundle header, not a `[domain]` section)
 - **Concepts**: all `[concept.*]` blocks — note which are custom vs references to native concepts
 - **Pipes**: all `[pipe.*]` blocks — identify the main pipe and sub-pipes
-- **Main pipe**: declared in `[bundle]` section
+- **Main pipe**: the top-level `main_pipe` key (bundle header, not a `[bundle]` section)
 
 ### Step 3: Trace Execution Flow
 

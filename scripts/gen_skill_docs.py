@@ -359,11 +359,20 @@ def setup_static_assets(
     env_check = false targets get no bin/ at all: it only holds the self-install
     script (which would install the WRONG plugin target in a locked-down sandbox)
     and the env-check binary (unused once the env-check sections are gated out).
+    Any stale bin/ left from a previous build is actively removed so rebuilds are
+    idempotent.
     """
     bin_src = base_dir / "bin"
     bin_dst = output_dir / "bin"
-    if bin_src.is_dir() and env_check:
-        _refresh_copy(bin_src, bin_dst)
+    if env_check:
+        if bin_src.is_dir():
+            _refresh_copy(bin_src, bin_dst)
+    # Locked-down target: drop any stale bin/ (is_symlink before is_dir — a
+    # symlink-to-dir is both, and rmtree would chase the link).
+    elif bin_dst.is_symlink() or bin_dst.is_file():
+        bin_dst.unlink()
+    elif bin_dst.is_dir():
+        shutil.rmtree(bin_dst)
 
     if include_skills is not None:
         skill_names = include_skills

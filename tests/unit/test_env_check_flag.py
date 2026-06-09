@@ -122,9 +122,13 @@ class TestEnvCheckFlag:
     def test_off_omits_bin_directory(self, tmp_path: Path) -> None:
         # bin/ only holds the self-install script (which would install the wrong
         # plugin target) and the env-check binary, so a locked-down target gets no
-        # bin/ at all — while an env_check = true target keeps it.
+        # bin/ at all — and a STALE bin/ from a previous build is actively removed
+        # (rebuild idempotency), not merely skipped.
         out_off = tmp_path / "off"
         out_off.mkdir()
+        stale_bin = out_off / "bin"
+        stale_bin.mkdir()
+        (stale_bin / "install.sh").write_text("#!/usr/bin/env bash\n# leftover from a prior build\n")
         setup_static_assets(REPO_ROOT, out_off, TEMPLATES_DIR, None, env_check=False)
         assert not (out_off / "bin").exists()
 
