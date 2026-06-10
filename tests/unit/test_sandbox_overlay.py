@@ -46,12 +46,12 @@ class TestSandboxOverlay:
     def test_no_target_name_skips_overlays(self) -> None:
         assert WORKSPACE_MARKER not in _build_skill(None)
 
-    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check"])
+    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check", "mthds-edit", "mthds-fix"])
     def test_sandbox_suppresses_summary(self, skill: str) -> None:
-        # The sandbox build/validate surface must not auto-emit a method summary.
+        # The sandbox build/edit/fix/validate surface must not auto-emit a summary.
         assert NO_SUMMARY_MARKER in _build_skill("sandbox", skill)
 
-    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check"])
+    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check", "mthds-edit", "mthds-fix"])
     def test_prod_keeps_summary_behavior(self, skill: str) -> None:
         # Only the sandbox target carries the no-summary rule.
         assert NO_SUMMARY_MARKER not in _build_skill("prod", skill)

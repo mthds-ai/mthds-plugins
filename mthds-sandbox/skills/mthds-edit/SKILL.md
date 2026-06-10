@@ -113,3 +113,13 @@ Do not write `.mthds` files manually, do not do any other work. The CLI is requi
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
 - [Model References](references/model-references.md) — read when setting or changing model references in a pipe. The `model` field is optional — omit it to use defaults
+
+---
+
+## Method summary (on request only)
+
+After applying an edit, do **not** volunteer a recap of what changed — no updated pipeline-flow diagram, no list of modified pipes, no prompt-by-prompt narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+Confirm completion in one line (e.g. "Updated `<name>`."). Never hide problems: still surface any validation **errors, warnings, or fixes** plainly.
+
+Give the full summary (flow + what changed) **only when the user explicitly asks** — "explain it", "summarize", "what changed", "walk me through".

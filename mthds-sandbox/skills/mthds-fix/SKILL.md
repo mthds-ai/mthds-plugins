@@ -124,3 +124,13 @@ mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when fixing type mismatches involving native concepts, to verify available attributes
+
+---
+
+## Method summary (on request only)
+
+After fixing the errors, do **not** volunteer a recap of what changed — no updated pipeline-flow diagram, no list of modified pipes, no prompt-by-prompt narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+Confirm completion in one line (e.g. "Fixed `<name>` — now valid."). Never hide problems: still surface any remaining **errors or warnings** plainly.
+
+Give the full summary (flow + what changed) **only when the user explicitly asks** — "explain it", "summarize", "what changed", "walk me through".

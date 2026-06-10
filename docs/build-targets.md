@@ -122,7 +122,7 @@ Overlays are append-only, so they add or override behavior (a later instruction 
 Current overlays (all for the `mthds-sandbox` target — a locked-down, platform-driven build sandbox):
 
 - **Workspace check (silent)** — `mthds-build`, `mthds-vibe`: after finishing, ensure the bundle lives under `mthds-wip/<bundle_dir>/`, moving it silently if not.
-- **Method summary (on request only)** — `mthds-build`, `mthds-vibe`, `mthds-check`: after a successful build/validation the agent must not auto-emit a method walkthrough (pipeline-flow diagram + step breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks.
+- **Method summary (on request only)** — `mthds-build`, `mthds-vibe`, `mthds-check`, `mthds-edit`, `mthds-fix`: after a successful build/edit/fix/validation the agent must not auto-emit a method walkthrough or change recap (pipeline-flow diagram + step/change breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks. (`mthds-explain` is intentionally excluded — summarizing is its whole job.)
 
 The mechanism is implemented in `render_templates()` (`scripts/gen_skill_docs.py`, `target_name` parameter) and verified by `tests/unit/test_sandbox_overlay.py`.
 
