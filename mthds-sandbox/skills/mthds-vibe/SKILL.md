@@ -2,7 +2,7 @@
 name: mthds-vibe
 description: Vibe-code a method bundle by writing MTHDS code directly in a single pass.
 disable-model-invocation: true
-min_mthds_version: 0.9.0
+min_mthds_version: 0.10.0
 allowed-tools:
   - Bash
   - Read
