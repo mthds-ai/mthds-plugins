@@ -35,6 +35,7 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `batch_item_name_collision` | `input_item_name` collides with `input_list_name` or an `inputs` key | Rename `input_item_name` to a distinct singular form (e.g., list `"reports"` → item `"report"`) |
 | `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
 
+{% if can_run_methods -%}
 ## Onboarding Errors
 
 | Error Type | Meaning | Recovery |
@@ -61,6 +62,7 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 | `ArgumentError` | Invalid CLI flag combination | Check command flags (e.g., `--mock-inputs` requires `--dry-run`) |
 | `BinaryNotFoundError` | A required binary (e.g., `pipelex-agent`) is not on PATH | Install: `{{ pipelex_install_cmd }}`. Then use `/mthds-runner-setup` to configure backends. |
 
+{% endif -%}
 ## Cross-Domain Validation & Library Isolation
 
 Pipelex loads `.mthds` files into a flat namespace. **Always use directory mode or `-L` pointing to the bundle's own directory** to avoid namespace collisions with other bundles in the project:
@@ -68,9 +70,10 @@ Pipelex loads `.mthds` files into a flat namespace. **Always use directory mode 
 ```bash
 # ALWAYS use -L for validation (isolates from other bundles)
 mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
-
+{% if can_run_methods %}
 # ALWAYS use directory mode or -L for running
 mthds-agent run bundle mthds-wip/pipeline_01/ --dry-run --mock-inputs
+{% endif -%}
 ```
 
 When a bundle references pipes/concepts from other domains, add multiple `-L` flags:

@@ -1,0 +1,11 @@
+{
+  "author": {
+    "name": "Pipelex staff",
+    "email": "oss@pipelex.com"
+  },
+  "repository": "https://github.com/mthds-ai/mthds-plugins",
+  "license": "MIT",
+  "name": "mthds-sandbox",
+  "description": "MTHDS build-assistant skills for locked-down sandboxes \u2014 no environment checks, no method execution.",
+  "version": "0.13.0"
+}

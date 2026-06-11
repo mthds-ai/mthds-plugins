@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-min_mthds_version: 0.9.0
+min_mthds_version: 0.10.0
 allowed-tools:
   - Bash
   - Read
@@ -37,7 +37,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.9.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.10.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -72,7 +72,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
 
-- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.9.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. Two "explicit-quiet" variants share the same prefix and are also clean — proceed to Step 1 without warning, and do not relay the quiet state unless the user is troubleshooting:
+- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.10.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. Two "explicit-quiet" variants share the same prefix and are also clean — proceed to Step 1 without warning, and do not relay the quiet state unless the user is troubleshooting:
   - `UP_TO_DATE update-check=disabled` — the user has turned update-check off via config.
   - `UP_TO_DATE update-check=snoozed` — the user has an active snooze on the current version key; an upgrade would otherwise be available, but they explicitly asked for quiet.
 
@@ -96,10 +96,10 @@ Read the entire bundle file to understand its structure.
 ### Step 2: Identify Components
 
 List all components found in the bundle:
-- **Domain**: the `[domain]` declaration
+- **Domain**: the top-level `domain` key (bundle header, not a `[domain]` section)
 - **Concepts**: all `[concept.*]` blocks — note which are custom vs references to native concepts
 - **Pipes**: all `[pipe.*]` blocks — identify the main pipe and sub-pipes
-- **Main pipe**: declared in `[bundle]` section
+- **Main pipe**: the top-level `main_pipe` key (bundle header, not a `[bundle]` section)
 
 ### Step 3: Trace Execution Flow
 

@@ -10,10 +10,12 @@ Upgrade mthds-agent and its managed tools to the latest versions.
 
 ## Process
 
+{% if env_check -%}
 ### Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+{% endif -%}
 ### Step 1: Force Version Check
 
 ```bash

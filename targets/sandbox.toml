@@ -1,0 +1,26 @@
+[plugin]
+name = "mthds-sandbox"
+version = "0.13.0"
+description = "MTHDS build-assistant skills for locked-down sandboxes — no environment checks, no method execution."
+source = "mthds-sandbox/"
+
+[vars]
+# Pre-provisioned, locked-down environment (e.g. a hosted build sandbox behind a
+# platform UI). The agent must never run env/doctor/upgrade commands, and never
+# run or suggest running methods — execution is the platform's job.
+env_check = false
+can_run_methods = false
+
+[skills]
+# Build-assistant surface only. Omits run / runner-setup / install / upgrade /
+# publish / share / pkg — none of which fit a locked-down "build .mthds" sandbox
+# (this also drops the only AskUserQuestion and doctor usages).
+include = [
+  "mthds-build",
+  "mthds-edit",
+  "mthds-check",
+  "mthds-fix",
+  "mthds-explain",
+  "mthds-inputs",
+  "mthds-vibe",
+]

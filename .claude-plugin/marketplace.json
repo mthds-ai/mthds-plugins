@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
-    "version": "0.12.0"
+    "version": "0.13.0"
   },
   "plugins": [
     {
@@ -18,6 +18,11 @@
       "name": "mthds-dev",
       "description": "Development build of MTHDS skills — for iteration and testing.",
       "source": "./mthds-dev"
+    },
+    {
+      "name": "mthds-sandbox",
+      "description": "MTHDS build-assistant skills for locked-down sandboxes — no environment checks, no method execution.",
+      "source": "./mthds-sandbox"
     }
   ]
 }
