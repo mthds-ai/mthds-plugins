@@ -99,7 +99,7 @@ The path to the generated graph appears in the stderr logs; when `--format json`
 | `mthds-agent inputs bundle` | Generate example input JSON | `mthds-agent inputs bundle bundle.mthds` |
 | `mthds-agent concept` | Validate and structure a concept from JSON spec (returns raw TOML) | `mthds-agent concept --spec '{...}'` |
 | `mthds-agent pipe` | Validate and structure a pipe from JSON spec (returns raw TOML). Field names: `type`, `pipe_code`, and optionally `model`. Omit `model` to use defaults; set it only for specialized needs or explicit user requests | `mthds-agent pipe --spec '{"type": "PipeLLM", "pipe_code": "my_pipe", "prompt": "...", ...}'` |
-| `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models -t llm` / `mthds-agent models -t search` |
+| `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON) | `mthds-agent check-model "$writing-creative" --type llm` |
 | `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
