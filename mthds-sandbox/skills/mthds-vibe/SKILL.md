@@ -2,7 +2,7 @@
 name: mthds-vibe
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
-min_mthds_version: 0.9.0
+min_mthds_version: 0.10.0
 allowed-tools:
   - Bash
   - Read
@@ -187,3 +187,19 @@ This skill is **automatic by default**.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.
+
+---
+
+## Workspace check (silent — never comment)
+
+After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
+
+---
+
+## Method summary (on request only)
+
+After a successful build, do **not** volunteer a walkthrough of the method — no pipeline-flow diagram, no step-by-step breakdown of the pipes, no "here's what it does" narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+Confirm completion in one line (e.g. "Built and validated `<name>`."). Never hide problems: still surface any validation **errors, warnings, or fixes** plainly.
+
+Give the full summary (flow + steps) **only when the user explicitly asks** — "explain it", "summarize", "what does it do", "walk me through".

@@ -215,11 +215,27 @@ def resolve_output_dir(base_dir: Path, source: str) -> Path:
     return base_dir / source.rstrip("/")
 
 
+def _render_or_die(env: Environment, template_name: str, template_vars: Mapping[str, str | bool]) -> str:
+    """Render one template by name, turning Jinja errors into a clean SystemExit."""
+    try:
+        return env.get_template(template_name).render(**template_vars)
+    except TemplateNotFound as exc:
+        msg = f"{template_name}: include file not found: {exc.name}"
+        raise SystemExit(msg) from exc
+    except TemplateSyntaxError as exc:
+        msg = f"{template_name}: syntax error at line {exc.lineno}: {exc.message}"
+        raise SystemExit(msg) from exc
+    except UndefinedError as exc:
+        msg = f"{template_name}: undefined variable: {exc.message} — add it to targets/defaults.toml or the target config"
+        raise SystemExit(msg) from exc
+
+
 def render_templates(
     templates_dir: Path,
     base_dir: Path,
     template_vars: Mapping[str, str | bool],
     include_skills: list[str] | None = None,
+    target_name: str | None = None,
 ) -> dict[Path, str]:
     """Render all .j2 templates and return {output_path: rendered_content}.
 
@@ -232,6 +248,10 @@ def render_templates(
         base_dir: Repository root — output paths are relative to this.
         template_vars: Variables to inject into all templates.
         include_skills: If set, only render skill templates in these directories.
+        target_name: Build target name. When set, a per-skill overlay
+            `SKILL.<target_name>.md.j2` (next to a skill's `SKILL.md.j2`) is
+            appended to that skill's output — so a target can add content without
+            touching the shared template. Targets with no overlay are unaffected.
 
     Raises:
         SystemExit: On missing include files or template syntax errors.
@@ -285,21 +305,22 @@ def render_templates(
     if not all_j2_paths:
         return {}
 
+    skill_j2_set = set(j2_paths)
     results: dict[Path, str] = {}
     for j2_path in all_j2_paths:
         template_name = j2_path.relative_to(templates_dir).as_posix()
-        try:
-            template = env.get_template(template_name)
-            rendered = template.render(**template_vars)
-        except TemplateNotFound as exc:
-            msg = f"{template_name}: include file not found: {exc.name}"
-            raise SystemExit(msg) from exc
-        except TemplateSyntaxError as exc:
-            msg = f"{template_name}: syntax error at line {exc.lineno}: {exc.message}"
-            raise SystemExit(msg) from exc
-        except UndefinedError as exc:
-            msg = f"{template_name}: undefined variable: {exc.message} — add it to targets/defaults.toml or the target config"
-            raise SystemExit(msg) from exc
+        rendered = _render_or_die(env, template_name, template_vars)
+
+        # Per-target skill overlay: a `SKILL.<target_name>.md.j2` next to a skill
+        # is appended to that skill's output ONLY when building <target_name>. The
+        # shared `SKILL.md.j2` is never modified, so every other target stays
+        # byte-identical — target-specific content lives in a target-only file.
+        if target_name is not None and j2_path in skill_j2_set:
+            overlay_path = j2_path.parent / f"SKILL.{target_name}.md.j2"
+            if overlay_path.is_file():
+                overlay_name = overlay_path.relative_to(templates_dir).as_posix()
+                rendered += _render_or_die(env, overlay_name, template_vars)
+
         # Map template path to output path:
         # templates/skills/X/SKILL.md.j2 -> skills/X/SKILL.md
         # templates/hooks/X.sh.j2 -> hooks/X.sh
@@ -408,7 +429,7 @@ def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False)
     result = BuildResult()
 
     # Render templates — output paths are relative to base_dir
-    rendered = render_templates(templates_dir, base_dir, config.template_vars, config.include_skills)
+    rendered = render_templates(templates_dir, base_dir, config.template_vars, config.include_skills, target_name=config.name)
     if not rendered:
         return result
 
