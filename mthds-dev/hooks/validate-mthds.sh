@@ -3,8 +3,10 @@
 # Reads tool_input JSON from stdin, then runs (in order):
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
-#   3. mthds-agent validate bundle — semantic validation (blocks on input-domain
-#      errors; emits agent additionalContext for config/runtime errors)
+#   3. mthds-agent validate bundle — semantic validation, lenient
+#      (--allow-signatures: in-progress PipeSignature headers don't block;
+#      blocks on input-domain errors; emits agent additionalContext for
+#      config/runtime errors and for leftover unimplemented signatures)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
 # Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
@@ -86,26 +88,52 @@ if [[ "$FMT_EXIT" -ne 0 ]]; then
 fi
 
 # =====================================================================
-# STAGE 3: mthds-agent validate bundle — semantic validation
+# STAGE 3: mthds-agent validate bundle — semantic validation (lenient)
 # Reads the STRUCTURED verdict from JSON, not the exit code or a markdown grep
 # (--format json / --error-format json are pinned so the machine read holds under
-# ANY configured runner — pipelex or api). A VALID bundle (is_valid:true) PASSES
-# even when it is not yet runnable: unimplemented PipeSignature placeholders ride
-# the success envelope on stdout with is_valid:true, and validity (not runnability)
-# is what a post-edit hook should gate. An INVALID verdict (is_valid:false) rides
-# the JSON error envelope on stderr: BLOCK on input-domain errors (agent fixes the
-# bundle), emit additionalContext on config/runtime errors (environment issue —
-# agent informed, do not edit the file).
+# ANY configured runner — pipelex or api). Validated leniently (--allow-signatures)
+# so a bundle whose graph still reaches PipeSignature headers isn't blocked
+# mid-construction (recursive/stepwise builds); on a signature-free bundle lenient
+# ≡ strict, so it's a no-op for vibe/build/hand-edits. The strict gate lives in the
+# skill's finalize step + `run` (which always rejects signatures).
+#
+# A VALID bundle (is_valid:true) PASSES even when it is not yet runnable: unimplemented
+# PipeSignature placeholders ride the success envelope on stdout with is_valid:true (plus
+# the pending_signatures list — see the nudge below), and validity (not runnability) is
+# what a post-edit hook should gate. An INVALID verdict (is_valid:false) rides the JSON
+# error envelope on stderr: BLOCK on input-domain errors (agent fixes the bundle), emit
+# additionalContext on config/runtime errors (environment issue — agent informed, do not
+# edit the file).
 # =====================================================================
 PARENT_DIR=$(dirname "$FILE_PATH")
 
 EXIT_CODE=0
-mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --format json --error-format json >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
 
 # Valid verdict → pass. The success envelope (is_valid:true) rides stdout even when
 # the exit code is non-zero (the strict not-runnable signature gate exits non-zero
 # while the bundle is structurally valid). Read is_valid, NOT the exit code.
 if [[ "$(_jv "$(cat "$TMPOUT")" "d.is_valid === true ? 'y' : ''")" == "y" ]]; then
+  # Valid → pass. If the assembled library still has unimplemented PipeSignature
+  # placeholders, emit a NON-BLOCKING nudge so the agent implements them before
+  # running for real. pending_signatures rides the same success envelope — the
+  # library-wide list of pipes still typed PipeSignature (empty when complete).
+  # Headers persist additively after they're satisfied, so this field — NOT a grep
+  # for "PipeSignature" — is the source of truth for what remains.
+  PENDING=$(_jv "$(cat "$TMPOUT")" "Array.isArray(d.pending_signatures)?d.pending_signatures.join(', '):''") || PENDING=""
+  if [[ -n "$PENDING" ]]; then
+    node -e '
+      const pending = process.argv[1];
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: "Bundle is valid but not yet runnable. Signatures still unimplemented (PipeSignature placeholders): "
+            + pending
+            + ". They mock their output on dry-run; implement them before running the method for real."
+        }
+      }) + "\n");
+    ' "$PENDING" || true
+  fi
   exit 0
 fi
 # A clean exit 0 WITHOUT the structured `is_valid:true` success envelope means we got no
