@@ -58,13 +58,20 @@ def _run_hook(stdin_data: str, env: dict[str, str]) -> subprocess.CompletedProce
     )
 
 
-def _stub_mthds_agent_validate(bin_dir: Path, stderr_content: str, exit_code: int) -> None:
-    """Create an mthds-agent stub that outputs given stderr on 'validate' and exits."""
+def _stub_mthds_agent_validate(bin_dir: Path, stderr_content: str = "", exit_code: int = 0, stdout_content: str = "") -> None:
+    """Create an mthds-agent stub that emits given stdout/stderr on 'validate' and exits.
+
+    The refactored hook reads the STRUCTURED JSON verdict: a valid bundle's success
+    envelope (is_valid:true) rides stdout; an invalid/no-verdict error envelope rides
+    stderr.
+    """
     stderr_file = bin_dir / "mthds_agent_stderr.txt"
     stderr_file.write_text(stderr_content)
+    stdout_file = bin_dir / "mthds_agent_stdout.txt"
+    stdout_file.write_text(stdout_content)
     _make_stub(
         bin_dir / "mthds-agent",
-        f'#!/bin/bash\nif [[ "$1" == "validate" ]]; then cat "{stderr_file}" >&2; exit {exit_code}; fi\nexit 0\n',
+        f'#!/bin/bash\nif [[ "$1" == "validate" ]]; then cat "{stdout_file}"; cat "{stderr_file}" >&2; exit {exit_code}; fi\nexit 0\n',
     )
 
 
@@ -218,11 +225,11 @@ class TestHookValidateMthds:
         assert "plxt fmt failed" in result.stderr
 
     # --- Stage 3: mthds-agent validate ---
-    # Pipelex emits markdown stderr for validation errors. The hook reads it
-    # verbatim, strips the ## Error source stack-trace section (stopgap until
-    # pipelex 0.30.2 drops it), extracts error_domain from the ## Details
-    # section, and BLOCKs on input/unknown or emits additionalContext on
-    # config/runtime.
+    # The hook reads the STRUCTURED verdict from JSON (--format json /
+    # --error-format json): a valid bundle's success envelope (is_valid:true)
+    # rides stdout and PASSES even when not yet runnable; an invalid/no-verdict
+    # error envelope rides stderr, where the hook reads error_domain to BLOCK
+    # (input/unknown) or emit additionalContext (config/runtime).
 
     def test_all_stages_pass_no_output(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
         """All stages pass produces no stdout."""
@@ -233,21 +240,46 @@ class TestHookValidateMthds:
         assert result.returncode == 0
         assert result.stdout == ""
 
-    def test_input_domain_blocks_with_markdown_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Markdown error with error_domain: input → BLOCK with markdown as reason."""
+    def test_valid_verdict_passes(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A success envelope (is_valid:true) on stdout → pass, no output."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = (
-            "# Error: ValidateBundleError\n"
-            "\n"
-            "Pipe validation failed: Missing required field 'source' in pipe 'extract_info'\n"
-            "\n"
-            "## Details\n"
-            "\n"
-            "- **error_domain:** input\n"
-            "- **pipe_code:** extract_info\n"
+        envelope = json.dumps({"success": True, "is_valid": True, "is_runnable": True, "pending_signatures": [], "validated_pipes": []})
+        _stub_mthds_agent_validate(bin_dir, stdout_content=envelope, exit_code=0)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_valid_but_not_runnable_passes(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A valid-but-not-runnable bundle (is_valid:true on stdout, exit 1 from the strict
+        signature gate) PASSES — validity, not runnability, is what the hook gates."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps({"success": True, "is_valid": True, "is_runnable": False, "pending_signatures": ["dom.todo"], "validated_pipes": []})
+        # The signature gate exits non-zero while the success envelope rides stdout.
+        _stub_mthds_agent_validate(bin_dir, stdout_content=envelope, exit_code=1)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_input_domain_blocks_with_structured_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A JSON error envelope with error_domain: input → BLOCK with a reason built from
+        the message + validation_errors."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps(
+            {
+                "error": True,
+                "error_type": "ValidateBundleError",
+                "is_valid": False,
+                "error_domain": "input",
+                "message": "Validation error(s): Missing required field 'source' in pipe 'extract_info'",
+                "validation_errors": [{"category": "pipe_validation", "message": "Missing required field 'source'", "pipe_code": "extract_info"}],
+            }
         )
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
@@ -255,29 +287,48 @@ class TestHookValidateMthds:
         assert parsed["decision"] == "block"
         assert "extract_info" in parsed["reason"]
         assert "Missing required field" in parsed["reason"]
-        assert "# Error: ValidateBundleError" in parsed["reason"]
         assert str(mthds_file) in parsed["reason"]
 
     def test_no_error_domain_defaults_to_block(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Markdown without error_domain (e.g., LibraryError) → BLOCK (safety default)."""
+        """A JSON error envelope without error_domain → BLOCK (safety default)."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = "# Error: LibraryError\n\nPipe 'build_scorecard' not found. Check for typos.\n"
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        envelope = json.dumps({"error": True, "error_type": "LibraryError", "is_valid": False, "message": "Pipe 'build_scorecard' not found. Check for typos."})
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
         parsed = json.loads(result.stdout.strip())
         assert parsed["decision"] == "block"
-        assert "LibraryError" in parsed["reason"]
         assert "build_scorecard" in parsed["reason"]
 
-    def test_config_domain_emits_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Markdown with error_domain: config → exit 0 with hookSpecificOutput.additionalContext."""
+    def test_internal_fields_not_leaked_in_block_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """Internal envelope fields (error_source stack frames) never reach the block reason."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = "# Error: TelemetryConfigValidationError\n\nTelemetry config missing required field\n\n## Details\n\n- **error_domain:** config\n"
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        envelope = json.dumps(
+            {
+                "error": True,
+                "is_valid": False,
+                "message": "Pipe not found",
+                "error_source": ["LibraryError @ /usr/local/lib/pipelex/libraries/library.py:140"],
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert parsed["decision"] == "block"
+        assert "library.py:140" not in parsed["reason"]
+        assert "error_source" not in parsed["reason"]
+
+    def test_config_domain_emits_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A JSON error envelope with error_domain: config → exit 0 with additionalContext."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps({"error": True, "error_type": "TelemetryConfigValidationError", "error_domain": "config", "message": "Telemetry config missing required field"})
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
@@ -288,17 +339,16 @@ class TestHookValidateMthds:
         ctx = hook_output["additionalContext"]
         assert "config domain" in ctx
         assert "do not edit the file" in ctx
-        assert "TelemetryConfigValidationError" in ctx
+        assert "Telemetry config missing required field" in ctx
         assert str(mthds_file) in ctx
-        assert "TelemetryConfigValidationError" in result.stderr
         assert "domain=config" in result.stderr
 
     def test_runtime_domain_emits_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Markdown with error_domain: runtime → additionalContext + stderr warning."""
+        """A JSON error envelope with error_domain: runtime → additionalContext + stderr warning."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = "# Error: PipeRunError\n\nPipeline execution failed: connection refused\n\n## Details\n\n- **error_domain:** runtime\n"
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        envelope = json.dumps({"error": True, "error_type": "PipeRunError", "error_domain": "runtime", "message": "Pipeline execution failed: connection refused"})
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
@@ -307,85 +357,31 @@ class TestHookValidateMthds:
         assert "runtime domain" in parsed["hookSpecificOutput"]["additionalContext"]
         assert "domain=runtime" in result.stderr
 
-    def test_error_source_section_stripped_from_block_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """The ## Error source stack-trace section is stripped from BLOCK reason."""
-        bin_dir, mthds_file, env = hook_env
-        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = (
-            "# Error: LibraryError\n"
-            "\n"
-            "Pipe not found\n"
-            "\n"
-            "## Error source\n"
-            "\n"
-            "```\n"
-            "LibraryError @ /usr/local/lib/python3.14/site-packages/pipelex/libraries/library.py:140\n"
-            "PipeNotFoundError @ /usr/local/lib/python3.14/site-packages/pipelex/libraries/pipe/pipe_library.py:115\n"
-            "```\n"
-        )
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
-        stdin = _post_tool_use_json(str(mthds_file))
-        result = _run_hook(stdin, env)
-        assert result.returncode == 0
-        parsed = json.loads(result.stdout.strip())
-        assert parsed["decision"] == "block"
-        assert "## Error source" not in parsed["reason"]
-        assert "library.py:140" not in parsed["reason"]
-        assert "pipe_library.py:115" not in parsed["reason"]
-
-    def test_error_source_section_stripped_from_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """The ## Error source section is stripped from additionalContext (config domain)."""
-        bin_dir, mthds_file, env = hook_env
-        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        markdown = (
-            "# Error: TelemetryConfigValidationError\n"
-            "\n"
-            "Bad config\n"
-            "\n"
-            "## Details\n"
-            "\n"
-            "- **error_domain:** config\n"
-            "\n"
-            "## Error source\n"
-            "\n"
-            "```\n"
-            "TelemetryConfigValidationError @ /usr/local/lib/pipelex/init/telemetry.py:42\n"
-            "```\n"
-        )
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
-        stdin = _post_tool_use_json(str(mthds_file))
-        result = _run_hook(stdin, env)
-        assert result.returncode == 0
-        ctx = json.loads(result.stdout.strip())["hookSpecificOutput"]["additionalContext"]
-        assert "## Error source" not in ctx
-        assert "telemetry.py:42" not in ctx
-
     def test_empty_stderr_blocks_generic(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Non-zero exit with empty stderr → BLOCK with generic reason."""
+        """Non-zero exit with no structured envelope on either stream → BLOCK generic."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        _stub_mthds_agent_validate(bin_dir, "", exit_code=2)
+        _stub_mthds_agent_validate(bin_dir, stderr_content="", exit_code=2)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
         parsed = json.loads(result.stdout.strip())
         assert parsed["decision"] == "block"
-        assert "no stderr output" in parsed["reason"]
+        assert "no structured error envelope" in parsed["reason"]
         assert "exited 2" in parsed["reason"]
 
-    def test_long_markdown_truncated_in_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
-        """Markdown >9500 chars in config domain → additionalContext is truncated with marker."""
+    def test_long_message_truncated_in_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A config-domain message >9500 chars → additionalContext is truncated with marker."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
         long_message = "x" * 12000
-        markdown = f"# Error: TelemetryConfigValidationError\n\n{long_message}\n\n## Details\n\n- **error_domain:** config\n"
-        _stub_mthds_agent_validate(bin_dir, markdown, exit_code=1)
+        envelope = json.dumps({"error": True, "error_domain": "config", "message": long_message})
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
         assert result.returncode == 0
         ctx = json.loads(result.stdout.strip())["hookSpecificOutput"]["additionalContext"]
         assert "[truncated," in ctx
         assert "chars omitted]" in ctx
-        # The truncated markdown body itself should not exceed the cap + the
-        # truncation marker — keep a generous upper bound for header + marker.
+        # additionalContext stays within the cap + header + truncation marker.
         assert len(ctx) < 10000
