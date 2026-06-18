@@ -293,7 +293,9 @@ class TestHookValidateMthds:
         """A JSON error envelope without error_domain → BLOCK (safety default)."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        envelope = json.dumps({"error": True, "error_type": "LibraryError", "is_valid": False, "message": "Pipe 'build_scorecard' not found. Check for typos."})
+        envelope = json.dumps(
+            {"error": True, "error_type": "LibraryError", "is_valid": False, "message": "Pipe 'build_scorecard' not found. Check for typos."}
+        )
         _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
@@ -327,7 +329,14 @@ class TestHookValidateMthds:
         """A JSON error envelope with error_domain: config → exit 0 with additionalContext."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        envelope = json.dumps({"error": True, "error_type": "TelemetryConfigValidationError", "error_domain": "config", "message": "Telemetry config missing required field"})
+        envelope = json.dumps(
+            {
+                "error": True,
+                "error_type": "TelemetryConfigValidationError",
+                "error_domain": "config",
+                "message": "Telemetry config missing required field",
+            }
+        )
         _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
@@ -347,7 +356,9 @@ class TestHookValidateMthds:
         """A JSON error envelope with error_domain: runtime → additionalContext + stderr warning."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
-        envelope = json.dumps({"error": True, "error_type": "PipeRunError", "error_domain": "runtime", "message": "Pipeline execution failed: connection refused"})
+        envelope = json.dumps(
+            {"error": True, "error_type": "PipeRunError", "error_domain": "runtime", "message": "Pipeline execution failed: connection refused"}
+        )
         _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
         result = _run_hook(stdin, env)
