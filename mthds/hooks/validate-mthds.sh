@@ -108,8 +108,12 @@ mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --format json --error
 if [[ "$(_jv "$(cat "$TMPOUT")" "d.is_valid === true ? 'y' : ''")" == "y" ]]; then
   exit 0
 fi
-# Defensive: a clean exit 0 with no parseable success envelope still passes.
+# A clean exit 0 WITHOUT the structured `is_valid:true` success envelope means we got no
+# machine-readable verdict (e.g. an older/regressed mthds-agent that exits 0 with no/garbled
+# JSON). This hook treats the structured verdict as the source of truth, so BLOCK rather than
+# silently allow an unverifiable edit — fail safe for a write gate.
 if [[ "$EXIT_CODE" -eq 0 ]]; then
+  _block "Validation failed for $FILE_PATH (mthds-agent exited 0 with no structured success envelope — upgrade mthds-agent)"
   exit 0
 fi
 

@@ -96,7 +96,9 @@ class TestHookValidateMthds:
         self,
         bin_dir: Path,
         plxt: str = "#!/bin/bash\nexit 0\n",
-        mthds_agent: str = "#!/bin/bash\nexit 0\n",
+        # Realistic default: a valid mthds-agent emits the structured success envelope
+        # (is_valid:true) on stdout for `validate` — which the hook now requires to pass.
+        mthds_agent: str = '#!/bin/bash\nif [[ "$1" == "validate" ]]; then echo \'{"success": true, "is_valid": true}\'; fi\nexit 0\n',
     ) -> None:
         """Add both plxt and mthds-agent stubs."""
         _make_stub(bin_dir / "plxt", plxt)
@@ -263,6 +265,19 @@ class TestHookValidateMthds:
         result = _run_hook(stdin, env)
         assert result.returncode == 0
         assert result.stdout == ""
+
+    def test_exit_zero_without_structured_envelope_blocks(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A clean exit 0 with NO structured success envelope (e.g. an old/regressed mthds-agent
+        emitting no/garbled JSON) → BLOCK, not a silent pass: the hook requires the machine-readable
+        verdict, so it fails safe for a write gate."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        _stub_mthds_agent_validate(bin_dir, stdout_content="", exit_code=0)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        parsed = json.loads(result.stdout.strip())
+        assert parsed["decision"] == "block"
+        assert "no structured success envelope" in parsed["reason"]
 
     def test_input_domain_blocks_with_structured_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
         """A JSON error envelope with error_domain: input → BLOCK with a reason built from
