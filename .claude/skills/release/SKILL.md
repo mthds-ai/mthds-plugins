@@ -18,25 +18,29 @@ explicit user confirmation before proceeding.
 
 ## Version files overview
 
-This plugin ships three build targets in **matched-version lockstep**: `prod`,
-`dev`, `codex`. A release bumps all three to the same version string. The
-canonical hand-edited files are:
+This plugin ships several build targets in **matched-version lockstep** -- one
+per `targets/*.toml` config (excluding `defaults.toml`). At the time of writing
+these are `prod`, `dev`, `codex`, and `sandbox`, but **do not trust that list**:
+always enumerate `targets/*.toml` first, so a newly added target is never
+silently missed. A release bumps **every** target to the same version string.
+The canonical hand-edited files are:
 
-- **`targets/prod.toml`** -- `[plugin].version`
-- **`targets/dev.toml`** -- `[plugin].version`
-- **`targets/codex.toml`** -- `[plugin].version`
+- the `[plugin].version` of **each** `targets/<name>.toml` -- currently
+  `prod.toml`, `dev.toml`, `codex.toml`, `sandbox.toml`
 - **`.claude-plugin/marketplace.json`** -- `metadata.version` (Claude marketplace version)
 
-All three `plugin.json` manifests are **generated** by `make build` from their
-target TOML + the shared `plugin-base.json`:
+Each target's `plugin.json` manifest is **generated** by `make build` from its
+target TOML + the shared `plugin-base.json`. The Claude-style targets emit
+`.claude-plugin/plugin.json`; the Codex target emits `.codex-plugin/plugin.json`:
 
 - `mthds/.claude-plugin/plugin.json` ← `targets/prod.toml` + `.claude-plugin/plugin-base.json`
 - `mthds-dev/.claude-plugin/plugin.json` ← `targets/dev.toml` + `.claude-plugin/plugin-base.json`
+- `mthds-sandbox/.claude-plugin/plugin.json` ← `targets/sandbox.toml` + `.claude-plugin/plugin-base.json`
 - `mthds-codex/.codex-plugin/plugin.json` ← `targets/codex.toml` + `.codex-plugin/plugin-base.json`
 
 Never hand-edit a generated `plugin.json` -- it is overwritten on the next build.
 `make check` enforces both the per-target plugin.json/target.toml match and the
-matched-version lockstep across targets.
+matched-version lockstep across all targets.
 
 ## 1. Pre-flight checks
 
@@ -53,8 +57,9 @@ matched-version lockstep across targets.
 Ask the user which kind of version bump they want -- **patch**, **minor**, or
 **major** -- unless they already specified it. Show the current version and what
 the new version would be for each option so the choice is concrete. The bump is
-computed from **prod**'s current version; `dev` and `codex` are set to the same
-resulting value regardless of their previous values (matched-version lockstep).
+computed from **prod**'s current version; every other target (`dev`, `codex`,
+`sandbox`, and any other `targets/*.toml`) is set to the same resulting value
+regardless of its previous value (matched-version lockstep).
 
 If the current branch already looks like `release/vA.B.C` and the version in
 `targets/prod.toml` was already bumped, offer a **"Keep current (A.B.C)"** option.
@@ -80,24 +85,25 @@ happen on this branch.
 
 ## 5. Bump the version
 
-Edit these four files to `TARGET_VERSION`:
+First run `ls targets/*.toml` (ignore `defaults.toml`) so you edit **every**
+target, not a hardcoded subset. Then set `TARGET_VERSION` in:
 
-1. **`targets/prod.toml`** -- change `version = "OLD"` to `version = "NEW"` in `[plugin]`.
-2. **`targets/dev.toml`** -- same edit in `[plugin]`.
-3. **`targets/codex.toml`** -- same edit in `[plugin]`.
-4. **`.claude-plugin/marketplace.json`** -- change `metadata.version`.
+1. The `[plugin].version` of **each** `targets/<name>.toml` -- change
+   `version = "OLD"` to `version = "NEW"`. Currently: `prod.toml`, `dev.toml`,
+   `codex.toml`, `sandbox.toml`.
+2. **`.claude-plugin/marketplace.json`** -- change `metadata.version`.
 
-All four must end up with the same value. Only change version fields -- don't
+They must all end up with the same value. Only change version fields -- don't
 touch anything else in these files.
 
-- If all four already match `TARGET_VERSION`: inform the user and skip.
+- If they already all match `TARGET_VERSION`: inform the user and skip.
 - Otherwise: use the Edit tool to make the changes, then show the diff.
 
-After editing, run `make build` to regenerate `mthds/.claude-plugin/plugin.json`,
-`mthds-dev/.claude-plugin/plugin.json`, `mthds-codex/.codex-plugin/plugin.json`,
-and all derived SKILL.md files. Then verify with `make check` -- it validates
-each plugin.json matches its target.toml, the marketplace version is not lagging,
-and all target versions are in matched-version lockstep.
+After editing, run `make build` to regenerate every target's `plugin.json`
+(`mthds/`, `mthds-dev/`, `mthds-codex/`, `mthds-sandbox/`) and all derived
+SKILL.md files. Then verify with `make check` -- it validates each plugin.json
+matches its target.toml, the marketplace version is not lagging, and all target
+versions are in matched-version lockstep.
 
 ## 6. Finalize the changelog
 
@@ -151,12 +157,14 @@ user may accept, edit, or rewrite the proposed entry.
 
 ## 7. Commit, push & PR
 
-Stage all release-related changes: `targets/prod.toml`, `targets/dev.toml`,
-`targets/codex.toml`, `.claude-plugin/marketplace.json`, `CHANGELOG.md`, and
-the regenerated build artifacts under `mthds/`, `mthds-dev/`, and
-`mthds-codex/` (including the three `plugin.json` files and all derived
-SKILL.md files), plus any other files the user chose to include in step 1.
-Never use `git add .` or `git add -A`.
+Stage all release-related changes: every `targets/<name>.toml` you bumped
+(`prod.toml`, `dev.toml`, `codex.toml`, `sandbox.toml`),
+`.claude-plugin/marketplace.json`, `CHANGELOG.md`, and the regenerated build
+artifacts under each target's output dir (`mthds/`, `mthds-dev/`, `mthds-codex/`,
+`mthds-sandbox/` -- including each `plugin.json` and any derived SKILL.md files),
+plus any other files the user chose to include in step 1. A version-only bump
+usually regenerates just the `plugin.json` manifests, but stage whatever
+`make build` actually changed. Never use `git add .` or `git add -A`.
 
 Commit with the message:
 
@@ -186,13 +194,15 @@ Report the PR URL back to the user.
 ## Rules
 
 - The version follows semver: `MAJOR.MINOR.PATCH`.
-- The source of truth for each target's version is `targets/<name>.toml`;
-  all three (prod, dev, codex) are kept in matched-version lockstep.
-- `targets/prod.toml`, `targets/dev.toml`, `targets/codex.toml`, and
-  `.claude-plugin/marketplace.json` must all have the same version after a
-  release. All three generated `plugin.json` files are rebuilt from them.
-- Never hand-edit the generated `plugin.json` files under `mthds/`,
-  `mthds-dev/`, or `mthds-codex/` — `make build` overwrites them.
+- The source of truth for each target's version is `targets/<name>.toml`; every
+  target (`prod`, `dev`, `codex`, `sandbox`, and any future `targets/*.toml`) is
+  kept in matched-version lockstep. Enumerate `targets/*.toml` rather than
+  trusting this list -- a newly added target must not be missed.
+- Every `targets/<name>.toml` and `.claude-plugin/marketplace.json` must have the
+  same version after a release. Each target's generated `plugin.json` is rebuilt
+  from its TOML.
+- Never hand-edit the generated `plugin.json` files under `mthds/`, `mthds-dev/`,
+  `mthds-codex/`, or `mthds-sandbox/` — `make build` overwrites them.
 - Always run `make build` after version changes to regenerate build artifacts.
 - Always confirm the bump type with the user before making changes.
 - If `make check` fails, the release is blocked -- help the user fix the issues
