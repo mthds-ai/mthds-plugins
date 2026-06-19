@@ -1,5 +1,41 @@
 # Changelog
 
+## [v0.14.0] - 2026-06-19
+
+### Changed
+
+- **Bump `min_mthds_version` from 0.10.0 to 0.12.0.** The v0.14.0 Stage 3 hook pins `mthds-agent validate bundle … --allow-signatures --format json --error-format json`, and `--error-format` is an `mthds-agent` 0.12.0 surface (`--allow-signatures` is 0.11.0). Flooring at 0.12.0 keeps this release's reciprocal floor in lockstep with mthds-js 0.12.0, which reciprocally enforces plugin `>=0.14.0` (`MIN_PLUGIN_VERSION`) — so a partial upgrade in either direction is caught by the env-check with a clean upgrade prompt instead of a hook that silently loses leniency or blocks on an unknown option.
+- **Claude PostToolUse validate hook now reads the structured JSON verdict instead of parsing markdown.** `validate-mthds.sh` Stage 3 previously consumed pipelex's markdown error envelope textually; it now pins `mthds-agent validate bundle … --allow-signatures --format json --error-format json` (both streams JSON) and classifies from machine-readable fields: `is_valid` / `pending_signatures` from the success envelope on stdout, and `error_domain` / `message` / `validation_errors` from the error envelope on stderr. The decision model is unchanged — BLOCK on input-domain (or missing/unknown, default-to-block) errors with the validation report as the agent-actionable reason, emit `hookSpecificOutput.additionalContext` on config/runtime-domain errors so the agent is informed without editing the file — but the verdict is now read structurally rather than scraped from prose, removing the markdown-format coupling that had repeatedly broken Stage 3 when pipelex changed its envelope wording.
+
+### Added
+
+- **`--allow-signatures` lenient validation: in-progress bundles that still reach `PipeSignature` headers validate without failing.** Both the Claude hook and the Codex hook now pass `--allow-signatures`, so a bundle whose graph still terminates at a `PipeSignature` (a not-yet-implemented sub-method) rides the success envelope — carrying `pending_signatures` — instead of being blocked as broken. When a saved bundle is valid-but-not-yet-runnable, the Claude hook surfaces a **non-blocking** `pending_signatures` nudge (the named signatures still need implementations) rather than a block. This unblocks recursive/top-down authoring, where higher-level methods are written and validated before their leaf sub-methods exist.
+- **`check-min-versions` skill.** A read-only report of the versions currently configured in the plugin repo — the canonical `min_mthds_version` plus any per-target overrides and the plugin/marketplace versions. Never edits files; complements the existing `bump-mthds-version` skill.
+
+### Fixed
+
+- **Validate hook now blocks on exit 0 without a structured success envelope.** A `mthds-agent validate` call that exited 0 but emitted no parseable success envelope (e.g. a wrapper that printed nothing) previously slipped through Stage 3 as a pass. The hook now treats a missing/unparseable success envelope on a zero exit as a block, closing a silent-pass path (greptile P1). Also addresses the PR #30 review findings from greptile/cubic.
+
+### Documentation
+
+- **mthds-vibe skill and `mthds-agent-guide` updated for the PipeSignature / pending-signatures flow,** with the `vibe-cheat-sheet.md` reference extended to cover signature-terminated drafts.
+- **New `docs/mthds-agent-output-audit.md`** — a full audit of every `mthds-agent` call across the plugin (both hooks + all skills): its consumer (software vs LLM), how it uses stdout/stderr, and whether each `--format` / `--error-format` choice is correct. `docs/codex-vs-claude-hooks.md` updated to match the structured-JSON Stage 3.
+
+## [v0.13.0] - 2026-06-12
+
+### Added
+
+- **`mthds-sandbox` build-only plugin target.** A fourth build target alongside prod, dev, and codex, listed in the marketplace as `mthds-sandbox`. It ships the build-assistant skill subset only (`mthds-build`, `mthds-edit`, `mthds-check`, `mthds-fix`, `mthds-explain`, `mthds-inputs`, `mthds-vibe`) for pre-provisioned, locked-down environments: `env_check = false` (the agent never runs env/doctor/upgrade commands) and `can_run_methods = false` (execution is the platform's job, never the agent's). Omits the run / runner-setup / install / upgrade / publish / share / pkg skills — and with them the only `AskUserQuestion` and `doctor` usages.
+- **Per-target SKILL overlay system and a sandbox workspace check** in the build pipeline, letting a target adjust individual skill instructions without forking the shared templates.
+
+### Changed
+
+- **Sandbox skills no longer auto-emit a method summary** on build or validate, and the no-summary rule was extended to `mthds-edit` and `mthds-fix` — the locked-down build assistant edits `.mthds` files without narrating method internals.
+- **Env-check artifacts are dropped from `env_check = false` targets,** so the sandbox build omits the env-check binary and preamble it would never run.
+- **`mthds-install` drops its Step 5,** and the skill now offers to register MTHDS in user memory after install.
+- **Skill `mthds-agent-guide` synced with the current agent-CLI flags** (`--base-url`, `models --type`).
+- **Bump `min_mthds_version` to 0.10.0.**
+
 ## [v0.12.0] - 2026-05-26
 
 ### Changed

@@ -1,14 +1,14 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.10.0`.
+All skills in this plugin require `mthds-agent >= 0.12.0`.
 
 ## Agent CLI
 
 Agents must use `mthds-agent` exclusively. Output format varies by command:
-- **JSON on stdout**: `run`, `validate`, `inputs`, `init`, `install`, `package` commands
+- **JSON on stdout**: `run`, `inputs`, `init`, `install`, `package` commands
+- **Markdown on stdout**: `validate` (success report — `# Validation passed`, with a `## Pending signatures` section when signatures remain), `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
 - **Raw TOML on stdout**: `concept`, `pipe` commands (return TOML directly, not wrapped in JSON)
-- **Markdown on stdout**: `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
-- **Errors**: JSON on stderr with exit code 1 (except `plxt` passthrough commands which emit raw text — see command table)
+- **Errors**: JSON on stderr with exit code 1 for the JSON-output commands above. **`validate` emits markdown errors on stderr by default** — it has independent `--format` (success/stdout) and `--error-format` (errors/stderr) controls; see "Lenient Validation" below. `plxt` passthrough commands emit raw text on stderr (see command table).
 
 ## Global Options
 
@@ -58,6 +58,57 @@ Pipelex loads `.mthds` files into a flat namespace. When multiple bundles exist 
 mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
 ```
 
+## Lenient Validation — `--allow-signatures`
+
+A bundle that contains `PipeSignature` pipes (contract-only headers, used by top-down/recursive building) fails **strict** validation by default. Pass `--allow-signatures` to validate **leniently** — reachable signatures are accepted, each minting a mock of its declared output:
+
+```bash
+mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
+```
+
+`mthds-agent` forwards the flag verbatim to the pipelex CLI (`.allowUnknownOption()`), so no `mthds-agent`-side option is required.
+
+- **Lenient (`--allow-signatures`)** — accepts a bundle whose dependency graph reaches signatures. Use it after each layer of a recursive build, while signatures still remain.
+- **Strict (default)** — rejects any reachable signature. Passing strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
+
+On a bundle with **no** signatures, lenient and strict are identical — `--allow-signatures` is a no-op there.
+
+### Reading runnability and `pending_signatures`
+
+A successful `validate bundle` states, in plain English, whether the method is **runnable**, and lists the pipes still typed `PipeSignature` — the build's todo list: declared signatures with no concrete definition yet (namespaced `domain.code` refs; empty when the method is complete).
+
+**Markdown (default) — an LLM reads this directly, no flags needed.** On success the output ends with a runnability verdict:
+
+- **Runnable** (no signatures remain) — no `## Pending signatures` section, just:
+
+  ```
+  ✅ All pipes are concretely implemented — no `PipeSignature` placeholders remain. Strict validation will pass; this method is runnable.
+  ```
+
+- **Not yet runnable** — a `## Pending signatures (N)` heading, then the verdict, then one bullet per pending `domain.code` ref:
+
+  ```
+  ## Pending signatures (N)
+
+  ⚠️ This method is NOT yet runnable — N pipe(s) are still `PipeSignature` placeholders and must be implemented before running:
+
+  - `domain.code`
+  ```
+
+**JSON — for a *program* that extracts a field.** Pin **both** format streams: `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted, so `--format json` alone flips errors to JSON too. Pin them explicitly for the read you want: `--error-format json` to parse structured errors too (this is what the PostToolUse hook does), or `--error-format markdown` to keep a machine-parseable success envelope while leaving errors as human-readable markdown on stderr:
+
+```bash
+mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format json --error-format markdown
+```
+
+The success JSON on stdout then carries:
+
+- `is_runnable` — boolean; `true` ⇔ `pending_signatures` is empty. The structured "is the method done / runnable?" signal — prefer it over inferring from the array length.
+- `pending_signatures` — the array of namespaced refs still declared as `PipeSignature` (use it to drive *which* placeholders to implement next).
+- plus `validated_pipes`, `total_pipes`.
+
+**Scope:** the runnability verdict and `is_runnable` / `pending_signatures` appear **only on `validate bundle`** (including `validate bundle --pipe`). `validate all` and `validate pipe` don't compute them — don't key off these fields there.
+
 ## Package Management
 
 The `mthds-agent package` commands manage MTHDS package manifests (`METHODS.toml`).
@@ -95,7 +146,7 @@ The path to the generated graph appears in the stderr logs; when `--format json`
 
 | Command | Purpose | Example |
 |---------|---------|---------|
-| `mthds-agent validate bundle` | Validate a bundle (use `--graph` to generate flowchart HTML) | `mthds-agent validate bundle bundle.mthds --graph` |
+| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient/recursive validation) | `mthds-agent validate bundle bundle.mthds --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON | `mthds-agent inputs bundle bundle.mthds` |
 | `mthds-agent concept` | Validate and structure a concept from JSON spec (returns raw TOML) | `mthds-agent concept --spec '{...}'` |
 | `mthds-agent pipe` | Validate and structure a pipe from JSON spec (returns raw TOML). Field names: `type`, `pipe_code`, and optionally `model`. Omit `model` to use defaults; set it only for specialized needs or explicit user requests | `mthds-agent pipe --spec '{"type": "PipeLLM", "pipe_code": "my_pipe", "prompt": "...", ...}'` |

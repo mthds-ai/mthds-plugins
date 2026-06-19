@@ -1,7 +1,7 @@
 ---
 name: mthds-edit
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
-min_mthds_version: 0.10.0
+min_mthds_version: 0.12.0
 allowed-tools:
   - Bash
   - Read
@@ -81,7 +81,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.10.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.12.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```

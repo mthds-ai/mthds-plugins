@@ -9,7 +9,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **File discovery:** receives the exact file path from `tool_input.file_path` in stdin JSON
 - **Scope:** validates one file per invocation
 - **Sandbox:** hooks run without network restrictions
-- **Stages:** plxt lint, plxt fmt, mthds-agent validate bundle (all three)
+- **Stages:** plxt lint, plxt fmt, mthds-agent validate bundle (all three). Stage 3 is **lenient** (`--allow-signatures`) and emits a non-blocking `pending_signatures` nudge on success — see [Lenient validation](#lenient-validation--allow-signatures-both-hooks)
 - **Implementation:** bash script `templates/hooks/validate-mthds.sh.j2` (rendered into `mthds/hooks/`)
 - **Wiring:** `hooks.json` is bundled inside the plugin and auto-loaded by Claude Code
 
@@ -20,7 +20,7 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **File discovery:** parses `tool_input.command` (the raw apply_patch envelope) for `*** Update File:` / `*** Add File:` / `*** Move to:` headers
 - **Scope:** validates every `.mthds` file that exists on disk after the patch applies (rename source paths and `*** Delete File:` targets are silently skipped)
 - **Sandbox:** hooks run inside the Codex sandbox with restricted network access
-- **Stages:** plxt lint, plxt fmt only — Stage 3 (`mthds-agent validate bundle`) stays disabled until offline-mode validation lands in mthds-agent
+- **Stages:** plxt lint, plxt fmt, `pipelex-agent validate bundle` (all three). Stage 3 calls `pipelex-agent` directly (not `mthds-agent`); it is **lenient** (`--allow-signatures`) and blocks on input-domain errors and emits `additionalContext` on config/runtime errors. Unlike the Claude hook it does **not** emit the `pending_signatures` nudge — see [Lenient validation](#lenient-validation--allow-signatures-both-hooks)
 - **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js. The validation runtime lives in the npm package, not the plugin.
 - **Wiring:** the plugin bundles `hooks/codex-hooks.json` and points the Codex plugin manifest's `hooks` field at it. Codex discovers it directly — no per-user install step. Loading it requires `[features] plugin_hooks = true` (see below).
 
@@ -32,15 +32,26 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 
 ### Validation runtime lives in mthds-agent, not the plugin
 
-The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry whose command is the literal string `mthds-agent codex hook`. The actual validation logic is that subcommand, shipped in the mthds-js npm package. Keeping it there gives a single source of truth across platforms (the Claude bash hook and the Codex subcommand run the same plxt stages) and lets the validation logic be versioned with mthds-agent rather than the plugin. `mthds-agent` is already on PATH after `npm install -g mthds`, which every other skill in the plugin needs anyway.
+The bundled `codex-hooks.json` is tiny — a `PostToolUse(apply_patch)` entry whose command is the literal string `mthds-agent codex hook`. The actual validation logic is that subcommand, shipped in the mthds-js npm package. Keeping it there gives a single source of truth across platforms (the Claude bash hook and the Codex subcommand run the same validation stages) and lets the validation logic be versioned with mthds-agent rather than the plugin. `mthds-agent` is already on PATH after `npm install -g mthds`, which every other skill in the plugin needs anyway.
 
 ### Plugin-bundled hooks are opt-in
 
 Codex loads a plugin's bundled hooks only when `[features] plugin_hooks = true`. The flag is off by default, so `mthds-agent codex apply-config` sets it (along with the sandbox network key). Until the flag is on, the bundled hook simply does not load — the plugin's skill preamble runs `apply-config --check` and, when setup is incomplete, offers to run `apply-config` for the user (preview via `--dry-run`, confirm, apply). Plugin-bundled hook discovery requires Codex 0.130+.
 
-### `mthds-agent validate` still disabled in the Codex sandbox
+### Stage 3 validation in the Codex sandbox (now enabled)
 
-`mthds-agent validate bundle` fetches a remote Pipelex configuration from S3 on startup. The Codex sandbox blocks this network call and the command hangs. Validation itself is local — the remote config is not actually needed for structural checks — so the fix is to make the remote fetch lazy / skippable in `mthds-agent`. Until then, the Codex hook runs only plxt lint + plxt fmt; Claude Code runs all three stages.
+Earlier, `mthds-agent validate bundle` fetched a remote Pipelex configuration on startup; the Codex sandbox blocked that network call and the command hung, so Stage 3 was disabled there. That is resolved. The Codex hook now runs Stage 3 by calling `pipelex-agent validate bundle <file> -L <dir> --allow-signatures --format json --error-format json` directly, and pipelex's `validate bundle` path is **offline-safe** — no gateway or remote-config fetch — so it runs cleanly inside the sandbox. It classifies on the **structured JSON** error envelope on stderr (`error_domain` / `message` / `validation_errors`): block on input-domain (or missing/unknown — default to block for safety), emit `additionalContext` on config/runtime. Both hooks now run all three stages.
+
+### Lenient validation — `--allow-signatures` (both hooks)
+
+Both hooks run Stage 3 **leniently**, passing `--allow-signatures` to `validate bundle`. A `PipeSignature` is a contract-only forward declaration; recursive/stepwise building (the `mthds-vibe` skill) saves bundles whose graph still reaches unimplemented signatures, and a strict validate would block every one of those intermediate saves. Lenient validation accepts a reachable signature (each mints a mock of its declared output), so in-progress builds aren't blocked. On a **signature-free** bundle lenient ≡ strict, so this is a no-op for `mthds-build`, hand-edits, and finished methods. The strict gate (which rejects any reachable signature) moves to the skill's explicit finalize step and to `run` — both of which always reject signatures, so an unfinished method can never be run.
+
+Both hooks pin `--allow-signatures --format json --error-format json` (the two streams are independent — `--format` governs the success envelope on stdout, `--error-format` the error report on stderr, and `--error-format` *inherits* `--format` when omitted, so pinning both keeps each stream machine-readable). Both classify on the **structured JSON verdict** — `is_valid` from the stdout success envelope, `error_domain` / `message` / `validation_errors` from the stderr error envelope — not a markdown grep. The two hooks diverge only on the **success nudge**:
+
+- **Claude hook** reads the `pending_signatures` array from the stdout success envelope and, if non-empty, emits a **non-blocking** `additionalContext` nudge listing the still-unimplemented signatures.
+- **Codex hook** does not emit the nudge for v1 — the orchestrator skill tracks `pending_signatures` itself, so the Codex nudge is a deferred follow-up (see `wip/deferred-issues.md`), not a correctness gap.
+
+(Canonical reference for the two-stream `--format` / `--error-format` design: `mthds-plugins/CLAUDE.md` §"`--format` vs `--error-format`" and `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
 
 ### Sandbox network access
 
@@ -96,7 +107,8 @@ The Codex skill preamble runs `mthds-env-check` to verify `mthds-agent` is insta
 
 ## What's next
 
-The remaining gaps are upstream-blocked:
+The remaining gap is upstream-blocked:
 
 - **`plugin_hooks` defaults to off.** While it is opt-in, `apply-config` must set it. Once Codex enables plugin hooks by default, that half of `apply-config` becomes unnecessary and the Codex install flow collapses toward the Claude Code shape.
-- **mthds-agent offline-mode validation.** Stage 3 (`mthds-agent validate bundle`) stays disabled in the Codex hook until the eager remote-config fetch is made lazy/skippable, so structural validation can run without network.
+
+(Stage 3 validation in the Codex sandbox — previously listed here as blocked — is now resolved: pipelex's `validate bundle` is offline-safe and the Codex hook runs it directly.)

@@ -101,15 +101,66 @@ The dev target overrides install commands to use local container paths for CCC t
 - **Marketplace version**: `.claude-plugin/marketplace.json metadata.version` — independent, bumped on any release.
 - **min_mthds_version**: `targets/defaults.toml [vars].min_mthds_version` — shared across all targets, overridable per target.
 
+## Local development with Claude Code
+
+To dogfood local changes instead of the published GitHub plugin, point the `mthds-plugins` marketplace at this checkout. By default that marketplace is registered from `mthds-ai/mthds-plugins` (GitHub), so a session runs the *published* prod plugin, not your edits.
+
+**One-time setup** — run inside Claude Code, replacing the path with the absolute path to this checkout (the directory containing this file). Removing a marketplace uninstalls its plugins, and re-adding does not auto-reinstall them, so the `install` step is required:
+
+```
+/plugin marketplace remove mthds-plugins
+/plugin marketplace add /absolute/path/to/mthds-plugins
+/plugin install mthds@mthds-plugins
+/reload-plugins
+```
+
+The `mthds` plugin now resolves from `./mthds` (the prod output) in this repo, and every new session uses local automatically. To switch back to the published version: `/plugin marketplace remove mthds-plugins`, then `/plugin marketplace add mthds-ai/mthds-plugins`, then `/plugin install mthds@mthds-plugins`.
+
+**Iteration loop** — after editing any `.j2` template or `targets/*.toml`:
+
+1. `make build` — regenerate the `mthds/` output from templates (see Editing workflow above)
+2. `/reload-plugins` (in Claude Code) — pick up the rebuilt skills and hooks without restarting
+
+Notes:
+- The marketplace serves the **prod** output (`mthds/`). The `mthds-dev/` output uses container install paths and is only consumed by the `internal-tools` Docker integration tests — don't install it on your host.
+- The plugin and the `mthds-agent` CLI it shells out to are decoupled: the plugin calls whatever `mthds-agent` is on PATH. To test against a local CLI build, `npm install -g ../mthds-js` (or `npm link`).
+- A session-only alternative that leaves your global config untouched: `claude --plugin-dir /absolute/path/to/mthds-plugins/mthds`. Same plugin name, so the local copy shadows the installed one for that session; iterate with `make build` + `/reload-plugins`.
+
+## Iterating on a local pipelex runtime at the same time
+
+When you are developing this plugin **and** a pipelex feature in parallel, point the `pipelex` runtime at your local worktree so the plugin exercises your in-progress runtime instead of the published PyPI release. This is the preferred setup for co-developing the plugin and pipelex.
+
+Why this is the right lever: the plugin never imports pipelex — its skills and its PostToolUse hooks shell out to `mthds-agent`, which spawns `pipelex` / `pipelex-agent` **by bare name**, resolved through `PATH`. The only reliable way to redirect that lookup is to make the `pipelex` command itself resolve to your worktree. A repo-scoped `PATH` override is not usable here: Claude Code's `settings.json` `env` field does not expand `${PATH}` (a literal value would break `PATH` for the whole session), and direnv does not fire in Claude's non-interactive Bash tool.
+
+Reinstall the `pipelex` uv tool as an **editable** pointer to your pipelex worktree (worktrees of `pipelex/` live alongside it as `_<name>/` — e.g. `../_recursive`):
+
+```bash
+uv tool install --force --editable /absolute/path/to/pipelex-worktree
+```
+
+This is editable, so edits in the worktree take effect immediately — no reinstall between iterations. It also re-points `pipelex-agent` and `pipelex-dev`, which is what `mthds-agent` and the Codex hook actually invoke. Note the trade-off: it is the *global* `pipelex` command, so every shell and every repo now runs the worktree until you revert.
+
+Verify and revert:
+
+```bash
+pipelex --version                                              # sanity check
+grep editable ~/.local/share/uv/tools/pipelex/uv-receipt.toml # confirms the source is your worktree, not PyPI
+uv tool install --force pipelex                                # revert to the published PyPI release
+```
+
 ## PostToolUse Hook
 
 Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after every edit. The validation pipeline is the same shape, and both hooks ship inside the plugin.
 
-Both hooks share the same markdown-first decision model on Stage 3: BLOCK on input-domain (or missing / unknown — default to block for safety) errors with pipelex's trimmed markdown as the agent-actionable reason; emit `hookSpecificOutput.additionalContext` on config / runtime domain errors so the agent is informed without editing the file (environment issue, not a bundle issue).
+Both hooks share the same Stage 3 decision model: BLOCK on input-domain (or missing / unknown — default to block for safety) errors with the validation report as the agent-actionable reason; emit `hookSpecificOutput.additionalContext` on config / runtime domain errors so the agent is informed without editing the file (environment issue, not a bundle issue).
+
+**`--format` vs `--error-format` (non-obvious, easy to get wrong).** `mthds-agent validate` passes through to `pipelex-agent validate`, which has **two independent** output controls: `--format markdown|json` governs the **success** envelope on **stdout**, and `--error-format markdown|json` governs the **error** report on **stderr**. The trap: `--error-format` **inherits `--format`** when omitted, so `--format json` *alone* flips **both** streams to JSON. The Claude Stage 3 classifier reads the **structured JSON verdict** — `is_valid` (and `pending_signatures`) from the success envelope on stdout, and `error_domain` / `message` / `validation_errors` from the error envelope on stderr — so it pins **`--format json --error-format json`** explicitly (both streams JSON). It also pins **`--allow-signatures`**, so an in-progress bundle whose graph still reaches `PipeSignature` headers validates leniently and rides the success envelope (with `pending_signatures`) instead of failing. This is one invocation, not two. (Canonical reference for the CLI's two-stream design: `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
+
+For a full audit of **every** `mthds-agent` call across the plugin (both hooks + all skills), its consumer (software vs LLM), how it exploits stdout/stderr, and whether each format choice is correct — plus the empirically-verified per-command default formats and the open findings to fix — see `docs/mthds-agent-output-audit.md` (working doc).
 
 **Claude (`hooks/validate-mthds.sh`, generated from `templates/hooks/validate-mthds.sh.j2`):**
 - Matches `Write|Edit`; receives `tool_input.file_path` directly
-- Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle` (blocks on input-domain errors, emits additionalContext on config/runtime)
+- Stages: `plxt lint` (blocks) → `plxt fmt` (warns) → `mthds-agent validate bundle … --allow-signatures --format json --error-format json` (blocks on input-domain errors, emits additionalContext on config/runtime, and a non-blocking `pending_signatures` nudge on a valid-but-not-runnable bundle)
 - Bundled in the Claude plugin (`hooks/hooks.json`) and auto-loaded by Claude Code
 
 **Codex (`mthds-agent codex hook`, in mthds-js):**

@@ -3,8 +3,10 @@
 # Reads tool_input JSON from stdin, then runs (in order):
 #   1. plxt lint                  — TOML/schema-level linting (blocks on errors)
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
-#   3. mthds-agent validate bundle — semantic validation (blocks on input-domain
-#      errors; emits agent additionalContext for config/runtime errors)
+#   3. mthds-agent validate bundle — semantic validation, lenient
+#      (--allow-signatures: in-progress PipeSignature headers don't block;
+#      blocks on input-domain errors; emits agent additionalContext for
+#      config/runtime errors and for leftover unimplemented signatures)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
 # Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
@@ -86,51 +88,96 @@ if [[ "$FMT_EXIT" -ne 0 ]]; then
 fi
 
 # =====================================================================
-# STAGE 3: mthds-agent validate bundle — semantic validation
-# Markdown stderr is the canonical agent-facing artifact. BLOCK on
-# input-domain errors (agent fixes the bundle); emit additionalContext
-# for config/runtime errors (agent informed, do not edit the file).
+# STAGE 3: mthds-agent validate bundle — semantic validation (lenient)
+# Reads the STRUCTURED verdict from JSON, not the exit code or a markdown grep
+# (--format json / --error-format json are pinned so the machine read holds under
+# ANY configured runner — pipelex or api). Validated leniently (--allow-signatures)
+# so a bundle whose graph still reaches PipeSignature headers isn't blocked
+# mid-construction (recursive/stepwise builds); on a signature-free bundle lenient
+# ≡ strict, so it's a no-op for vibe/build/hand-edits. The strict gate lives in the
+# skill's finalize step + `run` (which always rejects signatures).
+#
+# A VALID bundle (is_valid:true) PASSES even when it is not yet runnable: unimplemented
+# PipeSignature placeholders ride the success envelope on stdout with is_valid:true (plus
+# the pending_signatures list — see the nudge below), and validity (not runnability) is
+# what a post-edit hook should gate. An INVALID verdict (is_valid:false) rides the JSON
+# error envelope on stderr: BLOCK on input-domain errors (agent fixes the bundle), emit
+# additionalContext on config/runtime errors (environment issue — agent informed, do not
+# edit the file).
 # =====================================================================
 PARENT_DIR=$(dirname "$FILE_PATH")
 
 EXIT_CODE=0
-mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
 
+# Valid verdict → pass. The success envelope (is_valid:true) rides stdout even when
+# the exit code is non-zero (the strict not-runnable signature gate exits non-zero
+# while the bundle is structurally valid). Read is_valid, NOT the exit code.
+if [[ "$(_jv "$(cat "$TMPOUT")" "d.is_valid === true ? 'y' : ''")" == "y" ]]; then
+  # Valid → pass. If the assembled library still has unimplemented PipeSignature
+  # placeholders, emit a NON-BLOCKING nudge so the agent implements them before
+  # running for real. pending_signatures rides the same success envelope — the
+  # library-wide list of pipes still typed PipeSignature (empty when complete).
+  # Headers persist additively after they're satisfied, so this field — NOT a grep
+  # for "PipeSignature" — is the source of truth for what remains.
+  PENDING=$(_jv "$(cat "$TMPOUT")" "Array.isArray(d.pending_signatures)?d.pending_signatures.join(', '):''") || PENDING=""
+  if [[ -n "$PENDING" ]]; then
+    node -e '
+      const pending = process.argv[1];
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: "Bundle is valid but not yet runnable. Signatures still unimplemented (PipeSignature placeholders): "
+            + pending
+            + ". They mock their output on dry-run; implement them before running the method for real."
+        }
+      }) + "\n");
+    ' "$PENDING" || true
+  fi
+  exit 0
+fi
+# A clean exit 0 WITHOUT the structured `is_valid:true` success envelope means we got no
+# machine-readable verdict (e.g. an older/regressed mthds-agent that exits 0 with no/garbled
+# JSON). This hook treats the structured verdict as the source of truth, so BLOCK rather than
+# silently allow an unverifiable edit — fail safe for a write gate.
 if [[ "$EXIT_CODE" -eq 0 ]]; then
+  _block "Validation failed for $FILE_PATH (mthds-agent exited 0 with no structured success envelope — is_valid:true not found on stdout; if this persists, upgrade mthds-agent)"
   exit 0
 fi
 
-# Strip pipelex's internal stack trace (## Error source section to EOF).
-# The current floor (mthds-agent >=0.8.1 → pipelex >=0.30.2) already drops
-# the section from markdown, so this is a no-op on the supported path;
-# kept as defense-in-depth in case a user runs a pipelex build that
-# re-introduces it (custom install, downstream fork, etc.).
-ERR_MD=$(sed '/^## Error source/,$d' "$TMPERR")
+# Invalid / no-verdict → the JSON error envelope is on stderr.
+ERR_JSON=$(cat "$TMPERR")
 
-# Empty/whitespace-only stderr → block with generic reason (no actionable content).
-if [[ -z "${ERR_MD//[[:space:]]/}" ]]; then
-  _block "Validation failed for $FILE_PATH (mthds-agent exited $EXIT_CODE with no stderr output)"
+# Unparseable / non-error stderr → block (no actionable structured content).
+if [[ -z "$(_jv "$ERR_JSON" "(d.error === true || d.is_valid === false) ? 'y' : ''")" ]]; then
+  _block "Validation failed for $FILE_PATH (mthds-agent exited $EXIT_CODE with no structured error envelope)"
   exit 0
 fi
 
-# Extract error_domain from the ## Details section. Pipelex emits each
-# field as `- **<key>:** <value>`. Empty when the surfaced error class has
-# no error_domain set and is not in pipelex's AGENT_ERROR_DOMAINS lookup.
-DOMAIN=$(printf '%s\n' "$ERR_MD" | sed -n 's/^- \*\*error_domain:\*\* *//p' | head -1 | tr -d '[:space:]')
+# error_domain straight from the structured envelope (no markdown grep). Trimmed so
+# stray whitespace/\r (e.g. Windows-origin JSON) can't make the case below miss
+# config|runtime and fall through to a wrong BLOCK. Empty when the surfaced error
+# class has no error_domain set. The `|| DOMAIN=""` fallback keeps a killed `node`
+# (OOM/SIGKILL) from aborting the hook under `set -e` — a write-gate fail-open.
+DOMAIN=$(_jv "$ERR_JSON" "(d.error_domain ?? '').trim()") || DOMAIN=""
 
 case "$DOMAIN" in
   config|runtime)
-    # Environment issue, not a bundle issue. Surface to user (stderr) AND
-    # agent (additionalContext) — both informed, neither blocks the write.
-    printf '[mthds-hook] Validation warning (domain=%s) for %s:\n%s\n' "$DOMAIN" "$FILE_PATH" "$ERR_MD" >&2
+    # Environment issue, not a bundle issue. Surface to user (stderr) AND agent
+    # (additionalContext) — both informed, neither blocks the write. The stderr line
+    # carries the validator message too so the user can debug without reading the
+    # agent's additionalContext.
+    MSG=$(_jv "$ERR_JSON" "d.message || '(no message)'") || MSG="(no message)"
+    printf '[mthds-hook] Validation warning (domain=%s) for %s: %s\n' "$DOMAIN" "$FILE_PATH" "$MSG" >&2
     node -e '
-      const md = process.argv[1];
+      let env; try { env = JSON.parse(process.argv[1]); } catch { env = {}; }
       const file = process.argv[2];
       const domain = process.argv[3];
       const MAX = 9500;
-      const trimmed = md.length > MAX
-        ? md.slice(0, MAX) + "\n\n[truncated, " + (md.length - MAX) + " chars omitted]"
-        : md;
+      const body = String(env.message || "(no message)");
+      const trimmed = body.length > MAX
+        ? body.slice(0, MAX) + "\n\n[truncated, " + (body.length - MAX) + " chars omitted]"
+        : body;
       const header = "Validation warning for " + file + " (" + domain + " domain — environment issue, do not edit the file):\n\n";
       process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
@@ -138,18 +185,38 @@ case "$DOMAIN" in
           additionalContext: header + trimmed
         }
       }) + "\n");
-    ' "$ERR_MD" "$FILE_PATH" "$DOMAIN" || {
+    ' "$ERR_JSON" "$FILE_PATH" "$DOMAIN" || {
       _block "Hook error: could not format additionalContext for $FILE_PATH"
     }
     exit 0
     ;;
   *)
-    # input-domain (or unknown/empty — default to BLOCK for safety).
-    # Pass the trimmed markdown verbatim as the block reason; the agent
-    # reads it and revises the bundle.
-    _block "Validation failed for $FILE_PATH:
-
-$ERR_MD"
+    # input-domain (or unknown/empty — default to BLOCK for safety). Build the
+    # agent-actionable reason from the structured envelope: the message plus each
+    # validation_errors item with its locators.
+    REASON=$(node -e '
+      let env; try { env = JSON.parse(process.argv[1]); } catch { env = {}; }
+      const file = process.argv[2];
+      const lines = ["Validation failed for " + file + ":", "", String(env.message || "Bundle is invalid.")];
+      const errs = Array.isArray(env.validation_errors) ? env.validation_errors : [];
+      if (errs.length) {
+        lines.push("");
+        for (const e of errs) {
+          const loc = [
+            e.pipe_code && ("pipe " + e.pipe_code),
+            e.concept_code && ("concept " + e.concept_code),
+            e.field_name && ("field " + e.field_name),
+            e.source && ("source " + e.source),
+          ].filter(Boolean).join(", ");
+          lines.push("- [" + (e.category || "error") + "] " + String(e.message || "") + (loc ? " (" + loc + ")" : ""));
+        }
+      }
+      const MAX = 9500;
+      const out = lines.join("\n");
+      process.stdout.write(out.length > MAX ? out.slice(0, MAX) + "\n\n[truncated, " + (out.length - MAX) + " chars omitted]" : out);
+    ' "$ERR_JSON" "$FILE_PATH" 2>/dev/null) || REASON=""
+    [[ -z "$REASON" ]] && REASON="Validation failed for $FILE_PATH"
+    _block "$REASON"
     exit 0
     ;;
 esac
