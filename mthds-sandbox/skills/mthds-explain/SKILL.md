@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-min_mthds_version: 0.10.0
+min_mthds_version: 0.12.0
 allowed-tools:
   - Bash
   - Read

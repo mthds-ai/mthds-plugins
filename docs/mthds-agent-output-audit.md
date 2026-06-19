@@ -48,11 +48,11 @@ Verified against `mthds-agent 0.9.0` → editable `_recursive` pipelex (2026-06-
 
 #### A1 — Claude PostToolUse hook · `validate-mthds.sh.j2:111`
 ```
-mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown
+mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json
 ```
-- **stdout (success):** JSON. Parses `pending_signatures` via the `_jv` node helper → emits a non-blocking nudge. **JSON is correct** — software reading a specific field.
-- **stderr (failure):** markdown. Greps `- **error_domain:** …` to classify (block on `input`/unknown, warn on `config`/`runtime`), and forwards the trimmed markdown as the block `reason` (read by the LLM). **markdown is correct** — it serves both the grep classifier *and* the downstream LLM.
-- **Verdict: ✓ CORRECT.** The textbook case: JSON for the field the script needs, markdown for the error the LLM ultimately reads. Both streams pinned explicitly — robust.
+- **stdout (success):** JSON. Parses `is_valid` + `pending_signatures` via the `_jv` node helper → emits a non-blocking nudge. **JSON is correct** — software reading specific fields.
+- **stderr (failure):** JSON. Parses `error_domain` from the structured error envelope to classify (block on `input`/unknown, warn on `config`/`runtime`), and builds the block `reason` from `message` + `validation_errors[]` (read by the LLM). **JSON is correct** — a machine-readable verdict the classifier reads structurally instead of scraping prose.
+- **Verdict: ✓ CORRECT.** Both streams JSON: `is_valid`/`pending_signatures` for the success fields the script needs, `error_domain`/`message`/`validation_errors` for the failure the classifier routes and the LLM reads. Both streams pinned explicitly — robust.
 
 #### A2 — SessionStart hook · `session-start.sh.j2:15`
 ```
@@ -61,16 +61,13 @@ mthds-agent doctor --format json
 - **stdout:** JSON. Parses `dependencies[]` with node to print a version line. **JSON is correct** — software.
 - **Verdict: ✓ CORRECT.**
 
-#### A3 — Codex PostToolUse hook · mthds-js `src/agent/commands/codex-hook.ts:285` (`runPipelexValidate`)
+#### A3 — Codex PostToolUse hook · mthds-js `src/agent/commands/codex-hook.ts` (`runPipelexValidate`)
 ```
-pipelex-agent validate bundle <file> -L <libraryDir>            # no --allow-signatures, no format flags
+pipelex-agent validate bundle <file> -L <libraryDir> --allow-signatures --format json --error-format json
 ```
-- **stderr (failure):** relies on the **default** being markdown — greps `^- \*\*error_domain:\*\* *(\S+)` (`extractErrorDomain`, line 119), forwards markdown as the agent-facing reason. **markdown is what it needs** — but it gets it by default, not by pinning.
-- **stdout (success):** not parsed (Codex hook only inspects output on failure; no `pending_signatures` nudge — deferred for v1).
-- **Verdict: ⚠ FRAGILE + INCOMPLETE.**
-  - *Fragile:* it depends on the *default* error format staying markdown. The Claude hook pins `--error-format markdown` explicitly; the Codex hook should too, so a future default flip can't silently break the `error_domain` regex.
-  - *Incomplete:* still missing `--allow-signatures`, so it **blocks** signature-containing saves — this is **Phase 5** (not yet done). Recursive builds under Codex will fight this hook until then.
-  - **Recommendation (fold into Phase 5):** `["validate","bundle",file,"-L",libraryDir,"--allow-signatures","--error-format","markdown"]`. No `--format json` (no success parse needed for v1; add it only if/when the Codex nudge lands). → **Finding F2.**
+- **stderr (failure):** JSON. Parses `error_domain` / `message` / `validation_errors` from the structured error envelope (`parseAgentErrorEnvelope`) to classify — block on `input`/unknown, warn on `config`/`runtime` — same default-to-block model as the Claude hook. **JSON is correct** — read structurally, pinned explicitly (no reliance on a default).
+- **stdout (success):** not parsed for a nudge (the Codex hook inspects validate output only on failure; the `pending_signatures` nudge is deferred for v1 — the orchestrator skill tracks pending signatures itself).
+- **Verdict: ✓ CORRECT.** Parity with the Claude hook on the load-bearing parts: `--allow-signatures` so signature-containing saves ride the success envelope instead of being blocked, and `--format json --error-format json` so the failure classifier reads a machine-readable verdict. → **Finding F2 resolved** (both hooks now pin the flags and classify from JSON); the success nudge is the only remaining Codex-vs-Claude difference (deferred, not a correctness gap).
 
 ### B. LLM consumers (the agent reads the output)
 

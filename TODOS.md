@@ -121,9 +121,9 @@ Record before continuing (filled 2026-06-07):
 
 - **Final Stage 3 invocation line (verbatim):**
   ```bash
-  mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format markdown >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
+  mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json >"$TMPOUT" 2>"$TMPERR" || EXIT_CODE=$?
   ```
-  (`templates/hooks/validate-mthds.sh.j2` line ~111; renders identically into both `mthds/hooks/validate-mthds.sh` and `mthds-dev/hooks/validate-mthds.sh` — the prod/dev difference is only the install-command strings, none of which live in Stage 3.) The failure-path classifier (the `sed`/`error_domain` block) is **byte-for-byte unchanged**.
+  (`templates/hooks/validate-mthds.sh.j2` line ~111; renders identically into both `mthds/hooks/validate-mthds.sh` and `mthds-dev/hooks/validate-mthds.sh` — the prod/dev difference is only the install-command strings, none of which live in Stage 3.) **Update (shipped in v0.14.0):** the failure arm was moved to `--error-format json`, so the classifier now reads the structured JSON `error_domain` from stderr rather than grepping markdown — it is no longer byte-for-byte unchanged.
 
 - **How the success-path nudge reads `pending_signatures` (flag, parse path):** On `EXIT_CODE -eq 0`, before the `exit 0`, read the success envelope from JSON **stdout** (`$TMPOUT`) via the hook's existing `_jv` node helper:
   ```bash

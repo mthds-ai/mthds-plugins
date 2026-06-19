@@ -2,7 +2,7 @@
 name: mthds-vibe
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
-min_mthds_version: 0.10.0
+min_mthds_version: 0.12.0
 allowed-tools:
   - Bash
   - Read
@@ -58,7 +58,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.10.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.12.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -182,7 +182,7 @@ Given one pending signature `S` (its frozen contract — `inputs`, `output`, `de
 
 1. **Decide operator or controller.** The `signature_for` hint usually pre-answers it. Heuristic when absent or wrong: a single cognitive/IO step → operator; multiple steps, iteration, branching, or parallelism → controller.
 
-2. **Add `<S>.mthds`** to the bundle dir. Every non-root file carries **only** `domain = "<same_domain>"` for membership — omit `description`, `system_prompt`, `main_pipe` (those live in the root).
+2. **Add `<code>.mthds`** to the bundle dir, where `<code>` is `S`'s **bare** pipe code — strip the domain prefix. `pending_signatures` lists each signature namespaced as `domain.code`, but the file and the `[pipe.<code>]` it defines use the bare code so they satisfy the forward-declared header (a namespaced `[pipe.domain.code]` would mint a different pipe and leave the signature pending — the recursion would never converge). Every non-root file carries **only** `domain = "<same_domain>"` for membership — omit `description`, `system_prompt`, `main_pipe` (those live in the root).
 
    - **Operator (leaf):** write the concrete operator (`PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`) and fill its type-specific fields. No new signatures — this branch is done.
    - **Controller (composite):** write the controller (`PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`), wire its sub-pipes, **forward-declare each not-yet-trivial sub-pipe as a new `PipeSignature` header** (contract + `signature_for`) in this same file, and declare any intermediate concepts the wiring needs. The new headers join the backlog.
