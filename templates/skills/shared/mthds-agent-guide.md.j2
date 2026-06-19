@@ -256,7 +256,7 @@ A successful `validate bundle` states, in plain English, whether the method is *
   - `domain.code`
   ```
 
-**JSON — for a *program* that extracts a field** (e.g. the PostToolUse hook). Pin **both** format streams: `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted, so `--format json` alone flips errors to JSON too. Pinning them together gives a machine-parseable success envelope while keeping errors as markdown on stderr:
+**JSON — for a *program* that extracts a field.** Pin **both** format streams: `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted, so `--format json` alone flips errors to JSON too. Pin them explicitly for the read you want: `--error-format json` to parse structured errors too (this is what the PostToolUse hook does), or `--error-format markdown` to keep a machine-parseable success envelope while leaving errors as human-readable markdown on stderr:
 
 ```bash
 mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format json --error-format markdown
