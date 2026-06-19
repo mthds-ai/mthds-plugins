@@ -372,6 +372,7 @@ class TestHookValidateMthds:
             {
                 "error": True,
                 "error_type": "TelemetryConfigValidationError",
+                "is_valid": False,
                 "error_domain": "config",
                 "message": "Telemetry config missing required field",
             }
@@ -390,13 +391,21 @@ class TestHookValidateMthds:
         assert "Telemetry config missing required field" in ctx
         assert str(mthds_file) in ctx
         assert "domain=config" in result.stderr
+        # The stderr warning line carries the validator message, not just the domain.
+        assert "Telemetry config missing required field" in result.stderr
 
     def test_runtime_domain_emits_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
         """A JSON error envelope with error_domain: runtime → additionalContext + stderr warning."""
         bin_dir, mthds_file, env = hook_env
         _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
         envelope = json.dumps(
-            {"error": True, "error_type": "PipeRunError", "error_domain": "runtime", "message": "Pipeline execution failed: connection refused"}
+            {
+                "error": True,
+                "error_type": "PipeRunError",
+                "is_valid": False,
+                "error_domain": "runtime",
+                "message": "Pipeline execution failed: connection refused",
+            }
         )
         _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
         stdin = _post_tool_use_json(str(mthds_file))
@@ -404,7 +413,10 @@ class TestHookValidateMthds:
         assert result.returncode == 0
         parsed = json.loads(result.stdout.strip())
         assert "decision" not in parsed
-        assert "runtime domain" in parsed["hookSpecificOutput"]["additionalContext"]
+        ctx = parsed["hookSpecificOutput"]["additionalContext"]
+        assert "runtime domain" in ctx
+        # The validator message must survive into additionalContext, not be dropped.
+        assert "Pipeline execution failed" in ctx
         assert "domain=runtime" in result.stderr
 
     def test_empty_stderr_blocks_generic(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
@@ -435,6 +447,49 @@ class TestHookValidateMthds:
         assert "chars omitted]" in ctx
         # additionalContext stays within the cap + header + truncation marker.
         assert len(ctx) < 10000
+
+    def test_is_valid_false_without_error_flag_blocks(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """An envelope carrying ONLY is_valid:false (no error:true) still classifies as a
+        structured error → BLOCK with the structured reason. Exercises the second branch
+        of the envelope guard (d.error === true || d.is_valid === false) independently."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        envelope = json.dumps(
+            {
+                "is_valid": False,
+                "error_type": "ValidateBundleError",
+                "error_domain": "input",
+                "message": "Validation error(s): unknown concept reference 'Foo'",
+                "validation_errors": [{"category": "concept_validation", "message": "Unknown concept", "concept_code": "Foo"}],
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert parsed["decision"] == "block"
+        # The structured reason — not the generic "no structured error envelope" fallback.
+        assert "no structured error envelope" not in parsed["reason"]
+        assert "unknown concept reference 'Foo'" in parsed["reason"]
+        assert "Unknown concept" in parsed["reason"]
+
+    def test_long_message_truncated_in_block_reason(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """An input-domain message >9500 chars → the block reason is truncated with the same
+        marker the additionalContext path uses."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        long_message = "x" * 12000
+        envelope = json.dumps({"is_valid": False, "error_domain": "input", "message": long_message})
+        _stub_mthds_agent_validate(bin_dir, stderr_content=envelope, exit_code=1)
+        stdin = _post_tool_use_json(str(mthds_file))
+        result = _run_hook(stdin, env)
+        assert result.returncode == 0
+        reason = json.loads(result.stdout.strip())["reason"]
+        assert "[truncated," in reason
+        assert "chars omitted]" in reason
+        # Block reason stays within the cap + header + truncation marker.
+        assert len(reason) < 10000
 
     # --- Stage 3 lenient validation (--allow-signatures) ---
     # The hook validates leniently so recursive/stepwise builds aren't blocked

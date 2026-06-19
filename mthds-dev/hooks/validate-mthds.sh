@@ -141,7 +141,7 @@ fi
 # JSON). This hook treats the structured verdict as the source of truth, so BLOCK rather than
 # silently allow an unverifiable edit — fail safe for a write gate.
 if [[ "$EXIT_CODE" -eq 0 ]]; then
-  _block "Validation failed for $FILE_PATH (mthds-agent exited 0 with no structured success envelope — upgrade mthds-agent)"
+  _block "Validation failed for $FILE_PATH (mthds-agent exited 0 with no structured success envelope — is_valid:true not found on stdout; if this persists, upgrade mthds-agent)"
   exit 0
 fi
 
@@ -154,15 +154,21 @@ if [[ -z "$(_jv "$ERR_JSON" "(d.error === true || d.is_valid === false) ? 'y' : 
   exit 0
 fi
 
-# error_domain straight from the structured envelope (no markdown grep). Empty when
-# the surfaced error class has no error_domain set.
-DOMAIN=$(_jv "$ERR_JSON" "d.error_domain")
+# error_domain straight from the structured envelope (no markdown grep). Trimmed so
+# stray whitespace/\r (e.g. Windows-origin JSON) can't make the case below miss
+# config|runtime and fall through to a wrong BLOCK. Empty when the surfaced error
+# class has no error_domain set. The `|| DOMAIN=""` fallback keeps a killed `node`
+# (OOM/SIGKILL) from aborting the hook under `set -e` — a write-gate fail-open.
+DOMAIN=$(_jv "$ERR_JSON" "(d.error_domain ?? '').trim()") || DOMAIN=""
 
 case "$DOMAIN" in
   config|runtime)
     # Environment issue, not a bundle issue. Surface to user (stderr) AND agent
-    # (additionalContext) — both informed, neither blocks the write.
-    printf '[mthds-hook] Validation warning (domain=%s) for %s\n' "$DOMAIN" "$FILE_PATH" >&2
+    # (additionalContext) — both informed, neither blocks the write. The stderr line
+    # carries the validator message too so the user can debug without reading the
+    # agent's additionalContext.
+    MSG=$(_jv "$ERR_JSON" "d.message || '(no message)'") || MSG="(no message)"
+    printf '[mthds-hook] Validation warning (domain=%s) for %s: %s\n' "$DOMAIN" "$FILE_PATH" "$MSG" >&2
     node -e '
       let env; try { env = JSON.parse(process.argv[1]); } catch { env = {}; }
       const file = process.argv[2];
@@ -207,7 +213,7 @@ case "$DOMAIN" in
       }
       const MAX = 9500;
       const out = lines.join("\n");
-      process.stdout.write(out.length > MAX ? out.slice(0, MAX) + "\n\n[truncated]" : out);
+      process.stdout.write(out.length > MAX ? out.slice(0, MAX) + "\n\n[truncated, " + (out.length - MAX) + " chars omitted]" : out);
     ' "$ERR_JSON" "$FILE_PATH" 2>/dev/null) || REASON=""
     [[ -z "$REASON" ]] && REASON="Validation failed for $FILE_PATH"
     _block "$REASON"
