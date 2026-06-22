@@ -1,1 +1,1 @@
-min_mthds_version: 0.12.0
+min_mthds_version: 0.12.1
