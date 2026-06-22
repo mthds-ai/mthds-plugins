@@ -29,7 +29,6 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `inadequate_output_multiplicity` | Output single/list mismatch | Add or remove `[]` from the output concept |
 | `circular_dependency_error` | Pipe references form a cycle | Restructure the method to break the cycle |
 | `llm_output_cannot_be_image` | PipeLLM cannot output Image directly | Use PipeImgGen for image generation instead |
-| `img_gen_input_not_text_compatible` | PipeImgGen needs text-compatible input | Ensure input is text-based (use `ImgGenPrompt`) |
 | `invalid_pipe_code_syntax` | Pipe code doesn't follow snake_case | Rename the pipe to valid snake_case |
 | `unknown_concept` | Referenced concept not defined in bundle | Add the concept definition, or fix the typo |
 | `batch_item_name_collision` | `input_item_name` collides with `input_list_name` or an `inputs` key | Rename `input_item_name` to a distinct singular form (e.g., list `"reports"` → item `"report"`) |
