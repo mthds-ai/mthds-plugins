@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.14.1] - 2026-06-22
+
+### Changed
+
+- **Bump `min_mthds_version` from 0.12.0 to 0.12.1.** `mthds-agent` 0.12.1 floors pipelex at `>=0.35.1`, which fixes the `PipeImgGen` prompt model that this release's skill/doc cleanup reflects. Pinning the floor here keeps the skills' corrected `PipeImgGen` guidance in lockstep with a pipelex that actually implements it — a consumer on an older `mthds-agent` / pipelex would otherwise be taught the new input model while running a runtime that still expects the old one. Consumers on an older `mthds-agent` fail the env-check with a clean upgrade prompt.
+
+### Documentation
+
+- **Dropped the `ImgGenPrompt` native concept from the skills and taught the correct `PipeImgGen` input model.** `PipeImgGen` takes a plain text prompt as its input, not a dedicated `ImgGenPrompt` native concept; the skills and `mthds-agent-guide` now describe the actual input model.
+- **Updated aspect-ratio documentation for `PipeImgGen`** and related references.
+- **Removed the dead `img_gen_input_not_text_compatible` error-hint row** and the dead img-gen enum (PR #32).
+
 ## [v0.14.0] - 2026-06-19
 
 ### Changed

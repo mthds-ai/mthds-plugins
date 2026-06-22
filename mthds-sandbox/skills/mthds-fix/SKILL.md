@@ -1,7 +1,7 @@
 ---
 name: mthds-fix
 description: Fix issues in MTHDS bundles. Use when user says "fix this workflow", "fix this method", "repair validation errors", "the pipeline is broken", "fix the .mthds file", after /mthds-check found issues, or when validation reports errors. Automatically applies fixes and re-validates in a loop.
-min_mthds_version: 0.12.0
+min_mthds_version: 0.12.1
 allowed-tools:
   - Bash
   - Read
@@ -48,7 +48,6 @@ Use the `error_type` field from each validation error to determine the fix:
 | `inadequate_output_multiplicity` | Add or remove `[]` from the output concept |
 | `circular_dependency_error` | Restructure the method to break the cycle |
 | `llm_output_cannot_be_image` | Use PipeImgGen instead of PipeLLM for image generation |
-| `img_gen_input_not_text_compatible` | Ensure PipeImgGen input is text-based (use `ImgGenPrompt`) |
 | `invalid_pipe_code_syntax` | Rename the pipe to valid snake_case |
 | `unknown_concept` | Add the concept definition to the bundle, or fix the typo |
 | `batch_item_name_collision` | Rename `input_item_name` (or `batch_as`) to a distinct singular form of the list name. Also update the branch pipe's `inputs` to use the new item name. |

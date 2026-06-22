@@ -2,7 +2,7 @@
 name: mthds-vibe
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
-min_mthds_version: 0.12.0
+min_mthds_version: 0.12.1
 allowed-tools:
   - Bash
   - Read

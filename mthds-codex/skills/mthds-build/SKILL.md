@@ -1,7 +1,7 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-min_mthds_version: 0.12.0
+min_mthds_version: 0.12.1
 
 ---
 
@@ -79,7 +79,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.12.0" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.12.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -190,7 +190,7 @@ For each concept, draft:
 - **Description**: What it represents
 - **Type**: Either `refines: NativeConcept` OR `structure: {...}`
 
-**Native concepts** (built-in, do NOT redefine): `Text`, `Html`, `Image`, `Document`, `Number`, `Page`, `TextAndImages`, `ImgGenPrompt`, `JSON`, `SearchResult`, `Anything`, `Dynamic`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
+**Native concepts** (built-in, do NOT redefine): `Text`, `Html`, `Image`, `Document`, `Number`, `Page`, `TextAndImages`, `JSON`, `SearchResult`, `Anything`, `Dynamic`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
 
 > **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
 
@@ -270,6 +270,8 @@ items = {type = "list", item_type = "concept", item_concept_ref = "my_domain.Oth
 > - Direct passthrough: `prompt = "$img_prompt"` — uses the input as-is
 > - Template with context: `prompt = "A black and white sketch of $description"` — wraps the input in a richer prompt
 >
+> Declared `inputs` are injected into the `prompt` template: text inputs are interpolated, and image inputs (`Image` / `Image[]`) are injected as reference images for image-to-image.
+>
 > Even if the input already contains the full prompt text, you must still declare the `prompt` field. Without it, validation fails with `missing required fields: 'prompt'`.
 
 > **Note**: `Page[]` outputs from PipeExtract automatically convert to text when inserted into prompts using `@variable`.
@@ -295,7 +297,7 @@ Check:
 - [ ] PipeBatch: `input_item_name` (singular) differs from `input_list_name` (plural) and all `inputs` keys
 - [ ] PipeCondition has a `default_outcome` — required even when outcomes seem exhaustive
 - [ ] PipeImgGen has a `prompt` field (template that references inputs, e.g., `prompt = "$description"` or `prompt = "A watercolor painting of $subject"`) — required even when the input IS the prompt
-- [ ] PipeImgGen inputs are text-compatible (add PipeLLM if needed to craft the prompt first)
+- [ ] PipeImgGen `prompt` template references its declared inputs — text inputs are interpolated; image inputs (`Image`/`Image[]`) are injected as reference images (image-to-image)
 - [ ] No circular dependencies
 
 **Confirm with user** before proceeding to structuring.
