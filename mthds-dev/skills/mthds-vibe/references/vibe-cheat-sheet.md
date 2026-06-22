@@ -399,7 +399,7 @@ prompt = "Apply this change to $ref: $instruction"
 
 Each referenced image is injected as an `[Image N]` token (reference image), bounded by the model's `max_prompt_images`.
 
-**Aspect ratio values:** `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`.
+**Aspect ratio:** the optional `aspect_ratio` field is model-dependent — see [PipeImgGen in the MTHDS Language Reference](../../shared/mthds-reference.md#pipeimggen---generate-images) for the value list and which models support which ratios.
 
 ### PipeFunc — call a registered Python function
 

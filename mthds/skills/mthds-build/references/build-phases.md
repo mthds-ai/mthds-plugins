@@ -204,6 +204,8 @@ mthds-agent pipe --spec '{
 
 > **Note**: The `prompt` field is **required** for PipeImgGen. It is a template that defines the text sent to the image generation model. Use `$variable` syntax to insert inputs. Examples: `"prompt": "$img_prompt"` (direct passthrough) or `"prompt": "A black and white sketch of $description"` (template with added context). Even if your input already contains the full prompt, you must still declare the `prompt` field. Declared `inputs` are injected into the template — text interpolated, images injected as reference images (bounded by the model's `max_prompt_images`).
 
+> For the optional `aspect_ratio` field and which models support which ratios, see [PipeImgGen in the MTHDS Language Reference](../../shared/mthds-reference.md#pipeimggen---generate-images).
+
 ### PipeSearch
 ```bash
 mthds-agent pipe --spec '{
