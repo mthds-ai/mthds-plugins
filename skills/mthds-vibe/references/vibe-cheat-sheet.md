@@ -146,7 +146,6 @@ Use bare or qualified (`native.Text`) — bare wins on resolution. Never redecla
 | `Html` | HTML content. |
 | `TextAndImages` | Mixed text + images. |
 | `Number` | A numeric value. |
-| `ImgGenPrompt` | A prompt for image generation. |
 | `JSON` | A JSON value. |
 | `SearchResult` | Web search output (`answer`, `sources`). |
 | `Anything` | Any type. |
@@ -382,14 +381,23 @@ prompt      = "What is $topic?"
 [pipe.generate_image]
 type         = "PipeImgGen"
 description  = "Generate an image from a prompt"
-inputs       = { img_prompt = "ImgGenPrompt" }
+inputs       = { img_prompt = "Text" }
 output       = "Image"
 prompt       = "$img_prompt"
 # model       = "$gen-image"           # optional
 # aspect_ratio = "landscape_16_9"      # optional
 ```
 
-**Required:** `prompt` (even if it's just a passthrough like `"$img_prompt"`).
+**Required:** `prompt` (even if it's just a passthrough like `"$img_prompt"`). Declared `inputs` are injected into the `prompt` template.
+
+**Image-to-image:** declare an `Image` (or `Image[]`) input and reference it in the `prompt`:
+
+```toml
+inputs = { ref = "Image", instruction = "Text" }
+prompt = "Apply this change to $ref: $instruction"
+```
+
+Each referenced image is injected as an `[Image N]` token (reference image), bounded by the model's `max_prompt_images`.
 
 **Aspect ratio values:** `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`.
 

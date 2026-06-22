@@ -37,7 +37,7 @@ Your prompt here with @block_var and $inline_var
 
 ## Native Concepts
 
-Use directly without defining: `Text`, `Image`, `Document`, `TextAndImages`, `Number`, `Page`, `JSON`, `ImgGenPrompt`, `Html`, `SearchResult`, `Anything`, `Dynamic`
+Use directly without defining: `Text`, `Image`, `Document`, `TextAndImages`, `Number`, `Page`, `JSON`, `Html`, `SearchResult`, `Anything`, `Dynamic`
 
 > **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
 
@@ -367,7 +367,7 @@ enabled = true                                # Static boolean
 [pipe.generate_image]
 type = "PipeImgGen"
 description = "Generate image"
-inputs = { img_prompt = "ImgGenPrompt" }
+inputs = { img_prompt = "Text" }
 output = "Image"
 prompt = "$img_prompt"
 model = "$gen-image"
@@ -375,10 +375,20 @@ aspect_ratio = "landscape_16_9"
 ```
 
 **Required fields:**
-- `prompt` - Must reference the input variable (e.g., `"$img_prompt"`)
+- `prompt` - Template for the text sent to the generator; must reference the input variable (e.g., `"$img_prompt"`)
 
 **Optional fields:**
 - `model` - Model preset (e.g., `"$gen-image"`, `"@default-premium"`)
+- `negative_prompt` - Template describing what to avoid in the image
+
+Declared `inputs` are injected into the `prompt` template: text inputs (`Text`) are interpolated via `$var`; image inputs (`Image`, or a list `Image[]`) are referenced in the prompt and injected as reference images (image-to-image / editing) — the same vision pattern as image inputs to PipeLLM:
+
+```toml
+inputs = { ref = "Image", instruction = "Text" }
+prompt = "Apply this change to $ref: $instruction"
+```
+
+Each referenced image is injected as an `[Image N]` token passed to the generator alongside the rendered text, bounded by the model's `max_prompt_images`.
 
 **Aspect ratio values** (use enum names, not ratios):
 `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`

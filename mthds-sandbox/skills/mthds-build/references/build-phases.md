@@ -184,13 +184,25 @@ mthds-agent pipe --spec '{
   "type": "PipeImgGen",
   "pipe_code": "generate_image",
   "description": "Generate image from prompt",
-  "inputs": {"img_prompt": "ImgGenPrompt"},
+  "inputs": {"img_prompt": "Text"},
   "output": "Image",
   "prompt": "$img_prompt"
 }'
 ```
 
-> **Note**: The `prompt` field is **required** for PipeImgGen. It is a template that defines the text sent to the image generation model. Use `$variable` syntax to insert inputs. Examples: `"prompt": "$img_prompt"` (direct passthrough) or `"prompt": "A black and white sketch of $description"` (template with added context). Even if your input already contains the full prompt, you must still declare the `prompt` field.
+Image-to-image — declare an `Image` (or `Image[]`) input and reference it in the `prompt`; each referenced image is injected as a reference image:
+```bash
+mthds-agent pipe --spec '{
+  "type": "PipeImgGen",
+  "pipe_code": "edit_image",
+  "description": "Edit an image from a reference",
+  "inputs": {"ref": "Image", "instruction": "Text"},
+  "output": "Image",
+  "prompt": "Apply this change to $ref: $instruction"
+}'
+```
+
+> **Note**: The `prompt` field is **required** for PipeImgGen. It is a template that defines the text sent to the image generation model. Use `$variable` syntax to insert inputs. Examples: `"prompt": "$img_prompt"` (direct passthrough) or `"prompt": "A black and white sketch of $description"` (template with added context). Even if your input already contains the full prompt, you must still declare the `prompt` field. Declared `inputs` are injected into the template — text interpolated, images injected as reference images (bounded by the model's `max_prompt_images`).
 
 ### PipeSearch
 ```bash

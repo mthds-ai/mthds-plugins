@@ -19,7 +19,6 @@ Each native concept maps to a content class with specific attributes. Understand
 | `TextAndImages` | TextAndImagesContent | `text` (TextContent), `images` (list of ImageContent) |
 | `Page` | PageContent | `text_and_images` (TextAndImagesContent), `page_view` (ImageContent) |
 | `JSON` | JSONContent | `json_obj` |
-| `ImgGenPrompt` | *(refines Text)* | `text` |
 | `SearchResult` | SearchResultContent | `answer`, `sources` (list of DocumentContent) |
 | `Anything` | *(any content)* | depends on actual content |
 | `Dynamic` | DynamicContent | user-defined fields |
