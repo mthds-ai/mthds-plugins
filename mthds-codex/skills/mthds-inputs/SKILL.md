@@ -455,6 +455,7 @@ For image synthesis error handling, see [Error Handling Reference](../shared/err
 
 Generate test documents based on the document type needed.
 
+
 ### PDF Documents
 
 > `reportlab` is a dependency of `pipelex` — always available, no additional installation needed.

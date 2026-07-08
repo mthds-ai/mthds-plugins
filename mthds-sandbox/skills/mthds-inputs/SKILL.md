@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-min_mthds_version: 0.12.1
+min_mthds_version: 0.17.0
 allowed-tools:
   - Bash
   - Read
@@ -83,14 +83,13 @@ Determine the `.mthds` bundle and its output directory (`<output_dir>`). This is
 The `inputs.json` file is saved directly in this directory (next to `bundle.mthds`):
 - `<output_dir>/inputs.json`
 
-If data files need to be generated or copied (images, PDFs, etc.), they go in a subdirectory:
-- `<output_dir>/inputs/`
-
-The `/inputs` subdirectory is only created when there are actual data files to store. Paths to these files are referenced from within `inputs.json`.
-
-> **Path resolution rule**: All `url` values in `inputs.json` are resolved **relative to the `inputs.json` file itself** (i.e., relative to the bundle directory), NOT relative to the current working directory. When referencing local files, you MUST either:
-> 1. **Copy files** into `<output_dir>/inputs/` and reference with a path relative to the `inputs.json` file, e.g., `inputs/the_doc.pdf` (preferred — keeps the bundle self-contained), or
-> 2. **Use a URL or absolute path**, e.g., `https://example.com/doc.pdf` or `/Users/alice/data/invoice.pdf`
+> **Remote-storage rule (HARD).** In this environment `inputs.json` MUST reference every file by a **remote URI only** — a `pipelex-storage://` URI or an `https://` URL. **Never** a local path (not a relative `inputs/…` path, not an absolute path). The filesystem here is ephemeral and the runner is a different machine that cannot see local files and rejects local-path inputs, so a local path can never resolve at run time.
+>
+> For **every** file you generate or the user provides, upload it and use the returned URI:
+> ```bash
+> mthds-agent inputs upload <file>
+> ```
+> This prints a short `pipelex-storage://…` URI — put that exact string in the `url` field. A file you *generate* may be written to a local temp path first (that's just a staging step), but the **only** thing that ends up in `inputs.json` is the uploaded URI — never the temp path, and there's no need to keep an `<output_dir>/inputs/` copy.
 
 ### Step 2: Get Input Schema
 
@@ -191,7 +190,7 @@ When inputs require actual files (Image, Document), use the appropriate generati
 
 ### Assemble and Save
 
-Create the complete `inputs.json` and save to `<output_dir>/inputs.json` (next to `bundle.mthds`). Any generated data files go in `<output_dir>/inputs/`.
+Create the complete `inputs.json` and save to `<output_dir>/inputs.json` (next to `bundle.mthds`). Any generated data file must be uploaded via `mthds-agent inputs upload <file>` and referenced in `inputs.json` by its returned `pipelex-storage://` URI — never a local path.
 
 ---
 
@@ -249,11 +248,15 @@ For each input variable in the schema, attempt to match user-provided files:
 5. **Unmatched files**: Report them and ask if they should be ignored or mapped to a specific input
 6. **Unfilled inputs**: After matching, any inputs still without data can be left as placeholders or filled with synthetic data (see [Mixed Strategy](#mixed-strategy))
 
-### Step D: Copy Files to Output Directory
+### Step D: Upload Files to Remote Storage
 
-Copy (or symlink) user files into `<output_dir>/inputs/` so `inputs.json` can reference them with paths **relative to the `inputs.json` file itself** (i.e., relative to the bundle directory where `inputs.json` lives). This keeps the pipeline directory self-contained. Only create the `inputs/` subdirectory if there are actual files to copy.
+For each user file, upload it and capture the returned `pipelex-storage://` URI:
 
-Use descriptive filenames: if the input variable is `invoice`, copy to `<output_dir>/inputs/invoice.pdf` (preserving original extension).
+```bash
+mthds-agent inputs upload <path-to-user-file>
+```
+
+Reference that exact URI in `inputs.json` (see Step E). Do **not** copy files into an `<output_dir>/inputs/` subdirectory — a local path cannot resolve on the runner in this environment.
 
 ### Step E: Build Content Objects
 
@@ -264,11 +267,12 @@ For each matched file, construct the proper content object:
 {
   "concept": "native.Document",
   "content": {
-    "url": "inputs/invoice.pdf",
+    "url": "pipelex-storage://<user>/assets/<uuid>.pdf",
     "mime_type": "application/pdf"
   }
 }
 ```
+The `url` is the exact string returned by `mthds-agent inputs upload <file>`.
 
 **Web page Document input:**
 ```json
@@ -286,7 +290,7 @@ For each matched file, construct the proper content object:
 {
   "concept": "native.Image",
   "content": {
-    "url": "inputs/photo.jpg",
+    "url": "pipelex-storage://<user>/assets/<uuid>.jpg",
     "mime_type": "image/jpeg"
   }
 }
@@ -307,12 +311,13 @@ For each matched file, construct the proper content object:
 {
   "concept": "native.Image",
   "content": [
-    {"url": "inputs/img_001.jpg", "mime_type": "image/jpeg"},
-    {"url": "inputs/img_002.jpg", "mime_type": "image/jpeg"},
-    {"url": "inputs/img_003.png", "mime_type": "image/png"}
+    {"url": "pipelex-storage://<user>/assets/<uuid-1>.jpg", "mime_type": "image/jpeg"},
+    {"url": "pipelex-storage://<user>/assets/<uuid-2>.jpg", "mime_type": "image/jpeg"},
+    {"url": "pipelex-storage://<user>/assets/<uuid-3>.png", "mime_type": "image/png"}
   ]
 }
 ```
+Upload each file in the folder with `mthds-agent inputs upload <file>` and use the returned URIs.
 
 ### Step F: Assemble and Save
 
@@ -344,6 +349,13 @@ Combines user data with synthetic generation for any remaining gaps.
 ## Document Generation
 
 Generate test documents based on the document type needed.
+
+> **In this environment**, the code below writes the file to a local path only as a staging step. After generating each file, upload it and reference the returned URI in `inputs.json`:
+> ```bash
+> mthds-agent inputs upload <the-generated-file>
+> ```
+> The local path never appears in `inputs.json`.
+
 
 ### PDF Documents
 
@@ -543,7 +555,7 @@ After assembling the inputs, confirm readiness:
 ### Image
 ```json
 {
-  "url": "inputs/image.jpg",
+  "url": "pipelex-storage://<user>/assets/<uuid>.jpg",
   "caption": "Optional description",
   "mime_type": "image/jpeg"
 }
@@ -552,7 +564,7 @@ After assembling the inputs, confirm readiness:
 ### Document
 ```json
 {
-  "url": "inputs/document.pdf",
+  "url": "pipelex-storage://<user>/assets/<uuid>.pdf",
   "mime_type": "application/pdf"
 }
 ```
@@ -570,7 +582,7 @@ After assembling the inputs, confirm readiness:
 {
   "text": {"text": "Main text content"},
   "images": [
-    {"url": "inputs/img1.png", "caption": "Figure 1"}
+    {"url": "pipelex-storage://<user>/assets/<uuid>.png", "caption": "Figure 1"}
   ]
 }
 ```
@@ -618,7 +630,7 @@ Save the `inputs` from the output directly to `mthds-wip/pipeline_01/inputs.json
   "image": {
     "concept": "native.Image",
     "content": {
-      "url": "inputs/city_street.jpg",
+      "url": "pipelex-storage://<user>/assets/<uuid>.jpg",
       "mime_type": "image/jpeg"
     }
   },
@@ -640,7 +652,7 @@ User says: "Use my file `~/documents/invoice_march.pdf`"
 1. Get schema: needs `invoice` (Document) + `instructions` (Text)
 2. Inventory: user provided `invoice_march.pdf` (PDF = Document type)
 3. Match: `invoice_march.pdf` maps to `invoice` input (name similarity + type match)
-4. Copy: `cp ~/documents/invoice_march.pdf <output_dir>/inputs/invoice.pdf`
+4. Upload: `mthds-agent inputs upload ~/documents/invoice_march.pdf` → returns e.g. `pipelex-storage://<user>/assets/<uuid>.pdf`
 5. Unfilled: `instructions` has no user file. Generate synthetic text: "Extract all line items, totals, and vendor information from this invoice."
 6. Assemble:
 ```json
@@ -648,7 +660,7 @@ User says: "Use my file `~/documents/invoice_march.pdf`"
   "invoice": {
     "concept": "native.Document",
     "content": {
-      "url": "inputs/invoice.pdf",
+      "url": "pipelex-storage://<user>/assets/<uuid>.pdf",
       "mime_type": "application/pdf"
     }
   },
@@ -669,16 +681,16 @@ User says: "Use the photos in `./product-photos/`"
 
 1. Get schema: needs `images` (Image[])
 2. Expand folder: `./product-photos/` contains `shoe.jpg`, `hat.png`, `bag.jpg`
-3. Copy all to `<output_dir>/inputs/`
+3. Upload each: `mthds-agent inputs upload ./product-photos/shoe.jpg` (repeat per file) → collect the returned `pipelex-storage://…` URIs
 4. Assemble:
 ```json
 {
   "images": {
     "concept": "native.Image",
     "content": [
-      {"url": "inputs/shoe.jpg", "mime_type": "image/jpeg"},
-      {"url": "inputs/hat.png", "mime_type": "image/png"},
-      {"url": "inputs/bag.jpg", "mime_type": "image/jpeg"}
+      {"url": "pipelex-storage://<user>/assets/<uuid-1>.jpg", "mime_type": "image/jpeg"},
+      {"url": "pipelex-storage://<user>/assets/<uuid-2>.png", "mime_type": "image/png"},
+      {"url": "pipelex-storage://<user>/assets/<uuid-3>.jpg", "mime_type": "image/jpeg"}
     ]
   }
 }

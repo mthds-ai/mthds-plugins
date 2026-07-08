@@ -20,6 +20,15 @@ env_check = true
 # elsewhere (e.g. a platform UI) and the agent must never run or suggest running.
 can_run_methods = true
 
+# When true, the mthds-inputs skill must reference every file in inputs.json by a
+# REMOTE URI only (`pipelex-storage://` via `mthds-agent inputs upload`, or an
+# `https://` URL) — never a local path. Defaults to false (files are copied into
+# `<output_dir>/inputs/` and referenced by relative path). Set true for targets
+# whose filesystem is ephemeral and whose runner is a different, sandbox-invisible
+# machine (the hosted build sandbox), where a local path can never resolve at run
+# time.
+remote_storage_inputs = false
+
 # Install/upgrade commands (prod defaults — registry packages)
 mthds_install_cmd = "npm install -g mthds"
 mthds_upgrade_cmd = "npm install -g mthds@latest"
