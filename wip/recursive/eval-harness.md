@@ -1,10 +1,10 @@
-# Skill-behavior eval harness for `mthds-vibe` (deferred design doc)
+# Skill-behavior eval harness for `mthds-recursive` (deferred design doc)
 
 Status: **deferred** — captured during the eng review of [design.md](design.md) (2026-06-07, decision D7). Not part of the recursive-building v1; build separately. v1 ships dogfood-only (see [TODOS.md](../../TODOS.md) Phase 6.3).
 
 ## Problem
 
-The recursive rewrite of `mthds-vibe` (design.md Phase 4) is a large LLM-prompt change. The plugin has **no automated skill-behavior tests** today — the `internal-tools` Docker suite tests the hook/install system, not what a skill actually produces. So a prompt regression in the skill (a layer that stops fanning the backlog correctly, a lazy-concept rule that structures too eagerly, a contract-mismatch recovery that edits the header instead of the definition) would only surface when a human notices a bad build.
+The recursive rewrite of `mthds-recursive` (design.md Phase 4) is a large LLM-prompt change. The plugin has **no automated skill-behavior tests** today — the `internal-tools` Docker suite tests the hook/install system, not what a skill actually produces. So a prompt regression in the skill (a layer that stops fanning the backlog correctly, a lazy-concept rule that structures too eagerly, a contract-mismatch recovery that edits the header instead of the definition) would only surface when a human notices a bad build.
 
 ## What an eval would do
 
@@ -12,7 +12,7 @@ Exercise the recursive loop end-to-end against a small set of **golden methods**
 
 - **Seed golden case:** the §3 `research_brief` example (Document → ResearchBrief, one inline operator layer + one multi-signature layer). It is already fully specified in design.md §3, so the expected call tree, the lenient-per-layer transitions, and the final strict-pass are known.
 - **Scoring dimensions (sketch):** does the final library pass strict validation (runnable)? does every intermediate save pass lenient validation? does the call tree match the expected shape? are boundary concepts specified at Layer 0 and intermediate concepts introduced lazily? did contract-mismatch recovery conform the definition (not the header)?
-- **Regression guard:** re-run on every edit to `templates/skills/mthds-vibe/SKILL.md.j2` so skill-prompt changes are safe to ship.
+- **Regression guard:** re-run on every edit to `templates/skills/mthds-recursive/SKILL.md.j2` so skill-prompt changes are safe to ship.
 
 ## Why deferred (not built now)
 

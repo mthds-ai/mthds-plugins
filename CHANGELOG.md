@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.15.0] - 2026-07-08
+
+### Added
+
+- **Remote-only inputs in the sandbox target (`remote_storage_inputs`).** New template var (default `false`; `true` only in `targets/sandbox.toml`) that switches the `mthds-inputs` skill to reference every input file in `inputs.json` by a **remote URI** — a `pipelex-storage://` URI via `mthds-agent inputs upload <file>`, or an `https://` URL — never a local path. Built for the hosted build sandbox, whose filesystem is ephemeral and whose runner is a different machine that can't see sandbox-local files and rejects local-path inputs. Every other target (`prod`/`dev`/`codex`) renders byte-identically.
+
+### Changed
+
+- **Bump `min_mthds_version` to `0.17.0` for the `sandbox` target only.** The sandbox `mthds-inputs` skill now calls `mthds-agent inputs upload`, added in mthds-js `0.17.0`. The floor is overridden in `targets/sandbox.toml` alone (a per-target `[vars]` override); `prod`/`dev`/`codex` keep `0.12.1` because they don't use the new subcommand.
+
+### Documentation
+
+- **Update MTHDS language guidance for pipelex `v0.38.0`.** Skill references now teach typeless contract-only signatures, `PipeParallel`'s always-combined declared `output`, first-class optional presence markers, and completed-run `main_stuff` semantics without the removed `combined_output` fallback.
+- **Add `YesNo` and `Date` to native concept guidance.** Agent-facing references now list the new native concepts, their content fields, and the input JSON shapes agents should prepare.
+
 ## [v0.14.1] - 2026-06-22
 
 ### Changed
@@ -30,14 +45,14 @@
 
 ### Documentation
 
-- **mthds-vibe skill and `mthds-agent-guide` updated for the PipeSignature / pending-signatures flow,** with the `vibe-cheat-sheet.md` reference extended to cover signature-terminated drafts.
+- **mthds-recursive skill and `mthds-agent-guide` updated for the PipeSignature / pending-signatures flow,** with the `recursive-cheat-sheet.md` reference extended to cover signature-terminated drafts.
 - **New `docs/mthds-agent-output-audit.md`** — a full audit of every `mthds-agent` call across the plugin (both hooks + all skills): its consumer (software vs LLM), how it uses stdout/stderr, and whether each `--format` / `--error-format` choice is correct. `docs/codex-vs-claude-hooks.md` updated to match the structured-JSON Stage 3.
 
 ## [v0.13.0] - 2026-06-12
 
 ### Added
 
-- **`mthds-sandbox` build-only plugin target.** A fourth build target alongside prod, dev, and codex, listed in the marketplace as `mthds-sandbox`. It ships the build-assistant skill subset only (`mthds-build`, `mthds-edit`, `mthds-check`, `mthds-fix`, `mthds-explain`, `mthds-inputs`, `mthds-vibe`) for pre-provisioned, locked-down environments: `env_check = false` (the agent never runs env/doctor/upgrade commands) and `can_run_methods = false` (execution is the platform's job, never the agent's). Omits the run / runner-setup / install / upgrade / publish / share / pkg skills — and with them the only `AskUserQuestion` and `doctor` usages.
+- **`mthds-sandbox` build-only plugin target.** A fourth build target alongside prod, dev, and codex, listed in the marketplace as `mthds-sandbox`. It ships the build-assistant skill subset only (`mthds-build`, `mthds-edit`, `mthds-check`, `mthds-fix`, `mthds-explain`, `mthds-inputs`, `mthds-recursive`) for pre-provisioned, locked-down environments: `env_check = false` (the agent never runs env/doctor/upgrade commands) and `can_run_methods = false` (execution is the platform's job, never the agent's). Omits the run / runner-setup / install / upgrade / publish / share / pkg skills — and with them the only `AskUserQuestion` and `doctor` usages.
 - **Per-target SKILL overlay system and a sandbox workspace check** in the build pipeline, letting a target adjust individual skill instructions without forking the shared templates.
 
 ### Changed
@@ -72,7 +87,7 @@
 
 ### Documentation
 
-- **Document the `mthds-vibe` skill.** The skill shipped in v0.11.0 but was not listed in the README skill table or mentioned in the changelog, so users had no way to discover it through normal documentation. Added a row to the README skill inventory and documented the skill below under v0.11.0 (where it actually shipped). The skill itself is unchanged.
+- **Document the `mthds-recursive` skill.** The skill shipped in v0.11.0 but was not listed in the README skill table or mentioned in the changelog, so users had no way to discover it through normal documentation. Added a row to the README skill inventory and documented the skill below under v0.11.0 (where it actually shipped). The skill itself is unchanged.
 
 ## [v0.11.1] - 2026-05-17
 
@@ -84,7 +99,7 @@
 
 ### Added
 
-- **`mthds-vibe` skill.** A single-pass authoring path: write a complete `bundle.mthds` in one go, then let the PostToolUse hook and an explicit `validate bundle` step catch errors. Scope is deliberately narrower than `mthds-build` (no `dict` fields, no `PipeStructure`, no inline `templating_style` blocks) — when those come up the skill is instructed to emit the closest in-scope equivalent and flag the deviation. On Claude Code the skill is `disable-model-invocation: true` (explicit `/mthds-vibe` only); on Codex it's discoverable normally. Ships with a `vibe-cheat-sheet.md` reference under `skills/mthds-vibe/references/`.
+- **`mthds-recursive` skill.** A single-pass authoring path: write a complete `bundle.mthds` in one go, then let the PostToolUse hook and an explicit `validate bundle` step catch errors. Scope is deliberately narrower than `mthds-build` (no `dict` fields, no `PipeStructure`, no inline `templating_style` blocks) — when those come up the skill is instructed to emit the closest in-scope equivalent and flag the deviation. On Claude Code the skill is `disable-model-invocation: true` (explicit `/mthds-recursive` only); on Codex it's discoverable normally. Ships with a `recursive-cheat-sheet.md` reference under `skills/mthds-recursive/references/`.
 
 ### Changed
 

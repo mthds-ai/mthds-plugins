@@ -1,4 +1,4 @@
-# Vibe Cheat Sheet — Writing `.mthds` Directly
+# Recursive Cheat Sheet — Writing `.mthds` Directly
 
 A focused, copy-pasteable reference for hand-writing MTHDS code in a `bundle.mthds`.
 
@@ -146,10 +146,13 @@ Use bare or qualified (`native.Text`) — bare wins on resolution. Never redecla
 | `Html` | HTML content. |
 | `TextAndImages` | Mixed text + images. |
 | `Number` | A numeric value. |
+| `YesNo` | A yes/no answer (`yes_no`). |
+| `Date` | A calendar date with optional time (`date`, `time`). |
 | `JSON` | A JSON value. |
 | `SearchResult` | Web search output (`answer`, `sources`). |
 | `Anything` | Any type. |
 | `Dynamic` | Dynamically typed value. |
+| `Composite` | Named components, usually from PipeParallel. |
 
 > File formats like "PDF" or "JPEG" are NOT concepts. Use `Document` and `Image` respectively.
 
@@ -264,7 +267,7 @@ input_item_name  = "document"
 type            = "PipeParallel"
 description     = "Run sentiment and topics analyses in parallel"
 inputs          = { document = "Document" }
-output          = "Text"
+output          = "Composite"
 add_each_output = true
 branches = [
     { pipe = "analyze_sentiment", result = "sentiment" },
@@ -272,9 +275,9 @@ branches = [
 ]
 ```
 
-**Required:** `branches`. At least one of `add_each_output = true` OR `combined_output = "ConceptCode"` MUST be set.
+**Required:** `branches`. The declared `output` is always the combined result and MUST be `Composite` or a structured concept whose field names match the branches' `result` names. Do not use `[]` or `[N]` on `output`.
 
-With `combined_output`, the result is bundled into the named concept whose field names MUST match the branches' `result` names.
+`add_each_output = true` is optional and only exposes branch results individually in working memory.
 
 ### PipeCondition — route to a pipe based on an expression
 
@@ -420,7 +423,6 @@ A `PipeSignature` declares a pipe by its **contract only** — `description`, `i
 
 ```toml
 [pipe.summarize_doc]
-type          = "PipeSignature"
 description   = "Produce a summary of a document (contract only)."
 inputs        = { doc = "Document" }
 output        = "Summary"
@@ -449,7 +451,7 @@ mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --graph
 mthds-agent validate bundle bundle.mthds -L dir/ --graph
 ```
 
-A successful validate reports `pending_signatures` — the library-wide list of pipes still typed `PipeSignature` (empty when the method is complete). It is the build's todo list. Live execution of a signature always fails (`PipeSignatureNotExecutableError`), so finalize to strict before running.
+A successful validate reports `pending_signatures` — the library-wide list of pipes still declared as contract-only signatures (empty when the method is complete). It is the build's todo list. Live execution of a signature always fails (`PipeSignatureNotExecutableError`), so finalize to strict before running.
 
 ## 7. Prompt Template Shorthands
 
@@ -494,7 +496,7 @@ When the bundle stays in one domain (the common case), use bare names everywhere
 - ❌ Domain prefix on pipe references when staying in-domain (`finance.extract_text` → `extract_text`).
 - ❌ Omitting `prompt` on `PipeImgGen` because "the input is already a prompt" — `prompt = "$img_prompt"` is still required.
 - ❌ Omitting `default_outcome` on `PipeCondition` because outcomes "look exhaustive" — still required.
-- ❌ `combined_output` on `PipeParallel` without matching field names in the target concept.
+- ❌ `PipeParallel` output that is not `Composite` or a structured concept matching branch `result` names.
 - ❌ Using `dict` field type — unsupported in this skill.
 - ❌ Using `PipeStructure` — not in the builder subset; use `PipeLLM` with a structured output concept instead.
 - ❌ `default_value` on `concept`- or `list`-typed fields — not allowed.

@@ -1,10 +1,16 @@
 ---
-name: mthds-vibe
+name: mthds-recursive
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
-{% if platform != "codex" -%}
 disable-model-invocation: true
-{% endif -%}
-{% include "skills/shared/frontmatter.md.j2" %}
+min_mthds_version: 0.17.0
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+
 ---
 
 # Build a MTHDS bundle top-down (recursive refinement)
@@ -29,26 +35,19 @@ Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole j
 - **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
 - **The backlog is the bundle's own todo list.** It is exactly the `## Pending signatures` list that validate reports (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
 
-See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
+See [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
 ---
 
-{% if env_check -%}
-## Step 0 — Environment Check (mandatory, do this FIRST)
+Do not write `.mthds` files manually. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
 
-{% include 'skills/shared/preamble.md.j2' %}
-
-{% endif -%}
-
-Do not write `.mthds` files {% if env_check %}until the environment check passes{% else %}manually{% endif %}. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
-
-> **No backend setup needed**: building and validating never run the method, so no inference backends or API keys are required.{% if can_run_methods %} Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.{% endif %}
+> **No backend setup needed**: building and validating never run the method, so no inference backends or API keys are required.
 
 ---
 
 ## Step 1 — Capture the whole job as one signature (Layer 0)
 
-Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**.
+Read [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) **before writing**.
 
 Determine the three things that *are* the requirement:
 
@@ -72,7 +71,6 @@ Determine the three things that *are* the requirement:
    # ...
 
    [pipe.<top_pipe_code>]
-   type          = "PipeSignature"
    description   = "<precise semantics of the whole job>"
    inputs        = { <name> = "<InputConcept>" }
    output        = "<OutputConcept>"
@@ -101,7 +99,7 @@ Drain the signature backlog breadth-first, **serially** (one signature at a time
    mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph
    ```
 
-   - **Still pending** → the markdown shows a `## Pending signatures (N)` heading, a `⚠️ This method is NOT yet runnable …` line, and one bullet per library-wide pipe still typed `PipeSignature`. That bullet list is the backlog.
+   - **Still pending** → the markdown shows a `## Pending signatures (N)` heading, a `⚠️ This method is NOT yet runnable …` line, and one bullet per library-wide pipe still declared as a signature. That bullet list is the backlog.
    - **Done** → the markdown shows `✅ All pipes are concretely implemented … this method is runnable.` and **no** `## Pending signatures` section. The backlog is empty → go to Step 3.
 
    (No `--format json` — the agent reads this markdown directly; the verdict line and the backlog are both plain text. Errors on failure stay markdown too.)
@@ -156,19 +154,6 @@ Once strict validation passes:
 
 2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle (refreshed at every layer).
 
-{% if can_run_methods -%}
-3. **Next steps** — Suggest:
-   > Test with mock inference (no real inputs needed):
-   > ```
-   > mthds-agent run bundle mthds-wip/<bundle_dir>/ --dry-run --mock-inputs
-   > ```
-   > Prepare real inputs with `/mthds-inputs`, then run:
-   > ```
-   > mthds-agent run bundle mthds-wip/<bundle_dir>/
-   > ```
-
-{% endif -%}
-
 **Early-stop variant.** If the user stops before the backlog is empty, deliver the leniently-valid scaffold instead: confirm it passes lenient validation, list the unimplemented signatures (validate's current `## Pending signatures` list), and explain that resuming means expanding them — no external state is needed, the bundle is its own todo list. A validated design skeleton is a legitimate deliverable.
 
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
@@ -197,7 +182,23 @@ This skill is **automatic by default**.
 
 ## Reference
 
-- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
+- [Recursive Cheat Sheet](references/recursive-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.
+
+---
+
+## Workspace check (silent — never comment)
+
+After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
+
+---
+
+## Method summary (on request only)
+
+After a successful build, do **not** volunteer a walkthrough of the method — no pipeline-flow diagram, no step-by-step breakdown of the pipes, no "here's what it does" narration. The platform renders the method visually, so a written summary here is redundant noise.
+
+Confirm completion in one line (e.g. "Built and validated `<name>`."). Never hide problems: still surface any validation **errors, warnings, or fixes** plainly.
+
+Give the full summary (flow + steps) **only when the user explicitly asks** — "explain it", "summarize", "what does it do", "walk me through".

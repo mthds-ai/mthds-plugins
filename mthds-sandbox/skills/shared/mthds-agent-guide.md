@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.12.1`.
+All skills in this plugin require `mthds-agent >= 0.17.0`.
 
 ## Agent CLI
 
@@ -75,14 +75,14 @@ On a bundle with **no** signatures, lenient and strict are identical — `--allo
 
 ### Reading runnability and `pending_signatures`
 
-A successful `validate bundle` states, in plain English, whether the method is **runnable**, and lists the pipes still typed `PipeSignature` — the build's todo list: declared signatures with no concrete definition yet (namespaced `domain.code` refs; empty when the method is complete).
+A successful `validate bundle` states, in plain English, whether the method is **runnable**, and lists the pipes still declared as signatures — the build's todo list: contract-only headers with no concrete definition yet (namespaced `domain.code` refs; empty when the method is complete).
 
 **Markdown (default) — an LLM reads this directly, no flags needed.** On success the output ends with a runnability verdict:
 
 - **Runnable** (no signatures remain) — no `## Pending signatures` section, just:
 
   ```
-  ✅ All pipes are concretely implemented — no `PipeSignature` placeholders remain. Strict validation will pass; this method is runnable.
+  ✅ All pipes are concretely implemented — no signatures remain. Strict validation will pass; this method is runnable.
   ```
 
 - **Not yet runnable** — a `## Pending signatures (N)` heading, then the verdict, then one bullet per pending `domain.code` ref:
@@ -90,7 +90,7 @@ A successful `validate bundle` states, in plain English, whether the method is *
   ```
   ## Pending signatures (N)
 
-  ⚠️ This method is NOT yet runnable — N pipe(s) are still `PipeSignature` placeholders and must be implemented before running:
+  ⚠️ This method is NOT yet runnable — N pipe(s) are still contract-only signatures and must be implemented before running:
 
   - `domain.code`
   ```
@@ -104,7 +104,7 @@ mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format jso
 The success JSON on stdout then carries:
 
 - `is_runnable` — boolean; `true` ⇔ `pending_signatures` is empty. The structured "is the method done / runnable?" signal — prefer it over inferring from the array length.
-- `pending_signatures` — the array of namespaced refs still declared as `PipeSignature` (use it to drive *which* placeholders to implement next).
+- `pending_signatures` — the array of namespaced refs still declared as contract-only signatures (use it to drive *which* placeholders to implement next).
 - plus `validated_pipes`, `total_pipes`.
 
 **Scope:** the runnability verdict and `is_runnable` / `pending_signatures` appear **only on `validate bundle`** (including `validate bundle --pipe`). `validate all` and `validate pipe` don't compute them — don't key off these fields there.

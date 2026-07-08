@@ -111,10 +111,10 @@ class TestEnvCheckFlag:
             assert marker not in off, f"guide: {marker!r} must be gated when off"
 
     def test_off_rewords_vibe_env_check_prerequisite(self) -> None:
-        # mthds-vibe must not gate bundle authoring on an env check that does not
+        # mthds-recursive must not gate bundle authoring on an env check that does not
         # exist in a env_check=false target.
-        on = _render("mthds-vibe", env_check=True)
-        off = _render("mthds-vibe", env_check=False)
+        on = _render("mthds-recursive", env_check=True)
+        off = _render("mthds-recursive", env_check=False)
         assert "until the environment check passes" in on
         assert "until the environment check passes" not in off
         assert "Do not write `.mthds` files manually" in off
