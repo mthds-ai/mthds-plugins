@@ -148,12 +148,11 @@ mthds-agent pipe --spec '{
     {"pipe": "analyze_sentiment", "result": "sentiment"},
     {"pipe": "extract_topics", "result": "topics"}
   ],
-  "add_each_output": true,
-  "combined_output": "CombinedAnalysis"
+  "add_each_output": true
 }'
 ```
 
-**Required**: Must set either `add_each_output: true` OR `combined_output` (or both).
+**Required**: `branches`, plus an `output` of `Composite` or a structured concept whose fields match branch `result` names. Do not use `[]` or `[N]` on `output`. `add_each_output` only exposes branch results individually in working memory.
 
 ### PipeExtract
 ```bash
