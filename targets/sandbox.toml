@@ -14,6 +14,10 @@ can_run_methods = false
 # that cannot see sandbox-local files (and refuses local-path inputs). Every input
 # file must be uploaded and referenced by a remote `pipelex-storage://` URI.
 remote_storage_inputs = true
+# Sandbox-only floor: the mthds-inputs skill here calls `mthds-agent inputs upload`,
+# added in mthds-js 0.17.0. Other targets don't use that subcommand, so their
+# min_mthds_version (from defaults.toml) is intentionally left lower.
+min_mthds_version = "0.17.0"
 
 [skills]
 # Build-assistant surface only. Omits run / runner-setup / install / upgrade /
