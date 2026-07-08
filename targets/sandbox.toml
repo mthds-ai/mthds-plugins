@@ -26,5 +26,5 @@ include = [
   "mthds-fix",
   "mthds-explain",
   "mthds-inputs",
-  "mthds-vibe",
+  "mthds-recursive",
 ]

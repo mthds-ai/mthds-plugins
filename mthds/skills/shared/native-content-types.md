@@ -17,11 +17,14 @@ Each native concept maps to a content class with specific attributes. Understand
 | `Document` | DocumentContent | `url`, `public_url`, `filename`, `mime_type`, `title`, `snippet` |
 | `Html` | HtmlContent | `inner_html`, `css_class` |
 | `TextAndImages` | TextAndImagesContent | `text` (TextContent), `images` (list of ImageContent) |
+| `YesNo` | YesNoContent | `yes_no` (boolean) |
+| `Date` | DateContent | `date` (ISO date), `time` (optional ISO time with optional UTC offset) |
 | `Page` | PageContent | `text_and_images` (TextAndImagesContent), `page_view` (ImageContent) |
 | `JSON` | JSONContent | `json_obj` |
 | `SearchResult` | SearchResultContent | `answer`, `sources` (list of DocumentContent) |
 | `Anything` | *(any content)* | depends on actual content |
 | `Dynamic` | DynamicContent | user-defined fields |
+| `Composite` | CompositeContent | named component fields |
 
 ## Detailed Attribute Reference
 
@@ -42,6 +45,27 @@ Each native concept maps to a content class with specific attributes. Understand
 | `number` | `int \| float` | The numeric value |
 
 **Access**: `$var` or `$var.number` in prompts.
+
+---
+
+### YesNo — `YesNoContent`
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `yes_no` | `bool` | `true` means yes; `false` means no |
+
+**Access**: `$var` renders as `yes` or `no`; use `$var.yes_no` when the raw boolean is needed.
+
+---
+
+### Date — `DateContent`
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `date` | `date` | ISO 8601 calendar date, e.g. `2026-07-08` |
+| `time` | `time \| None` | Optional ISO 8601 time, preserving the UTC offset when the source states one |
+
+**Access**: `$var` renders the exact stored precision (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS[+offset]`). Do not provide numeric epoch values and do not invent a midnight time.
 
 ---
 
@@ -191,6 +215,14 @@ The key insight: `batch_over = "search_result.sources"` uses dot notation to ite
 
 ---
 
+### Composite — `CompositeContent`
+
+Composite content holds dynamically named components. It is most often produced by `PipeParallel` when `output = "Composite"`: each branch `result` name becomes a field.
+
+**Access**: `$var.component_name` for a named component, where `component_name` is the branch result name.
+
+---
+
 ### ListContent (multiplicity `[]`)
 
 When a concept has `[]` multiplicity (e.g., `Page[]`, `Image[]`), the content is a `ListContent` wrapping a list of items:
@@ -251,6 +283,8 @@ page_text = { from = "page.text_and_images.text.text" }
 {
   "my_text": {"concept": "native.Text", "content": {"text": "Hello"}},
   "my_number": {"concept": "native.Number", "content": {"number": 42}},
+  "my_yes_no": {"concept": "native.YesNo", "content": {"yes_no": true}},
+  "my_date": {"concept": "native.Date", "content": {"date": "2026-07-08", "time": null}},
   "my_image": {"concept": "native.Image", "content": {"url": "/path/to/img.jpg", "mime_type": "image/jpeg"}},
   "my_document": {"concept": "native.Document", "content": {"url": "/path/to/doc.pdf"}},
   "my_json": {"concept": "native.JSON", "content": {"json_obj": {"key": "value"}}},

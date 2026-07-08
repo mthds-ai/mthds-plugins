@@ -1,5 +1,5 @@
 ---
-name: mthds-vibe
+name: mthds-recursive
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
 min_mthds_version: 0.12.1
@@ -35,19 +35,86 @@ Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole j
 - **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
 - **The backlog is the bundle's own todo list.** It is exactly the `## Pending signatures` list that validate reports (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
 
-See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
+See [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
 ---
 
-Do not write `.mthds` files manually. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
+## Step 0 — Environment Check (mandatory, do this FIRST)
 
-> **No backend setup needed**: building and validating never run the method, so no inference backends or API keys are required.
+Run this command to check toolchain status:
+
+```bash
+# Wrapped in `bash -c` so the bash array syntax below works even when the
+# session shell is zsh.
+bash -c '
+# Pick the cached env-check from the plugin version with the highest semver.
+# Matches both `mthds` (prod) and `mthds-dev` (dev) plugin caches. The padded
+# segment trick keeps lex order = semver order so 0.10 does not sort below 0.9.
+_best_f=""; _best_k=""
+for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
+  [ -x "$f" ] || continue
+  _v="${f%/bin/*}"; _v="${_v##*/}"
+  _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
+  for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
+  [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
+done
+[ -n "$_best_f" ] && exec "$_best_f" "0.12.1"
+echo "MTHDS_ENV_CHECK_MISSING"
+'
+```
+
+**Interpret the output:**
+
+- `MTHDS_AGENT_MISSING` → STOP. Do not proceed. Tell the user:
+
+> The `mthds-agent` CLI is required but not installed. Install it with:
+>
+> ```
+> rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/
+> ```
+>
+> Then re-run this skill.
+
+- `MTHDS_AGENT_VERSION_UNKNOWN` → STOP. The installed `mthds-agent` returned an unparseable version. Tell the user:
+
+> Could not parse the output of `mthds-agent --version`. Your installation may be corrupt. Reinstall with:
+>
+> ```
+> rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/
+> ```
+>
+> Then re-run this skill.
+
+- `MTHDS_AGENT_OUTDATED <installed> <required>` → The installed `mthds-agent` is too old for this plugin. **Do not hard-stop.** Instead, tell the user their mthds-agent (v\<installed>) is older than the required v\<required>, then follow the [upgrade flow](../shared/upgrade-flow.md) to offer upgrading mthds-agent via `rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/`. After the upgrade flow completes (whether the user upgraded or declined), proceed to Step 1. The upgrade flow's "Not now" and "Never ask" options let users continue with current versions.
+
+- `MTHDS_UPDATE_CHECK_FAILED ...` → WARN. The update check command failed. Show the error output to the user. Suggest checking network connectivity and `mthds-agent` installation. Proceed to Step 1 with current versions.
+
+- `UPGRADE_AVAILABLE ...` → Read [upgrade flow](../shared/upgrade-flow.md) and follow the upgrade prompts before continuing to Step 1.
+
+- `JUST_UPGRADED ...` → Announce what was upgraded to the user, then continue to Step 1.
+
+- `UP_TO_DATE ...` → Proceed to Step 1. The line is a terse list of verified installed versions (e.g. `UP_TO_DATE mthds-agent=0.10.0 plxt=0.4.0 plugin=0.12.0`); if you mention the env-check in your preamble acknowledgement, relay the agent and plugin versions you saw. Two "explicit-quiet" variants share the same prefix and are also clean — proceed to Step 1 without warning, and do not relay the quiet state unless the user is troubleshooting:
+  - `UP_TO_DATE update-check=disabled` — the user has turned update-check off via config.
+  - `UP_TO_DATE update-check=snoozed` — the user has an active snooze on the current version key; an upgrade would otherwise be available, but they explicitly asked for quiet.
+
+- No output → WARN. The env-check produced no output at all, which usually means `mthds-agent` itself is broken or the wrapper script bailed before printing. Tell the user the environment check could not be confirmed, then proceed cautiously to Step 1.
+
+- `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
+
+
+
+- Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
+
+
+Do not write `.mthds` files until the environment check passes. The CLI is required for validation and formatting — without it the output will be broken and the PostToolUse hook will fail.
+
+> **No backend setup needed**: building and validating never run the method, so no inference backends or API keys are required. Backend configuration is only needed for live execution — use `/mthds-runner-setup` when ready.
 
 ---
 
 ## Step 1 — Capture the whole job as one signature (Layer 0)
 
-Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**.
+Read [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) **before writing**.
 
 Determine the three things that *are* the requirement:
 
@@ -154,6 +221,16 @@ Once strict validation passes:
 
 2. **Flowchart** — Mention that `dry_run.html` was generated next to the bundle (refreshed at every layer).
 
+3. **Next steps** — Suggest:
+   > Test with mock inference (no real inputs needed):
+   > ```
+   > mthds-agent run bundle mthds-wip/<bundle_dir>/ --dry-run --mock-inputs
+   > ```
+   > Prepare real inputs with `/mthds-inputs`, then run:
+   > ```
+   > mthds-agent run bundle mthds-wip/<bundle_dir>/
+   > ```
+
 **Early-stop variant.** If the user stops before the backlog is empty, deliver the leniently-valid scaffold instead: confirm it passes lenient validation, list the unimplemented signatures (validate's current `## Pending signatures` list), and explain that resuming means expanding them — no external state is needed, the bundle is its own todo list. A validated design skeleton is a legitimate deliverable.
 
 > **NEVER write `inputs.json` manually.** If the user provides files, paths, or wants to run with real data, invoke `/mthds-inputs` — it handles path resolution (paths must be relative to `inputs.json`, not CWD), placeholder formatting, and file copying.
@@ -182,23 +259,7 @@ This skill is **automatic by default**.
 
 ## Reference
 
-- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
+- [Recursive Cheat Sheet](references/recursive-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.
-
----
-
-## Workspace check (silent — never comment)
-
-After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
-
----
-
-## Method summary (on request only)
-
-After a successful build, do **not** volunteer a walkthrough of the method — no pipeline-flow diagram, no step-by-step breakdown of the pipes, no "here's what it does" narration. The platform renders the method visually, so a written summary here is redundant noise.
-
-Confirm completion in one line (e.g. "Built and validated `<name>`."). Never hide problems: still surface any validation **errors, warnings, or fixes** plainly.
-
-Give the full summary (flow + steps) **only when the user explicitly asks** — "explain it", "summarize", "what does it do", "walk me through".

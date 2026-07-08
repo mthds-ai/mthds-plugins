@@ -158,6 +158,8 @@ Parse the schema to identify what types of synthetic data are needed:
 |---------|---------------|------------------|
 | `native.Text` | `text` | Generate realistic text matching the method context |
 | `native.Number` | `number` | Generate appropriate numeric values |
+| `native.YesNo` | `yes_no` | Generate a boolean `true`/`false` answer |
+| `native.Date` | `date`, `time?` | Generate ISO 8601 date/time values; never use epoch numbers |
 | `native.Image` | `url`, `caption?`, `mime_type?` | Use `synthesize_image` pipeline |
 | `native.Document` | `url`, `mime_type?` | Use document generation skills or Python |
 | `native.Page` | `text_and_images`, `page_view?` | Composite: text + optional images |
@@ -533,6 +535,21 @@ After assembling the inputs, confirm readiness:
 ### Number
 ```json
 {"number": 42}
+```
+
+### YesNo
+```json
+{"yes_no": true}
+```
+
+### Date
+```json
+{"date": "2026-07-08", "time": null}
+```
+
+### Date with time
+```json
+{"date": "2026-07-08", "time": "15:40:00+02:00"}
 ```
 
 ### Image
