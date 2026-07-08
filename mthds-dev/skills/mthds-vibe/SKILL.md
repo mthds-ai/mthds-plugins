@@ -138,7 +138,6 @@ Determine the three things that *are* the requirement:
    # ...
 
    [pipe.<top_pipe_code>]
-   type          = "PipeSignature"
    description   = "<precise semantics of the whole job>"
    inputs        = { <name> = "<InputConcept>" }
    output        = "<OutputConcept>"
@@ -167,7 +166,7 @@ Drain the signature backlog breadth-first, **serially** (one signature at a time
    mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph
    ```
 
-   - **Still pending** → the markdown shows a `## Pending signatures (N)` heading, a `⚠️ This method is NOT yet runnable …` line, and one bullet per library-wide pipe still typed `PipeSignature`. That bullet list is the backlog.
+   - **Still pending** → the markdown shows a `## Pending signatures (N)` heading, a `⚠️ This method is NOT yet runnable …` line, and one bullet per library-wide pipe still declared as a signature. That bullet list is the backlog.
    - **Done** → the markdown shows `✅ All pipes are concretely implemented … this method is runnable.` and **no** `## Pending signatures` section. The backlog is empty → go to Step 3.
 
    (No `--format json` — the agent reads this markdown directly; the verdict line and the backlog are both plain text. Errors on failure stay markdown too.)

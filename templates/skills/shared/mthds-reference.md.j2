@@ -216,7 +216,7 @@ Items are processed in parallel for efficiency. Output list preserves input orde
 
 Execute multiple independent pipes in parallel on the same inputs. Each branch runs in isolation with a deep copy of working memory.
 
-**Required**: Must set either `add_each_output = true` OR `combined_output` (or both).
+`PipeParallel` always combines branch results into its declared `output`.
 
 **With separate outputs** (each branch adds to working memory):
 ```toml
@@ -224,7 +224,7 @@ Execute multiple independent pipes in parallel on the same inputs. Each branch r
 type = "PipeParallel"
 description = "Run multiple analyses in parallel"
 inputs = { document = "Document" }
-output = "Text"
+output = "Composite"
 add_each_output = true
 branches = [
     { pipe = "analyze_sentiment", result = "sentiment" },
@@ -233,15 +233,21 @@ branches = [
 ]
 ```
 
-**With combined output** (merge branch results into single concept):
+**With structured output** (branch result names match concept fields):
 ```toml
+[concept.FullAnalysis]
+description = "Combined analysis results"
+
+[concept.FullAnalysis.structure]
+sentiment = { type = "text", description = "Sentiment analysis", required = true }
+topics = { type = "text", description = "Extracted topics", required = true }
+
 [pipe.analyze_all_aspects]
 type = "PipeParallel"
 description = "Run multiple analyses in parallel"
 inputs = { document = "Document" }
 output = "FullAnalysis"
 add_each_output = true
-combined_output = "FullAnalysis"
 branches = [
     { pipe = "analyze_sentiment", result = "sentiment" },
     { pipe = "extract_topics", result = "topics" }
@@ -250,8 +256,8 @@ branches = [
 
 **Parameters**:
 - `branches`: Array of `{ pipe = "pipe_code", result = "result_name" }` entries
-- `add_each_output`: If `true`, adds each branch result to working memory individually
-- `combined_output`: Concept name to bundle all results into (fields must match result names)
+- `output`: Must be `Composite` or a structured concept whose field names match branch `result` names. Do not use `[]` or `[N]`.
+- `add_each_output`: If `true`, also adds each branch result to working memory individually
 
 ### PipeExtract - Extract text/images from Document/Image/Web Page
 

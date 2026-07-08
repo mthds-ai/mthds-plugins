@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Documentation
+
+- **Update MTHDS language guidance for pipelex `v0.38.0`.** Skill references now teach typeless contract-only signatures, `PipeParallel`'s always-combined declared `output`, first-class optional presence markers, and completed-run `main_stuff` semantics without the removed `combined_output` fallback.
+
 ## [v0.14.1] - 2026-06-22
 
 ### Changed

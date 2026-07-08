@@ -117,7 +117,7 @@ if [[ "$(_jv "$(cat "$TMPOUT")" "d.is_valid === true ? 'y' : ''")" == "y" ]]; th
   # Valid → pass. If the assembled library still has unimplemented PipeSignature
   # placeholders, emit a NON-BLOCKING nudge so the agent implements them before
   # running for real. pending_signatures rides the same success envelope — the
-  # library-wide list of pipes still typed PipeSignature (empty when complete).
+  # library-wide list of pipes still declared as contract-only signatures (empty when complete).
   # Headers persist additively after they're satisfied, so this field — NOT a grep
   # for "PipeSignature" — is the source of truth for what remains.
   PENDING=$(_jv "$(cat "$TMPOUT")" "Array.isArray(d.pending_signatures)?d.pending_signatures.join(', '):''") || PENDING=""

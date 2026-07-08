@@ -245,10 +245,8 @@ The `output_file` and `graph_files` are written to disk as side effects (paths a
 **In `--with-memory` mode**, the output structure depends on the pipe architecture:
 
 ```
-if main_stuff is non-empty (not {} or null):
-    → main_stuff is the primary output (single unified result)
-else:
-    → working_memory.root holds the primary output (multiple named results)
+main_stuff is always the primary output for a completed run:
+    → a value, or an explicit absence document for optional outputs
 ```
 
 | Pipe Type | `main_stuff` present? | What to show |
@@ -257,23 +255,17 @@ else:
 | PipeSequence | Always (last step) | `main_stuff` |
 | PipeBatch | Always (list) | `main_stuff` |
 | PipeCondition | Always | `main_stuff` |
-| PipeParallel with `combined_output` | Yes | `main_stuff` |
-| PipeParallel without `combined_output` | No (`{}`) | `working_memory.root` entries |
+| PipeParallel | Always (combined result) | `main_stuff` |
 
 #### 5b. Show the output content
 
 **In compact mode**: show the JSON fields directly. For structured concepts, format for readability.
 
-**In `--with-memory` mode when `main_stuff` is present** (most pipe types):
+**In `--with-memory` mode**:
 
 - Show `main_stuff.markdown` directly — this is the human-readable rendering. Display it as-is so the user sees the full output.
 - For structured concepts with fields, also show `main_stuff.json` formatted for readability.
-
-**In `--with-memory` mode when `main_stuff` is empty** (PipeParallel without `combined_output`):
-
-- Iterate `working_memory.root` and present each named result.
-- For each entry, show the `content` field with its key as a label.
-- Example: "**french_translation**: Bonjour le monde" / "**spanish_translation**: Hola mundo"
+- If `main_stuff` is an absence document (`absent: true`), show the absence reason and provenance instead of treating it as missing output.
 
 **For dry runs**: Show the same output but clearly label it as mock/simulated data.
 
