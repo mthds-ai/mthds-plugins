@@ -10,6 +10,10 @@ source = "mthds-sandbox/"
 # run or suggest running methods — execution is the platform's job.
 env_check = false
 can_run_methods = false
+# The sandbox filesystem is ephemeral and the hosted runner is a different machine
+# that cannot see sandbox-local files (and refuses local-path inputs). Every input
+# file must be uploaded and referenced by a remote `pipelex-storage://` URI.
+remote_storage_inputs = true
 
 [skills]
 # Build-assistant surface only. Omits run / runner-setup / install / upgrade /
