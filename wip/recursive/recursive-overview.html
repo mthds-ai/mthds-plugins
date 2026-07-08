@@ -141,7 +141,7 @@
 
   <!-- ============================================================ -->
   <h3 class="sec" id="why">Why — from one shot to refinement</h3>
-  <p class="lead">The old <code>mthds-recursive</code> tried to emit a whole method in a single pass. For anything multi-step that means holding the entire pipe graph and all its concepts in one go — and the in-progress file is invalid until the very last line, so the validation hook fights you the whole way down.</p>
+  <p class="lead">The previous single-pass approach tried to emit a whole method in one go. For anything multi-step that means holding the entire pipe graph and all its concepts in one pass — and the in-progress file is invalid until the very last line, so the validation hook fights you the whole way down.</p>
   <p>The fix mirrors how engineers actually decompose: <b>commit to a contract first, implement later.</b> Write the signature of the top pipe, then refine one signature at a time, one level down, leaving the not-yet-built parts as further signatures. Every intermediate state is a complete, valid, resumable library — the half-built method is its own todo list.</p>
 
   <!-- ============================================================ -->
