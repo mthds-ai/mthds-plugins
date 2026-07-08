@@ -284,7 +284,7 @@ Collect all files the user has provided (explicit paths, folders, or files menti
 | `.txt` | Plain text | `native.Text` (read file content) |
 | `.md` | Markdown text | `native.Text` (read file content) |
 | `.json` | JSON data | `native.JSON` or custom structured concept |
-| `.csv` | CSV data | `native.Text` (read as text) or `native.JSON` (parse to objects) |
+| `.csv` | CSV data | **Structured row concept** via `{"url": "file.csv"}` → `ListContent[RowConcept]` (preferred — see [Step E](#step-e-build-content-objects)); falls back to `native.Text` (whole file as text) |
 | `.html`, `.htm` | HTML | `native.Html` |
 | `http://...`, `https://...` | Web page URL | `native.Document` (mime: `text/html`) |
 
@@ -378,6 +378,27 @@ For each matched file, construct the proper content object:
   ]
 }
 ```
+
+**CSV input** (each data row becomes one structured object → `ListContent[RowConcept]`):
+
+When the schema expects a **list of a structured (non-native) concept** — e.g. `rows: Transaction[]` where `Transaction` has fields `date`, `amount`, `description` — reference the `.csv` file directly with a bare `{"url": ...}` wrapper. The runner reads the file and binds each row to the concept's structure class:
+```json
+{
+  "concept": "finance.Transaction",
+  "content": {
+    "url": "inputs/transactions.csv"
+  }
+}
+```
+The CSV header row must match the concept's field names. One CSV yields one `ListContent` (the concept names the **row** type, not the list).
+
+Rules to respect (otherwise the runner raises a `CsvError`):
+- **Bare wrapper only.** The content must be *exactly* `{"url": "...csv"}`. Any sibling key (e.g. `{"label": "...", "url": "data.csv"}`) is treated as an ordinary record, not a table.
+- **Structured concept only.** The concept must be a non-native concept with a registered structure class. Native concepts (`native.Image`, `native.Document`, …) keep their own `url` handling and are never read as CSV.
+- **Local paths only (v1).** A remote `url` (`http(s)://`, `s3://`, `gs://`, `pipelex-storage://`) is rejected — download the file and reference it by local path.
+- **Flat rows only.** Each concept field must be a CSV-roundtrippable scalar: `str`, `int`, `float`, `bool`, `date`, `datetime`, a string-valued `Literal`/`Enum`, or an `Optional` of those. Nested models, containers, or genuine multi-type unions raise a `CsvFlatnessError` — for non-flat data, use `native.JSON` or a hand-built list instead.
+
+If the target input is **not** a structured-concept list (or the rows aren't flat), fall back to reading the file content into `native.Text`.
 
 ### Step F: Assemble and Save
 
