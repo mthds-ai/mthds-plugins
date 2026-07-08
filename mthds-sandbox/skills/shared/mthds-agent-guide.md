@@ -82,7 +82,7 @@ A successful `validate bundle` states, in plain English, whether the method is *
 - **Runnable** (no signatures remain) — no `## Pending signatures` section, just:
 
   ```
-  ✅ All pipes are concretely implemented — no `PipeSignature` placeholders remain. Strict validation will pass; this method is runnable.
+  ✅ All pipes are concretely implemented — no signatures remain. Strict validation will pass; this method is runnable.
   ```
 
 - **Not yet runnable** — a `## Pending signatures (N)` heading, then the verdict, then one bullet per pending `domain.code` ref:
@@ -90,7 +90,7 @@ A successful `validate bundle` states, in plain English, whether the method is *
   ```
   ## Pending signatures (N)
 
-  ⚠️ This method is NOT yet runnable — N pipe(s) are still `PipeSignature` placeholders and must be implemented before running:
+  ⚠️ This method is NOT yet runnable — N pipe(s) are still contract-only signatures and must be implemented before running:
 
   - `domain.code`
   ```
