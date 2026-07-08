@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [v0.15.0] - 2026-07-08
+
+### Added
+
+- **Remote-only inputs in the sandbox target (`remote_storage_inputs`).** New template var (default `false`; `true` only in `targets/sandbox.toml`) that switches the `mthds-inputs` skill to reference every input file in `inputs.json` by a **remote URI** — a `pipelex-storage://` URI via `mthds-agent inputs upload <file>`, or an `https://` URL — never a local path. Built for the hosted build sandbox, whose filesystem is ephemeral and whose runner is a different machine that can't see sandbox-local files and rejects local-path inputs. Every other target (`prod`/`dev`/`codex`) renders byte-identically.
+
+### Changed
+
+- **Bump `min_mthds_version` to `0.17.0` for the `sandbox` target only.** The sandbox `mthds-inputs` skill now calls `mthds-agent inputs upload`, added in mthds-js `0.17.0`. The floor is overridden in `targets/sandbox.toml` alone (a per-target `[vars]` override); `prod`/`dev`/`codex` keep `0.12.1` because they don't use the new subcommand.
 
 ### Documentation
 

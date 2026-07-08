@@ -1,6 +1,6 @@
 [plugin]
 name = "mthds-sandbox"
-version = "0.14.1"
+version = "0.15.0"
 description = "MTHDS build-assistant skills for locked-down sandboxes — no environment checks, no method execution."
 source = "mthds-sandbox/"
 
