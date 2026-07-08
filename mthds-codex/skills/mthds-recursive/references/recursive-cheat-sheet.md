@@ -1,4 +1,4 @@
-# Vibe Cheat Sheet — Writing `.mthds` Directly
+# Recursive Cheat Sheet — Writing `.mthds` Directly
 
 A focused, copy-pasteable reference for hand-writing MTHDS code in a `bundle.mthds`.
 

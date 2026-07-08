@@ -112,7 +112,7 @@
   <section class="hero">
     <p class="kicker">PR overview · mthds-plugins</p>
     <h2>Building <code>.mthds</code> methods top-down, valid at every step</h2>
-    <p class="sub">This PR rewrites the <code>mthds-vibe</code> skill from a single-pass generator into a <b>stepwise-refinement</b> builder: capture the whole job as one pipe <i>signature</i>, then refine it layer by layer into a runnable method that validates at every intermediate save.</p>
+    <p class="sub">This PR rewrites the <code>mthds-recursive</code> skill from a single-pass generator into a <b>stepwise-refinement</b> builder: capture the whole job as one pipe <i>signature</i>, then refine it layer by layer into a runnable method that validates at every intermediate save.</p>
   </section>
 
   <div class="tldr">
@@ -141,7 +141,7 @@
 
   <!-- ============================================================ -->
   <h3 class="sec" id="why">Why — from one shot to refinement</h3>
-  <p class="lead">The old <code>mthds-vibe</code> tried to emit a whole method in a single pass. For anything multi-step that means holding the entire pipe graph and all its concepts in one go — and the in-progress file is invalid until the very last line, so the validation hook fights you the whole way down.</p>
+  <p class="lead">The old <code>mthds-recursive</code> tried to emit a whole method in a single pass. For anything multi-step that means holding the entire pipe graph and all its concepts in one go — and the in-progress file is invalid until the very last line, so the validation hook fights you the whole way down.</p>
   <p>The fix mirrors how engineers actually decompose: <b>commit to a contract first, implement later.</b> Write the signature of the top pipe, then refine one signature at a time, one level down, leaving the not-yet-built parts as further signatures. Every intermediate state is a complete, valid, resumable library — the half-built method is its own todo list.</p>
 
   <!-- ============================================================ -->
@@ -379,7 +379,7 @@ Please remove one of the declarations or rename one of the concepts.</code></pre
     <tbody>
       <tr><td><b>Claude save hook</b><br><code>templates/hooks/validate-mthds.sh.j2</code></td><td>Stage 3 now runs <b>lenient</b> (<code>--allow-signatures</code>) and emits a non-blocking <code>pending_signatures</code> nudge on success. Failure path unchanged.</td></tr>
       <tr><td><b>Codex save hook</b><br><code>mthds-js · codex-hook.ts</code></td><td>Added <code>--allow-signatures</code> for parity. Nudge deferred for v1 (skill tracks the backlog itself).</td></tr>
-      <tr><td><b>The skill</b><br><code>templates/skills/mthds-vibe/SKILL.md.j2</code></td><td>Single-pass body replaced by the Step 0–4 recursive flow (inline/serial on both targets). Renders identically to Claude &amp; Codex; only frontmatter differs.</td></tr>
+      <tr><td><b>The skill</b><br><code>templates/skills/mthds-recursive/SKILL.md.j2</code></td><td>Single-pass body replaced by the Step 0–4 recursive flow (inline/serial on both targets). Renders identically to Claude &amp; Codex; only frontmatter differs.</td></tr>
       <tr><td><b>References + docs</b></td><td><code>PipeSignature</code> section in the vibe cheat sheet; <code>--allow-signatures</code> + <code>pending_signatures</code> in the agent guide; a lenient-validation section in the hooks doc.</td></tr>
     </tbody>
   </table>

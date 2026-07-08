@@ -23,7 +23,7 @@ DEFAULTS_TOML = REPO_ROOT / "targets" / "defaults.toml"
 
 RUN_MARKER = "mthds-agent run"
 # Skills that carry "run a method" suggestions and must gate them.
-GATED_SKILLS = ["mthds-build", "mthds-edit", "mthds-inputs", "mthds-explain", "mthds-vibe"]
+GATED_SKILLS = ["mthds-build", "mthds-edit", "mthds-inputs", "mthds-explain", "mthds-recursive"]
 
 
 def _default_vars() -> dict[str, object]:
@@ -42,7 +42,7 @@ def _render_doc(rel_path: str, *, can_run_methods: bool) -> str:
 
 
 # Skills that carry the "No backend setup needed → /mthds-runner-setup" pointer.
-RUNNER_SETUP_SKILLS = ["mthds-build", "mthds-check", "mthds-edit", "mthds-explain", "mthds-inputs", "mthds-fix", "mthds-vibe"]
+RUNNER_SETUP_SKILLS = ["mthds-build", "mthds-check", "mthds-edit", "mthds-explain", "mthds-inputs", "mthds-fix", "mthds-recursive"]
 
 
 class TestCanRunMethodsFlag:

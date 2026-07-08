@@ -4,8 +4,8 @@ A `templates/skills/<skill>/SKILL.<target_name>.md.j2` file is appended to that
 skill's output ONLY when building <target_name> — letting a target add content
 without touching the shared skill template (so every other target stays
 byte-identical). The mthds-sandbox target uses this for the silent workspace
-check (mthds-build / mthds-vibe) and the "method summary on request only" rule
-(mthds-build / mthds-vibe / mthds-check).
+check (mthds-build / mthds-recursive) and the "method summary on request only" rule
+(mthds-build / mthds-recursive / mthds-check).
 """
 
 from __future__ import annotations
@@ -46,12 +46,12 @@ class TestSandboxOverlay:
     def test_no_target_name_skips_overlays(self) -> None:
         assert WORKSPACE_MARKER not in _build_skill(None)
 
-    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check", "mthds-edit", "mthds-fix"])
+    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-recursive", "mthds-check", "mthds-edit", "mthds-fix"])
     def test_sandbox_suppresses_summary(self, skill: str) -> None:
         # The sandbox build/edit/fix/validate surface must not auto-emit a summary.
         assert NO_SUMMARY_MARKER in _build_skill("sandbox", skill)
 
-    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-vibe", "mthds-check", "mthds-edit", "mthds-fix"])
+    @pytest.mark.parametrize("skill", ["mthds-build", "mthds-recursive", "mthds-check", "mthds-edit", "mthds-fix"])
     def test_prod_keeps_summary_behavior(self, skill: str) -> None:
         # Only the sandbox target carries the no-summary rule.
         assert NO_SUMMARY_MARKER not in _build_skill("prod", skill)
