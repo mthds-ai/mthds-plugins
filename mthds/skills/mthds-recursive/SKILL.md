@@ -1,5 +1,5 @@
 ---
-name: mthds-vibe
+name: mthds-recursive
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
 min_mthds_version: 0.12.1
@@ -35,7 +35,7 @@ Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole j
 - **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
 - **The backlog is the bundle's own todo list.** It is exactly the `## Pending signatures` list that validate reports (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
 
-See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
+See [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
 ---
 
@@ -114,7 +114,7 @@ Do not write `.mthds` files until the environment check passes. The CLI is requi
 
 ## Step 1 — Capture the whole job as one signature (Layer 0)
 
-Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**.
+Read [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) **before writing**.
 
 Determine the three things that *are* the requirement:
 
@@ -259,7 +259,7 @@ This skill is **automatic by default**.
 
 ## Reference
 
-- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
+- [Recursive Cheat Sheet](references/recursive-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.

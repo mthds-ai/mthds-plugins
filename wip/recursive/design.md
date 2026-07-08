@@ -6,7 +6,7 @@ Origin: [kick-off.md](kick-off.md). This doc turns that kick-off into a methodol
 
 Build a `.mthds` method **top-down by stepwise refinement**, where every intermediate state is a real, validatable library (a set of same-domain `.mthds` files, built additively — one definition per file). Start by capturing the whole job as a *single pipe signature* — the client contract (inputs, output, semantics). Then refine one signature at a time, one level down, into operators and controllers, leaving the not-yet-built parts as further signatures. Validate **leniently** (`--allow-signatures`) after each layer; the library is always valid and always resumable. Stop when no signatures remain (strict validation passes → runnable), or stop early and keep the leniently-valid scaffold.
 
-This is an **in-place evolution of `mthds-vibe`**: its current single-pass authoring becomes recursive layer-by-layer refinement.
+This is an **in-place evolution of `mthds-recursive`**: its current single-pass authoring becomes recursive layer-by-layer refinement.
 
 The capability that unlocks this shipped in pipelex (the `PipeSignature` pipe type + `--allow-signatures` lenient validation, worktree `../_recursive`); the merge-time **signature/concrete reconciliation + library-level concept resolution** that make the build *additive* (§4.5), the **normalized header↔definition contract check** (concept identity, not raw string), and the **`pending_signatures`** list on validate (backing the hook nudge) have all since shipped on the same worktree branch. It is already reachable through `mthds-agent` today via flag passthrough — no CLI plumbing required. The one piece of tooling that must change is the PostToolUse hook (see [Required tooling changes](#required-tooling-changes)).
 
@@ -15,7 +15,7 @@ The capability that unlocks this shipped in pipelex (the `PipeSignature` pipe ty
 These were confirmed before writing (recorded here for handoff):
 
 - **Doc scope** — methodology first, then concrete skill design (this doc).
-- **Skill identity** — evolve `mthds-vibe` in place; the staged `mthds-build` stays separate.
+- **Skill identity** — evolve `mthds-recursive` in place; the staged `mthds-build` stays separate.
 - **Autonomy** — *optionally hybrid*: the requirements-capture step (the top signature) is interactive only when the request is ambiguous or the user signals they want to discuss; otherwise the agent commits to its read and proceeds. The recursive refinement that follows runs in **auto mode**.
 - **Stop / output** — refine to runnable by default (strict validation passes, no signatures left), but support stopping early and delivering a leniently-valid scaffold.
 - **v1 scope (post-review, 2026-06-07)** — the eng review reduced v1: **fan-out is deferred to a follow-up** (decision D1). v1 runs the layer loop **inline/serial on both targets**; correctness is identical, only parallelism + per-signature context isolation are dropped. The `agents/` worker, the `expand-signature` shared partial, and the build-system `agents/` support all move to the follow-up. The fan-out design below (§4.4, §6, §7 item 3) is retained as the follow-up's spec, annotated where it would otherwise read as v1. Full decision set: the **GSTACK REVIEW REPORT** at the end of this doc.
@@ -24,7 +24,7 @@ These were confirmed before writing (recorded here for handoff):
 
 ## 1. Background & motivation
 
-`mthds-vibe` today writes a complete `bundle.mthds` in **one pass**, then validates and iterates on errors (see `templates/skills/mthds-vibe/SKILL.md.j2`). That works for small methods. For non-trivial ones it asks the model to get the entire tree right at once — deep nesting, every intermediate concept, all controller wiring — and that is exactly where single-pass authoring breaks down, with errors that could be anywhere in the bundle.
+`mthds-recursive` today writes a complete `bundle.mthds` in **one pass**, then validates and iterates on errors (see `templates/skills/mthds-recursive/SKILL.md.j2`). That works for small methods. For non-trivial ones it asks the model to get the entire tree right at once — deep nesting, every intermediate concept, all controller wiring — and that is exactly where single-pass authoring breaks down, with errors that could be anywhere in the bundle.
 
 `mthds-build` answers this with a heavyweight staged process: draft a plan in markdown, draft concepts, structure them via CLI, draft the flow, structure pipes — designing the *whole* architecture before any of it is a live bundle. The design lives in prose until late; the artifact isn't machine-checked until the structuring phases.
 
@@ -257,9 +257,9 @@ What this illustrates: the top contract frozen at Layer 0; a mixed layer where o
 
 ---
 
-## 4. Skill design — evolving `mthds-vibe` in place
+## 4. Skill design — evolving `mthds-recursive` in place
 
-Same skill, same name/slot (`templates/skills/mthds-vibe/SKILL.md.j2`). The single-pass body is replaced by the recursive loop. The shared `Step 0` env-check, the deliver step, and the "never write `inputs.json`" rule carry over unchanged.
+Same skill, same name/slot (`templates/skills/mthds-recursive/SKILL.md.j2`). The single-pass body is replaced by the recursive loop. The shared `Step 0` env-check, the deliver step, and the "never write `inputs.json`" rule carry over unchanged.
 
 ### 4.1 Step structure
 
@@ -278,7 +278,7 @@ This generalizes vibe's existing "automatic by default, interactive only if ambi
 
 ### 4.3 Reference doc changes
 
-`skills/mthds-vibe/references/vibe-cheat-sheet.md` (static asset) needs a `PipeSignature` section: the syntax above, the `signature_for` hint and its rules, the operator-vs-controller decision, and the lenient vs strict validate commands. The recursive loop itself (the layer rhythm, the invariants) lives in the SKILL body; the cheat sheet stays the syntax/field source of truth.
+`skills/mthds-recursive/references/recursive-cheat-sheet.md` (static asset) needs a `PipeSignature` section: the syntax above, the `signature_for` hint and its rules, the operator-vs-controller decision, and the lenient vs strict validate commands. The recursive loop itself (the layer rhythm, the invariants) lives in the SKILL body; the cheat sheet stays the syntax/field source of truth.
 
 ### 4.4 Recursion as a callable unit & parallel fan-out
 
@@ -286,7 +286,7 @@ The recursion is uniform — every step is the same job — so it is worth isola
 
 **The unit — `expand-signature`.** Given one signature `S` (its frozen contract + the slice of description and concepts it touches), produce `S`'s implementation one level down: an operator (done), or a controller plus the child signatures (`signature_for`-hinted) and intermediate concepts it spawns. Contract in, contract preserved, expansion out.
 
-**Orchestrator vs worker.** `mthds-vibe` is the **orchestrator**: it owns the library dir, the backlog, the layer loop, per-layer validation, and finalize. The **worker** is a dedicated sub-agent type (`mthds-signature-expander`) whose system prompt *is* the `expand-signature` job, with tools limited to Read + Write (scoped to the one file it adds) + the validate command. It **adds one file**: the `<code>.mthds` *definition* for the signature it was handed — it never edits an existing file.
+**Orchestrator vs worker.** `mthds-recursive` is the **orchestrator**: it owns the library dir, the backlog, the layer loop, per-layer validation, and finalize. The **worker** is a dedicated sub-agent type (`mthds-signature-expander`) whose system prompt *is* the `expand-signature` job, with tools limited to Read + Write (scoped to the one file it adds) + the validate command. It **adds one file**: the `<code>.mthds` *definition* for the signature it was handed — it never edits an existing file.
 
 **Header + definition — additive writes (the rule that unlocks fan-out).** Expanding a signature = **adding a new `<code>.mthds` definition file** holding the concrete pipe; if that implementation is a controller, the same file also forward-declares its child headers and declares the concepts it introduces. No existing file is ever overwritten, no fragments, no merge. This works because the runtime assembles every same-domain file in the `-L` dir into one library with cross-file bare-code resolution, and because a header and a concrete of the same code **reconcile** (the concrete wins; contracts must match) rather than colliding. The header — declared by the parent that wired the child — persists and keeps the call graph stable. Parallel workers never contend: each adds a distinct definition file, and every code still without a concrete is a reachable signature, so the assembled library stays leniently valid throughout.
 
@@ -371,8 +371,8 @@ The Codex hook (`mthds-agent codex hook`, logic in `mthds-js`) runs the analogou
 
 ## 6. Decisions (resolved)
 
-- **Naming/connotation.** Keep the `mthds-vibe` name — it still fits a layer-by-layer process. Update only the skill `description` to reflect top-down, valid-at-every-step refinement.
-- **Invocation.** The skill stays **explicit-invocation-only** (`disable-model-invocation: true` for non-Codex, as today). A recursive build is a deliberate, potentially long multi-step action the user launches with `/mthds-vibe` — not something the model triggers from chat. The rewrite (§7 item 4) must preserve this frontmatter.
+- **Naming/connotation.** Keep the `mthds-recursive` name — it still fits a layer-by-layer process. Update only the skill `description` to reflect top-down, valid-at-every-step refinement.
+- **Invocation.** The skill stays **explicit-invocation-only** (`disable-model-invocation: true` for non-Codex, as today). A recursive build is a deliberate, potentially long multi-step action the user launches with `/mthds-recursive` — not something the model triggers from chat. The rewrite (§7 item 4) must preserve this frontmatter.
 - **Fan-out target scope.** *(Revised post-review, D1.)* Parallel fan-out is **deferred to a follow-up on both targets** — v1 runs the layer loop **inline/serial** on Claude and Codex alike (§4.4; rationale in [`../deferred-issues.md`](../deferred-issues.md)). The original plan shipped fan-out on Claude (the `agents/` worker + Agent tool) with Codex inline; the review pulled the whole `agents/` build-system chunk (and its open auto-discovery question) out of v1. Codex sub-agents can't be bundled in the plugin anyway (no `agents` manifest field) — they'd be installed as `.codex/agents/*.toml` via `mthds-agent codex apply-config`. Both Claude and Codex fan-out are in the same follow-up.
 - **Scope limits.** Keep vibe's current limits (`dict`, `PipeStructure`, inline `templating_style`) as-is for this work. Revisiting them is tracked separately in [`../revisit-vibe-scope-limits.md`](../revisit-vibe-scope-limits.md).
 - **Delivery format / file layout.** The builder produces a **multi-file, same-domain library**, built additively (one concrete definition per file, headers reconciled at merge; §2.7). Keep small files for now. An optional final *flatten into one `bundle.mthds`* is deferred — tracked in [`../deferred-issues.md`](../deferred-issues.md).
@@ -390,12 +390,12 @@ The Codex hook (`mthds-agent codex hook`, logic in `mthds-js`) runs the analogou
 
 1. **Unblock signatures in the hook.** Add `--allow-signatures` to `templates/hooks/validate-mthds.sh.j2` Stage 3; `make build`. This is foundational and independent of the skill rewrite.
    - **Checkpoint** — with the hook lenient, a hand-written signature-containing bundle can be saved without being blocked, while a signature-free bundle still validates exactly as before. Verify via the `internal-tools` integration suite (`make build && make agent-test`), which is the safety net for the hook/install system.
-2. **Document the primitive.** Add the `PipeSignature` / `signature_for` / lenient-vs-strict section to `skills/mthds-vibe/references/vibe-cheat-sheet.md` and the `mthds-agent-guide` shared reference.
+2. **Document the primitive.** Add the `PipeSignature` / `signature_for` / lenient-vs-strict section to `skills/mthds-recursive/references/recursive-cheat-sheet.md` and the `mthds-agent-guide` shared reference.
 3. **⛔ DEFERRED (follow-up, D1) — Author the `expand-signature` instructions + worker agent.** Not in v1. v1 keeps the expansion job **inline in the skill's Step 2** (single consumer — no shared partial). The original item is retained as the follow-up's spec: write the uniform expansion job once; ship it as the `mthds-signature-expander` sub-agent (new `agents/` plugin component — **Claude target only**) and as the orchestrator's inline-path reference. Tools limited to Read + Write (the one definition file it adds) + validate; the worker **adds** its `<code>.mthds` definition (and, if it became a controller, forward-declares its child headers + owns new concepts in that same file) — additive, never overwriting, no merge (§4.4). It must declare `inputs`/`output` **explicitly** (pipes don't infer from sigils); their *spelling* need not match the header byte-for-byte — reconciliation is by concept identity (§4.5). The expansion **authoring rules** themselves (additive single-file write, explicit inputs/output, derive child/concept codes from the parent) still apply in v1 — they just live in the skill body, not a worker prompt.
-4. **Rewrite the skill (orchestrator).** Replace the single-pass body of `templates/skills/mthds-vibe/SKILL.md.j2` with the Step 0–4 recursive flow, the autonomy model, and the Step 2 **inline/serial** additive add-a-definition loop (backlog = `{signatures} − {concretes}`, recomputed from the library each layer via `pending_signatures`; §4.4). Include the **concept-collision prevention** rule (D5 — check before introducing) and the contract-mismatch rule (conform the definition to the frozen header, never edit the header). No fan-out, no `{% if platform != "codex" %}` fan-out block (D1). Update the skill `description`; **preserve `disable-model-invocation: true`** for non-Codex (§6 "Invocation"). `make build` + `/reload-plugins` to dogfood.
+4. **Rewrite the skill (orchestrator).** Replace the single-pass body of `templates/skills/mthds-recursive/SKILL.md.j2` with the Step 0–4 recursive flow, the autonomy model, and the Step 2 **inline/serial** additive add-a-definition loop (backlog = `{signatures} − {concretes}`, recomputed from the library each layer via `pending_signatures`; §4.4). Include the **concept-collision prevention** rule (D5 — check before introducing) and the contract-mismatch rule (conform the definition to the frozen header, never edit the header). No fan-out, no `{% if platform != "codex" %}` fan-out block (D1). Update the skill `description`; **preserve `disable-model-invocation: true`** for non-Codex (§6 "Invocation"). `make build` + `/reload-plugins` to dogfood.
 5. **Codex parity (hook only).** Mirror §5.2/§5.3 in the `mthds-js` Codex hook (`--allow-signatures` + the `--format json` `pending_signatures` nudge). Codex *orchestration* fan-out is out of scope for v1 — the recursive loop runs inline under Codex (§6 "Fan-out target scope"); the rewritten skill's fan-out section renders for the Claude target only.
 6. **Validate end-to-end.** `make build && make check`; run the `internal-tools` integration tests; dogfood the recursive flow on a real multi-layer method (e.g. the §3 example), exercising both inline and fan-out layers, and confirm lenient-per-layer → strict-at-end behaves as designed.
-   - **Checkpoint** — recursive `mthds-vibe` produces a runnable method through layered refinement (fanning out workers on multi-signature layers), every intermediate save passes the (now-lenient) hook, and the final strict gate holds. Ready to ship.
+   - **Checkpoint** — recursive `mthds-recursive` produces a runnable method through layered refinement (fanning out workers on multi-signature layers), every intermediate save passes the (now-lenient) hook, and the final strict gate holds. Ready to ship.
 
 ---
 

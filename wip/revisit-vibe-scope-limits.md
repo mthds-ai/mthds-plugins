@@ -1,6 +1,6 @@
 # Revisit: vibe scope limits (deferred)
 
-`mthds-vibe` deliberately excludes some MTHDS constructs (see `templates/skills/mthds-vibe/SKILL.md.j2` and `skills/mthds-vibe/references/vibe-cheat-sheet.md`):
+`mthds-recursive` deliberately excludes some MTHDS constructs (see `templates/skills/mthds-recursive/SKILL.md.j2` and `skills/mthds-recursive/references/recursive-cheat-sheet.md`):
 
 - `dict` field types
 - `PipeStructure`

@@ -1,4 +1,4 @@
-# Vibe Cheat Sheet — Writing `.mthds` Directly
+# Recursive Cheat Sheet — Writing `.mthds` Directly
 
 A focused, copy-pasteable reference for hand-writing MTHDS code in a `bundle.mthds`.
 
@@ -146,10 +146,13 @@ Use bare or qualified (`native.Text`) — bare wins on resolution. Never redecla
 | `Html` | HTML content. |
 | `TextAndImages` | Mixed text + images. |
 | `Number` | A numeric value. |
+| `YesNo` | A yes/no answer (`yes_no`). |
+| `Date` | A calendar date with optional time (`date`, `time`). |
 | `JSON` | A JSON value. |
 | `SearchResult` | Web search output (`answer`, `sources`). |
 | `Anything` | Any type. |
 | `Dynamic` | Dynamically typed value. |
+| `Composite` | Named components, usually from PipeParallel. |
 
 > File formats like "PDF" or "JPEG" are NOT concepts. Use `Document` and `Image` respectively.
 

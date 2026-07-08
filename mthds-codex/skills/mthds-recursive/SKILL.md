@@ -1,15 +1,7 @@
 ---
-name: mthds-vibe
+name: mthds-recursive
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
-disable-model-invocation: true
 min_mthds_version: 0.12.1
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
 
 ---
 
@@ -35,7 +27,7 @@ Build a `.mthds` method **top-down by stepwise refinement**. Capture the whole j
 - **Operation (one refinement step):** take one unimplemented signature, **add** its definition file one level down — an operator (done), or a controller that wires sub-pipes, forward-declares each not-yet-built sub-pipe as a new header, and owns any intermediate concepts it introduces — then re-validate.
 - **The backlog is the bundle's own todo list.** It is exactly the `## Pending signatures` list that validate reports (declared signatures with no concrete definition yet). Drain it round by round until empty → strict validation passes → runnable.
 
-See [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
+See [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) for the `PipeSignature` syntax, the `signature_for` hint, the operator-vs-controller decision, and all pipe-type field rules — it is the syntax source of truth.
 
 ---
 
@@ -45,20 +37,21 @@ Run this command to check toolchain status:
 
 ```bash
 # Wrapped in `bash -c` so the bash array syntax below works even when the
-# session shell is zsh.
+# session shell is zsh (Codex runs blocks under the user's shell).
 bash -c '
 # Pick the cached env-check from the plugin version with the highest semver.
-# Matches both `mthds` (prod) and `mthds-dev` (dev) plugin caches. The padded
-# segment trick keeps lex order = semver order so 0.10 does not sort below 0.9.
+# Pad each numeric segment to fixed width so lex sort matches semver sort
+# (avoids the 0.10 < 0.9 lex-order trap). Sort keys are digits-only by
+# construction, so the [[ > ]] compare is locale-independent. Bash 3.2 OK.
 _best_f=""; _best_k=""
-for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
+for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-check; do
   [ -x "$f" ] || continue
   _v="${f%/bin/*}"; _v="${_v##*/}"
   _k=""; IFS=. read -ra _parts <<<"${_v%%[-+]*}"
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.12.1"
+[ -n "$_best_f" ] && exec "$_best_f" "0.12.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -70,7 +63,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 > The `mthds-agent` CLI is required but not installed. Install it with:
 >
 > ```
-> rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/
+> npm install -g mthds
 > ```
 >
 > Then re-run this skill.
@@ -80,12 +73,12 @@ echo "MTHDS_ENV_CHECK_MISSING"
 > Could not parse the output of `mthds-agent --version`. Your installation may be corrupt. Reinstall with:
 >
 > ```
-> rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/
+> npm install -g mthds@latest
 > ```
 >
 > Then re-run this skill.
 
-- `MTHDS_AGENT_OUTDATED <installed> <required>` → The installed `mthds-agent` is too old for this plugin. **Do not hard-stop.** Instead, tell the user their mthds-agent (v\<installed>) is older than the required v\<required>, then follow the [upgrade flow](../shared/upgrade-flow.md) to offer upgrading mthds-agent via `rm -rf /tmp/mthds-js-build /tmp/mthds-js-build.tar && mkdir -p /tmp/mthds-js-build && tar -C /build-src/mthds-js --exclude=./.git -cf /tmp/mthds-js-build.tar . && tar -C /tmp/mthds-js-build -xf /tmp/mthds-js-build.tar && rm -f /tmp/mthds-js-build.tar && npm install -g /tmp/mthds-js-build/`. After the upgrade flow completes (whether the user upgraded or declined), proceed to Step 1. The upgrade flow's "Not now" and "Never ask" options let users continue with current versions.
+- `MTHDS_AGENT_OUTDATED <installed> <required>` → The installed `mthds-agent` is too old for this plugin. **Do not hard-stop.** Instead, tell the user their mthds-agent (v\<installed>) is older than the required v\<required>, then follow the [upgrade flow](../shared/upgrade-flow.md) to offer upgrading mthds-agent via `npm install -g mthds@latest`. After the upgrade flow completes (whether the user upgraded or declined), proceed to Step 1. The upgrade flow's "Not now" and "Never ask" options let users continue with current versions.
 
 - `MTHDS_UPDATE_CHECK_FAILED ...` → WARN. The update check command failed. Show the error output to the user. Suggest checking network connectivity and `mthds-agent` installation. Proceed to Step 1 with current versions.
 
@@ -101,7 +94,17 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 - `MTHDS_ENV_CHECK_MISSING` → WARN. The env-check script was not found at either expected path. Tell the user the environment check could not run, but proceed to Step 1.
 
+- `CODEX_CONFIG_NEEDS_SETUP` → Codex's `~/.codex/` is not set up for the mthds plugin, so the bundled `.mthds` validation hook will not load. When this fires it is the **only** terminal status the env-check emits — `update-check` is skipped entirely (not run, not suppressed) because fixing the hook is the prerequisite and `update-check`'s upgrade marker is one-shot; the user re-runs and gets fresh update info next time. The env-check may print one or more `#`-prefixed diagnostic lines after the status — relay them if present. Resolve this before Step 1:
 
+  1. **Preview** — run `mthds-agent codex apply-config --dry-run` and show the user the output. `WOULD_APPLY` lists the keys it will add under `applied`; `ALREADY_OK` means no keys need adding. Either way, relay any `warnings` entries — those (e.g. read-only sandbox, hooks disabled) need a hand-fix `apply-config` will not perform. If `ALREADY_OK` with no warnings, treat as resolved and go to Step 1.
+  2. **Ask** — use AskUserQuestion: "Apply Codex config now?" with options "Apply now" / "Skip".
+  3. **Apply now** — run `mthds-agent codex apply-config`:
+     - `APPLIED` / `ALREADY_OK` → tell the user the config is fixed and they must **restart Codex** for the validation hook to load (it will not load in this session). Relay any `warnings` — those still need a hand-fix.
+     - Error about conflicting keys → show it verbatim; the user must hand-edit `~/.codex/config.toml`, then re-run `mthds-agent codex apply-config`.
+     - Error from the sandbox blocking the write to `~/.codex/config.toml` → ask the user to run `mthds-agent codex apply-config` themselves in a terminal, then restart Codex.
+  4. **Skip** — tell the user the validation hook stays off until they run `mthds-agent codex apply-config` and restart Codex.
+
+  Then proceed to Step 1. This session has no PostToolUse hook. The mthds skills still run `mthds-agent validate bundle` explicitly, so `.mthds` files built or edited through a skill are still semantically validated — but the write-time `plxt lint`/`fmt` pass depends on the hook and will not run until Codex is restarted.
 
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 
@@ -114,7 +117,7 @@ Do not write `.mthds` files until the environment check passes. The CLI is requi
 
 ## Step 1 — Capture the whole job as one signature (Layer 0)
 
-Read [vibe-cheat-sheet.md](references/vibe-cheat-sheet.md) **before writing**.
+Read [recursive-cheat-sheet.md](references/recursive-cheat-sheet.md) **before writing**.
 
 Determine the three things that *are* the requirement:
 
@@ -259,7 +262,7 @@ This skill is **automatic by default**.
 
 ## Reference
 
-- [Vibe Cheat Sheet](references/vibe-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
+- [Recursive Cheat Sheet](references/recursive-cheat-sheet.md) — **read before writing**. The MTHDS code subset this skill writes, including the `PipeSignature` header and lenient-vs-strict validation.
 - [Native Content Types](../shared/native-content-types.md) — attributes of native concepts (`Image.url`, `Page.text_and_images`, ...) for `$var.field` references and construct `from` paths.
 - [Error Handling](../shared/error-handling.md) — read when validate returns errors to determine recovery.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — full CLI command syntax, including `--allow-signatures` and reading `pending_signatures`.

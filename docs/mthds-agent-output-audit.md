@@ -71,21 +71,21 @@ pipelex-agent validate bundle <file> -L <libraryDir> --allow-signatures --format
 
 ### B. LLM consumers (the agent reads the output)
 
-#### B1 — `mthds-vibe` Step 1 (capture) · `SKILL.md.j2:84`
+#### B1 — `mthds-recursive` Step 1 (capture) · `SKILL.md.j2:84`
 ```
 mthds-agent validate bundle …/bundle.mthds -L …/ --allow-signatures --graph
 ```
 - Default markdown on both streams. LLM reads `# Validation passed` and (on error) the markdown error. **Verdict: ✓ CORRECT.**
 
-#### B2 — `mthds-vibe` Step 2 (refine loop) · `SKILL.md.j2` Step 2 — **FIXED (Fix B applied 2026-06-08)**
+#### B2 — `mthds-recursive` Step 2 (refine loop) · `SKILL.md.j2` Step 2 — **FIXED (Fix B applied 2026-06-08)**
 ```
 mthds-agent validate bundle …/bundle.mthds -L …/ --allow-signatures --graph
 ```
 - All markdown now. The LLM reads the backlog from the `## Pending signatures (N)` markdown section on stdout (success) and reads markdown errors on stderr (failure). `--format json` dropped, so Step 2 matches Steps 1 & 3 and never sends JSON errors to the LLM.
 - **Verdict: ✓ CORRECT** (was ✗ — the `--format json` inherit trap had been flipping errors to JSON for the LLM).
-- **Follow-up — ✅ SHIPPED (pipelex `../_recursive`, `feature/Support-recursive-design`; unreleased — verify against editable pipelex until it ships):** validate's success output now states runnability in plain English: `✅ … this method is runnable.` on a complete bundle, or a `## Pending signatures (N)` heading + `⚠️ … NOT yet runnable …` line + bullets while pending. The JSON envelope adds `is_runnable` (= `pending_signatures` empty). The `mthds-vibe` Step 2/3 prose and the agent guide's "Reading runnability and `pending_signatures`" section now point the LLM at the explicit ✅/⚠️ verdict instead of inferring "done" from section absence (both still equivalent). The Claude hook is unchanged — it reads the `pending_signatures` array to *list* placeholders, and `[[ -n "$PENDING" ]]` already equals `!is_runnable`. → was **Finding F1 (now resolved)**.
+- **Follow-up — ✅ SHIPPED (pipelex `../_recursive`, `feature/Support-recursive-design`; unreleased — verify against editable pipelex until it ships):** validate's success output now states runnability in plain English: `✅ … this method is runnable.` on a complete bundle, or a `## Pending signatures (N)` heading + `⚠️ … NOT yet runnable …` line + bullets while pending. The JSON envelope adds `is_runnable` (= `pending_signatures` empty). The `mthds-recursive` Step 2/3 prose and the agent guide's "Reading runnability and `pending_signatures`" section now point the LLM at the explicit ✅/⚠️ verdict instead of inferring "done" from section absence (both still equivalent). The Claude hook is unchanged — it reads the `pending_signatures` array to *list* placeholders, and `[[ -n "$PENDING" ]]` already equals `!is_runnable`. → was **Finding F1 (now resolved)**.
 
-#### B3 — `mthds-vibe` Step 3 (finalize) · `SKILL.md.j2:138`
+#### B3 — `mthds-recursive` Step 3 (finalize) · `SKILL.md.j2:138`
 ```
 mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 ```
@@ -94,10 +94,10 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 #### B4 — Other skills' `validate bundle` (no format flags) · `mthds-build`, `mthds-check`, `mthds-edit`, `mthds-explain`, `mthds-fix`, `mthds-pkg`, `error-handling`
 - All call validate with **no** `--format`/`--error-format` → markdown success + markdown errors, read by the LLM. **Verdict: ✓ CORRECT** (markdown default is exactly what an LLM wants; nothing to change).
 
-#### B5 — `inputs bundle` · `mthds-vibe`, `mthds-build`, `mthds-edit`, `mthds-run`, `mthds-inputs`
+#### B5 — `inputs bundle` · `mthds-recursive`, `mthds-build`, `mthds-edit`, `mthds-run`, `mthds-inputs`
 - Default JSON stdout. The LLM shows the input schema/template to the user (and `/mthds-inputs` consumes it). **Verdict: ✓ ACCEPTABLE** — this is *structured data*, not an error or explanation; JSON is the natural shape for a schema regardless of consumer. (Not a "format follows consumer" case.)
 
-#### B6 — `run bundle` · `mthds-run`, `mthds-vibe`, `mthds-build`, `mthds-edit`, `mthds-explain`, `mthds-inputs`
+#### B6 — `run bundle` · `mthds-run`, `mthds-recursive`, `mthds-build`, `mthds-edit`, `mthds-explain`, `mthds-inputs`
 - Default compact concept JSON stdout = the method *result* (data the LLM displays / pipes via `--with-memory`). Errors: default (assume markdown). **Verdict: ✓ ACCEPTABLE** for stdout (data). *Open:* nobody parses `run` errors programmatically today, so markdown-default errors are fine; revisit only if a software consumer of `run` errors appears.
 
 #### B7 — `concept` / `pipe` · `mthds-build`
@@ -121,7 +121,7 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 
 | # | Where | Problem | Status / fix |
 |---|-------|---------|--------------|
-| ~~**F1**~~ | `mthds-vibe` Step 2 | `--format json` (no `--error-format`) → errors came back JSON to an LLM. | ✅ **RESOLVED 2026-06-08** — Fix B applied (dropped `--format json`; reads the markdown `## Pending signatures` section). |
+| ~~**F1**~~ | `mthds-recursive` Step 2 | `--format json` (no `--error-format`) → errors came back JSON to an LLM. | ✅ **RESOLVED 2026-06-08** — Fix B applied (dropped `--format json`; reads the markdown `## Pending signatures` section). |
 | **F2** | Codex hook (mthds-js `codex-hook.ts:285`) | Relies on the *default* error format being markdown (no explicit pin); also still strict (no `--allow-signatures`). | OPEN — fold into **Phase 5**: `… --allow-signatures --error-format markdown`. |
 | ~~**F3**~~ | `mthds-agent-guide.md.j2` ("Agent CLI" + "Understanding JSON Output") | Claimed *"JSON on stdout: … validate …"* — but `validate` defaults to **markdown**. Misleading. | ✅ **RESOLVED 2026-06-08** — moved `validate` to the markdown-on-stdout bullet, qualified the errors bullet (validate = markdown errors by default, two-stream controls), and corrected the "Understanding JSON Output" note (validate defaults to markdown; `--format json` for the envelope). |
 

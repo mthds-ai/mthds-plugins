@@ -1,6 +1,6 @@
 Let's create a design doc in ./wip/recursive/.
 
-The topic is creating methods recursively. It will be an evolution of the "/mthds-vibe" skill.
+The topic is creating methods recursively. It will be an evolution of the "/mthds-recursive" skill.
 
 In preparation for that, recent evolution of pipelex (worktree at ../_recursive) enable the lenient validation of .mthds bundles that use pipe signatures.
 
