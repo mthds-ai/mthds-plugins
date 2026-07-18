@@ -351,8 +351,10 @@ total = { from = "order.total" }
 | Method | Syntax | Use case |
 |--------|--------|----------|
 | `template` | `{ template = "text $var" }` | String interpolation |
-| `from` | `{ from = "input.field" }` | Reference input or nested field |
+| `from` | `{ from = "input.field" }` | Reference a whole input or a nested field |
 | Direct value | `"string"` or `123` or `[...]` | Static/fixed values |
+
+`from` also accepts a whole input variable, not just a dotted path: a whole native stuff (`Text`, `Number`, `YesNo`, `Date`, or a list of them) copied into a native-typed field converts to the native value automatically (`Text` → `text`, `Text[]` → `list` of `text`, `Number` → `number`, etc.), for required and optional fields alike.
 
 **Static values in construct** - assign directly without wrapping:
 ```toml

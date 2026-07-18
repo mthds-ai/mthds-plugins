@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Documentation
+
+- **MTHDS reference: whole-stuff copies in PipeCompose construct.** The construct `from` method now documents referencing a whole input variable, not just a dotted path: a whole native stuff (`Text`, `Number`, `YesNo`, `Date`, or a list of them) copied into a native-typed field converts to the native value automatically, for required and optional fields alike. Matches the conversion fixes shipped in pipelex v0.39.2.
+
 ## [v0.15.0] - 2026-07-08
 
 ### Added
