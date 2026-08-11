@@ -4,6 +4,7 @@
 
 ### Documentation
 
+- **Add `Time` to native concept guidance.** `native.Time` has been part of the MTHDS pinned native set since it was added to the standard, but every agent-facing list here still stopped at `Date` — an agent reading these skills had no way to know `Time` exists, so it would invent a custom concept or misuse `Date`. The native-concept enumerations, the content-type reference (`TimeContent`, its `time` field, its access rules), the input-JSON shapes, and the synthesis table now all carry it. These lists are hand-maintained prose; a machine-readable `native_concepts.json` is what will eventually make this class of staleness visible.
 - **MTHDS reference: whole-stuff copies in PipeCompose construct.** The construct `from` method now documents referencing a whole input variable, not just a dotted path: a whole native stuff (`Text`, `Number`, `YesNo`, `Date`, or a list of them) copied into a native-typed field converts to the native value automatically, for required and optional fields alike. Matches the conversion fixes shipped in pipelex v0.39.2.
 
 ## [v0.15.0] - 2026-07-08

@@ -148,6 +148,7 @@ Use bare or qualified (`native.Text`) — bare wins on resolution. Never redecla
 | `Number` | A numeric value. |
 | `YesNo` | A yes/no answer (`yes_no`). |
 | `Date` | A calendar date with optional time (`date`, `time`). |
+| `Time` | A time of day with optional UTC offset (`time`). |
 | `JSON` | A JSON value. |
 | `SearchResult` | Web search output (`answer`, `sources`). |
 | `Anything` | Any type. |

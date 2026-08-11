@@ -119,7 +119,7 @@ For each concept, draft:
 - **Description**: What it represents
 - **Type**: Either `refines: NativeConcept` OR `structure: {...}`
 
-**Native concepts** (built-in, do NOT redefine): `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
+**Native concepts** (built-in, do NOT redefine): `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Time`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
 
 > **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
 

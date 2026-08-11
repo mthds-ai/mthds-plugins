@@ -37,11 +37,11 @@ Your prompt here with @block_var and $inline_var
 
 ## Native Concepts
 
-Use directly without defining: `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`
+Use directly without defining: `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Time`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`
 
 > **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
 
-Each native concept has a content class with specific attributes (e.g., `Image` has `url`, `public_url`, `filename`, `caption`; `YesNo` has `yes_no`; `Date` has `date` and optional `time`; `Page` has `text_and_images` and `page_view`). See [Native Content Types Reference](native-content-types.md) for the full attribute reference — useful when writing `$var.field` in prompts or `from = "input.field"` in construct blocks.
+Each native concept has a content class with specific attributes (e.g., `Image` has `url`, `public_url`, `filename`, `caption`; `YesNo` has `yes_no`; `Date` has `date` and optional `time`; `Time` has `time`; `Page` has `text_and_images` and `page_view`). See [Native Content Types Reference](native-content-types.md) for the full attribute reference — useful when writing `$var.field` in prompts or `from = "input.field"` in construct blocks.
 
 ## Concept Definitions
 
