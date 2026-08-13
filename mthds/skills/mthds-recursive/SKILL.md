@@ -2,7 +2,7 @@
 name: mthds-recursive
 description: Build a method bundle top-down by stepwise refinement — capture the whole job as one pipe signature, then refine it layer by layer into a runnable method that is valid at every step.
 disable-model-invocation: true
-min_mthds_version: 0.12.1
+min_mthds_version: 0.22.1
 allowed-tools:
   - Bash
   - Read
@@ -58,7 +58,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.12.1"
+[ -n "$_best_f" ] && exec "$_best_f" "0.22.1"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
