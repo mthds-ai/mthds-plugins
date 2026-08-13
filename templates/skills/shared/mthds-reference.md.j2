@@ -66,7 +66,7 @@ total_amount = { type = "number", description = "Total", required = true }
 line_items = { type = "list", item_type = "text", description = "Items" }
 ```
 
-**Field types**: `text`, `integer`, `boolean`, `number`, `date`, `list`, `dict`, `concept`
+**Field types**: `text`, `integer`, `boolean`, `number`, `date`, `datetime`, `time`, `list`, `dict`, `concept`
 
 **Choices (enum-like values)**:
 ```toml
@@ -354,7 +354,7 @@ total = { from = "order.total" }
 | `from` | `{ from = "input.field" }` | Reference a whole input or a nested field |
 | Direct value | `"string"` or `123` or `[...]` | Static/fixed values |
 
-`from` also accepts a whole input variable, not just a dotted path: a whole native stuff (`Text`, `Number`, `YesNo`, `Date`, or a list of them) copied into a native-typed field converts to the native value automatically (`Text` → `text`, `Text[]` → `list` of `text`, `Number` → `number`, etc.), for required and optional fields alike.
+`from` also accepts a whole input variable, not just a dotted path: a whole native stuff copied into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same (`Text[]` → `list` of `text`) — for required and optional fields alike. One guard: a `Date` carrying a time of day will not collapse into a bare `date` field, since that would drop the time and its UTC offset — target a `Date`-typed field, or take the part you want by dotted path (`{ from = "deadline.time" }`).
 
 **Static values in construct** - assign directly without wrapping:
 ```toml

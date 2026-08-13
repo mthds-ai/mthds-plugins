@@ -8,7 +8,12 @@
 
 ### Changed
 
-- **`PipeCompose` construct documentation.** The MTHDS language reference now documents that the construct `from` attribute can reference a whole input variable, not just a dotted path: copying a whole native stuff (`Text`, `Number`, `YesNo`, `Date`, or a list of them) into a native-typed field converts to the native value automatically (e.g. `Text` → `text`), for required and optional fields alike. Matches the conversion fixes shipped in pipelex v0.39.2.
+- **Bump `min_mthds_version` from 0.12.1 to 0.22.1, canonically for every target.** `mthds-agent` 0.22.1 floors `pipelex` at `>=0.44.0`, which is the release that completes the whole-stuff → native-field conversion matrix this version's `PipeCompose` construct guidance teaches — including `Time`, the native concept this same release documents. Flooring here keeps the two in lockstep: the new `from` guidance can never be handed to a runtime that does not implement it. The sandbox-only `0.17.0` override in `targets/sandbox.toml` is dropped — it existed to raise the sandbox floor for `mthds-agent inputs upload`, which the new shared default already clears, and keeping it would have made sandbox require a *lower* version than every other target. Consumers on an older `mthds-agent` fail the env-check with a clean upgrade prompt.
+- **`PipeCompose` construct documentation.** The MTHDS language reference now documents that the construct `from` attribute can reference a whole input variable, not just a dotted path: copying a whole native stuff into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same — for required and optional fields alike. The one guard is also documented: a `Date` carrying a time of day does not collapse into a bare `date` field, because that would drop the time and its UTC offset. Matches the conversion matrix as completed in pipelex v0.44.0.
+
+### Fixed
+
+- **The reference's Field types list was missing `datetime` and `time`.** `ConceptStructureBlueprintFieldType` has defined both for as long as `Date` and `Time` have been native concepts, but the agent-facing list stopped at `date` — so an agent had no way to declare a time-of-day field, and the `Time` → `time` construct conversion documented above pointed at a field type the same document said did not exist.
 
 ## [v0.15.0] - 2026-07-08
 
