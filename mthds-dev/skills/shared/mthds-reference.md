@@ -81,7 +81,9 @@ When `choices` is present without a `type`, it defaults to `text`. You can pair 
 ```toml
 customer = { type = "concept", concept_ref = "myapp.Customer", description = "..." }
 items = { type = "list", item_type = "concept", item_concept_ref = "myapp.LineItem", description = "..." }
+deadline = { type = "concept", concept_ref = "native.Date", description = "..." }
 ```
+`concept_ref` also accepts a native concept (`native.Date`, `native.Time`, `native.Image`, …). Use that form when the field must hold the whole native value with every attribute — a `native.Date` field keeps the date, the time and its UTC offset together, where a bare `date` field holds only the calendar day.
 
 ## Pipe Types
 
@@ -354,7 +356,7 @@ total = { from = "order.total" }
 | `from` | `{ from = "input.field" }` | Reference a whole input or a nested field |
 | Direct value | `"string"` or `123` or `[...]` | Static/fixed values |
 
-`from` also accepts a whole input variable, not just a dotted path: a whole native stuff copied into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same (`Text[]` → `list` of `text`) — for required and optional fields alike. One guard: a `Date` carrying a time of day will not collapse into a bare `date` field, since that would drop the time and its UTC offset — target a `Date`-typed field, or take the part you want by dotted path (`{ from = "deadline.time" }`).
+`from` also accepts a whole input variable, not just a dotted path: a whole native stuff copied into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number` or `integer`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same (`Text[]` → `list` of `text`) — for required and optional fields alike. One guard: a `Date` carrying a time of day will not collapse into a bare `date` field, since that would drop the time and its UTC offset. Either keep the whole value by typing the target field as the native concept — `{ type = "concept", concept_ref = "native.Date" }` — or take the part you want by dotted path (`{ from = "deadline.date" }`, `{ from = "deadline.time" }`). A `datetime` field is not the way out: no native concept converts into one.
 
 **Static values in construct** - assign directly without wrapping:
 ```toml
