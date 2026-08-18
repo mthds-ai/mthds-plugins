@@ -1,7 +1,7 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-min_mthds_version: 0.17.0
+min_mthds_version: 0.22.1
 allowed-tools:
   - Bash
   - Read
@@ -119,7 +119,7 @@ For each concept, draft:
 - **Description**: What it represents
 - **Type**: Either `refines: NativeConcept` OR `structure: {...}`
 
-**Native concepts** (built-in, do NOT redefine): `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
+**Native concepts** (built-in, do NOT redefine): `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Time`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`. See [MTHDS Language Reference — Native Concepts](../shared/mthds-reference.md#native-concepts)
 
 > **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
 

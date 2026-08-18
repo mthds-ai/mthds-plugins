@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.15.1] - 2026-08-18
+
+### Added
+
+- **`native.Time` concept guidance across every target and template.** `native.Time` has been part of the MTHDS pinned native set since it was added to the standard, but every agent-facing list here still stopped at `Date` — an agent reading these skills had no way to know `Time` exists, so it would invent a custom concept or misuse `Date`. The native-concept enumerations and cheat sheets, a `TimeContent` reference entry (its `time` attribute as an ISO 8601 time of day with optional UTC offset, plus its access rules), the input JSON shapes, and the synthetic-data generation instructions now all carry it — in the templates and in the `mthds`, `mthds-dev`, `mthds-codex`, and `mthds-sandbox` outputs. These lists are hand-maintained prose; a machine-readable `native_concepts.json` is what will eventually make this class of staleness visible.
+
+### Changed
+
+- **Bump `min_mthds_version` from 0.12.1 to 0.22.1, canonically for every target.** `mthds-agent` 0.22.1 floors `pipelex` at `>=0.46.4`, comfortably above the 0.44.0 release that completes the whole-stuff → native-field conversion matrix this version's `PipeCompose` construct guidance teaches — including `Time`, the native concept this same release documents. Flooring here keeps the two in lockstep: the new `from` guidance can never be handed to a runtime that does not implement it. The sandbox-only `0.17.0` override in `targets/sandbox.toml` is dropped — it existed to raise the sandbox floor for `mthds-agent inputs upload`, which the new shared default already clears, and keeping it would have made sandbox require a *lower* version than every other target. Consumers on an older `mthds-agent` fail the env-check with a clean upgrade prompt.
+- **`PipeCompose` construct documentation.** The MTHDS language reference now documents that the construct `from` attribute can reference a whole input variable, not just a dotted path: copying a whole native stuff into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number` or `integer`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same — for required and optional fields alike. The one guard is also documented: a `Date` carrying a time of day does not collapse into a bare `date` field, because that would drop the time and its UTC offset — with both of its escapes spelled out in syntax an agent can write, a `native.Date`-typed field to keep the whole value or a dotted path to take one part. Matches the conversion matrix as completed in pipelex v0.44.0.
+
+- **Native concepts are documented as `concept_ref` targets.** The reference's concept-reference example only ever showed a user-domain ref (`myapp.Customer`), so a field holding a whole native value — the one construct target that survives a `Date` with a time of day — had no documented spelling. `concept_ref = "native.Date"` is now shown alongside it, with the reason to reach for it: a `native.Date` field keeps the date, the time and the UTC offset together where a bare `date` field holds only the calendar day.
+
+### Fixed
+
+- **The reference's Field types list was missing `datetime` and `time`.** `ConceptStructureBlueprintFieldType` has defined both for as long as `Date` and `Time` have been native concepts, but the agent-facing list stopped at `date` — so an agent had no way to declare a time-of-day field, and the `Time` → `time` construct conversion documented above pointed at a field type the same document said did not exist.
+
 ## [v0.15.0] - 2026-07-08
 
 ### Added

@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-min_mthds_version: 0.12.1
+min_mthds_version: 0.22.1
 
 ---
 
@@ -81,7 +81,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.12.1" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.22.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -232,6 +232,7 @@ Parse the schema to identify what types of synthetic data are needed:
 | `native.Number` | `number` | Generate appropriate numeric values |
 | `native.YesNo` | `yes_no` | Generate a boolean `true`/`false` answer |
 | `native.Date` | `date`, `time?` | Generate ISO 8601 date/time values; never use epoch numbers |
+| `native.Time` | `time` | Generate an ISO 8601 time of day; never use seconds-since-midnight numbers |
 | `native.Image` | `url`, `caption?`, `mime_type?` | Use `synthesize_image` pipeline |
 | `native.Document` | `url`, `mime_type?` | Use document generation skills or Python |
 | `native.Page` | `text_and_images`, `page_view?` | Composite: text + optional images |
@@ -659,6 +660,11 @@ mthds-agent run bundle <bundle-dir>/
 ### Date with time
 ```json
 {"date": "2026-07-08", "time": "15:40:00+02:00"}
+```
+
+### Time
+```json
+{"time": "15:40:00+02:00"}
 ```
 
 ### Image

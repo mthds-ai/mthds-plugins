@@ -19,6 +19,7 @@ Each native concept maps to a content class with specific attributes. Understand
 | `TextAndImages` | TextAndImagesContent | `text` (TextContent), `images` (list of ImageContent) |
 | `YesNo` | YesNoContent | `yes_no` (boolean) |
 | `Date` | DateContent | `date` (ISO date), `time` (optional ISO time with optional UTC offset) |
+| `Time` | TimeContent | `time` (ISO time with optional UTC offset) |
 | `Page` | PageContent | `text_and_images` (TextAndImagesContent), `page_view` (ImageContent) |
 | `JSON` | JSONContent | `json_obj` |
 | `SearchResult` | SearchResultContent | `answer`, `sources` (list of DocumentContent) |
@@ -66,6 +67,16 @@ Each native concept maps to a content class with specific attributes. Understand
 | `time` | `time \| None` | Optional ISO 8601 time, preserving the UTC offset when the source states one |
 
 **Access**: `$var` renders the exact stored precision (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS[+offset]`). Do not provide numeric epoch values and do not invent a midnight time.
+
+---
+
+### Time — `TimeContent`
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `time` | `time` | ISO 8601 time of day, e.g. `15:40:00` or `15:40:00+02:00`, preserving the UTC offset when the source states one |
+
+**Access**: `$var` renders the ISO time (`HH:MM:SS[+offset]`). A `Time` has no date, so it is not an instant — use `Date` when the value belongs to a calendar day. Do not provide numeric seconds-since-midnight values.
 
 ---
 
@@ -285,6 +296,7 @@ page_text = { from = "page.text_and_images.text.text" }
   "my_number": {"concept": "native.Number", "content": {"number": 42}},
   "my_yes_no": {"concept": "native.YesNo", "content": {"yes_no": true}},
   "my_date": {"concept": "native.Date", "content": {"date": "2026-07-08", "time": null}},
+  "my_time": {"concept": "native.Time", "content": {"time": "15:40:00+02:00"}},
   "my_image": {"concept": "native.Image", "content": {"url": "/path/to/img.jpg", "mime_type": "image/jpeg"}},
   "my_document": {"concept": "native.Document", "content": {"url": "/path/to/doc.pdf"}},
   "my_json": {"concept": "native.JSON", "content": {"json_obj": {"key": "value"}}},

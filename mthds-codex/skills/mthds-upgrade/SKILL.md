@@ -1,7 +1,7 @@
 ---
 name: mthds-upgrade
 description: Upgrade MTHDS CLI tools to the latest compatible versions. Use when user says "upgrade mthds", "update mthds", "mthds upgrade", "update my tools", "upgrade pipelex", "update pipelex", "upgrade plxt", "update tools".
-min_mthds_version: 0.12.1
+min_mthds_version: 0.22.1
 
 ---
 
@@ -31,7 +31,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.12.1" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.22.1" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
