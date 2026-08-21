@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Tooling:** Pinned `ruff` to an exact `0.16.4`, replacing the `>=0.6.8` floor. The exact pin matches what the Ruff VS Code extension now bundles, which matters because Ruff 0.16 lints `pyproject.toml` itself: the extension syncs the config file to the language server, and a pre-0.16 binary parses it as Python source and paints phantom `invalid-syntax` diagnostics on lines like `requires-python`. A floor let the editor and the CLI resolve to different binaries; an exact pin cannot. This is a dev dependency, so no published plugin content changes, and the upgrade produced no lint findings and no reformatting — including across the skill Markdown, which 0.16 brings into the formatter's scope for the first time because it now formats Python code blocks embedded in Markdown.
+
 ## [v0.15.1] - 2026-08-18
 
 ### Added
