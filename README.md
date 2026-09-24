@@ -1,95 +1,87 @@
-# MTHDS Plugins
+# mthds-plugins
 
-A skills plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenAI Codex](https://developers.openai.com/codex) for building, running, validating, and editing AI methods (.mthds bundle files).
+The MTHDS plugin for Claude Code and Codex, which builds and runs AI methods entirely on software you run yourself.
 
-[MTHDS](https://mthds.ai/latest/) is an open standard for AI methods. Find methods on the hub: [MTHDS Hub](https://mthds.sh). Install the reference python runtime from [Pipelex](https://github.com/Pipelex/pipelex).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mthds-ai/mthds-plugins/blob/main/LICENSE)
 
-## Install for Claude Code
+**For the easiest way to build and run methods from your coding agent, install [the Pipelex plugin](https://github.com/Pipelex/pipelex-plugins) instead.** It runs on the Pipelex hosted platform, which brings more features and a simpler setup: no runtime to install and no provider keys to manage.
 
-Open Claude Code and paste this. Claude does the rest.
+## What this repository is
+
+This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives Claude Code and Codex the `mthds-*` skills and a hook that validates every `.mthds` file your agent edits. It needs no account and no hosted service: the skills drive the [`mthds-agent`](https://www.npmjs.com/package/mthds) CLI, which runs your methods on the [Pipelex](https://github.com/Pipelex/pipelex) runtime installed on your machine, or on a [`pipelex-api`](https://github.com/Pipelex/pipelex-api) server you host, with your own AI provider keys or a local model.
+
+[MTHDS](https://mthds.ai/latest/) is an open standard for AI methods, and a method runs on any MTHDS-compliant runtime; Pipelex is the reference one. Methods are shared on the [MTHDS Hub](https://mthds.sh).
+
+## Install
+
+Paste the line for your agent into its chat, not into a terminal, and the agent runs the rest.
+
+**Claude Code**
 
 ```
 Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && claude plugin marketplace add mthds-ai/mthds-plugins && claude plugin install mthds@mthds-plugins'. Then tell me to /reload-plugins.
 ```
 
-### Manual install (Claude Code)
-
-```bash
-npm install -g mthds
-mthds-agent bootstrap
-claude plugin marketplace add mthds-ai/mthds-plugins
-claude plugin install mthds@mthds-plugins
-```
-
-## Install for Codex
-
-Open Codex and paste this. Codex does the rest.
+**Codex**, 0.130 or later
 
 ```
 Install mthds: run bash -c 'npm install -g mthds && mthds-agent bootstrap && mthds-agent codex apply-config && codex plugin marketplace add mthds-ai/mthds-plugins'. Then tell me to restart Codex and run /plugins to install mthds.
 ```
 
-Requires Codex 0.130.0+ (plugin-bundled hooks shipped in 0.130). Bump with `npm install -g @openai/codex@latest` if needed.
-
-### Manual install (Codex)
-
-```bash
-npm install -g mthds
-mthds-agent bootstrap                # uv + plxt + pipelex-agent
-mthds-agent codex apply-config       # set up ~/.codex/ for the mthds plugin
-codex plugin marketplace add mthds-ai/mthds-plugins
-# Restart Codex, then run /plugins to install mthds
-```
-
-The `.mthds` validation hook ships inside the plugin (`hooks/codex-hooks.json`, declared in the Codex plugin manifest); Codex discovers it directly once the plugin is installed — there is no per-user hook wiring step.
-
-`mthds-agent codex apply-config` makes one-time additive changes to `~/.codex/config.toml`:
-
-- `[features] plugin_hooks = true` — Codex only loads plugin-bundled hooks when this is enabled.
-- `[sandbox_workspace_write] network_access = true` — Codex's default workspace-write sandbox otherwise blocks outbound network for hook commands.
-
-It also removes any obsolete `~/.codex/hooks.json` entry left by older mthds installs (which used a now-retired `install-hook` step). The command is idempotent and never overwrites unrelated config — use `--dry-run` to preview, `--check` for CI/env-check. See `docs/codex-vs-claude-hooks.md`.
-
-If mthds gets installed without this step (for example, added straight from the marketplace UI), the skills catch it: their Step 0 env-check detects the gap and offers to run `apply-config` for you. Running it up front just avoids building your first method before the validation hook is live.
+The manual commands, and what `mthds-agent codex apply-config` changes in `~/.codex/`, are in [Install the MTHDS plugin](docs/install.md).
 
 ## Skills
 
-Skills work identically on both Claude Code (`/skill-name`) and Codex (`$skill-name`).
+The skills work the same in both agents: `/skill-name` in Claude Code, `$skill-name` in Codex.
 
-| Skill | Description |
-|:------|:------------|
-| `mthds-upgrade` | Upgrade MTHDS stack to latest version |
-| `mthds-build` | Build new AI method bundles from scratch |
-| `mthds-check` | Validate workflow bundles (read-only) |
-| `mthds-edit` | Modify existing bundles |
-| `mthds-explain` | Explain and document workflows |
-| `mthds-fix` | Auto-fix validation errors |
-| `mthds-run` | Execute methods and interpret output |
+| Skill | What it does |
+|:------|:-------------|
+| `mthds-upgrade` | Upgrade the MTHDS stack to its latest version |
+| `mthds-build` | Build a new method bundle from scratch |
+| `mthds-check` | Validate a bundle, without changing it |
+| `mthds-edit` | Modify an existing bundle |
+| `mthds-explain` | Explain and document a method |
+| `mthds-fix` | Fix validation errors automatically |
+| `mthds-run` | Run a method and interpret its output |
 | `mthds-inputs` | Prepare inputs: templates, synthetic data, files |
-| `mthds-install` | Install method packages from GitHub or local |
+| `mthds-install` | Install method packages from GitHub or a local path |
 | `mthds-runner-setup` | Set up inference backends and API keys |
-| `mthds-pkg` | Manage MTHDS packages (init, deps, lock) |
+| `mthds-pkg` | Manage MTHDS packages: init, dependencies, lock |
 | `mthds-publish` | Publish methods to mthds.sh |
 | `mthds-share` | Share methods on social media |
-| `mthds-recursive` | Write a complete MTHDS bundle directly in a single pass |
+| `mthds-recursive` | Write a complete bundle directly, in a single pass |
 
 ## Automatic validation
 
-Both plugins include hooks that validate `.mthds` files automatically:
+After every edit your agent makes to a `.mthds` file, the plugin's hook checks the file in three stages, and when the file is wrong it stops your agent and hands it the errors to fix:
 
-1. **Lint** — `plxt lint` validates TOML structure and schema
-2. **Format** — `plxt fmt` auto-formats the file
-3. **Validate** — `mthds-agent validate bundle` checks semantic correctness
+1. **Lint** — `plxt lint` validates the TOML structure and the schema.
+2. **Format** — `plxt fmt` formats the file.
+3. **Validate** — the runtime's validator checks that the method is semantically correct.
 
-**Claude Code:** A PostToolUse hook matches Write/Edit and receives the file path directly. Errors block the edit immediately.
+A problem with your environment rather than with the file, such as a missing configuration, is passed to your agent as context without stopping it, and so is a formatting failure in Claude Code. A missing `plxt` stops the agent on every `.mthds` edit until it is installed. What each stage does in each agent is in [Codex vs Claude Code hooks](docs/codex-vs-claude-hooks.md).
 
-**Codex:** A PostToolUse hook matches `apply_patch` (Codex's file-write tool) and parses the patch envelope to find every touched `.mthds` file. Same per-edit validation, same immediate feedback.
+## Documentation
 
-Missing tools (`plxt`, `mthds-agent`) block `.mthds` edits until installed.
+- [Install the MTHDS plugin](docs/install.md): the manual install for each agent, and the Codex configuration.
+- [Codex vs Claude Code hooks](docs/codex-vs-claude-hooks.md): how the validation hook runs in each agent.
+- [The MTHDS standard](https://mthds.ai/latest/): the language a method is written in.
+
+## Develop
+
+The skills and hooks are rendered from the Jinja2 templates in `templates/`, once per build target; the plugin directories (`mthds/`, `mthds-codex/` and the others) are generated, so edit the templates and rebuild:
+
+```bash
+make install   # create .venv and install the dependencies
+make build     # render every target from templates/
+make check     # the shared, Claude and Codex packaging checks
+make test      # the unit tests
+```
+
+[Build targets](docs/build-targets.md) explains the targets and their variables.
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Evotis S.A.S.
+[MIT](https://github.com/mthds-ai/mthds-plugins/blob/main/LICENSE) — Copyright (c) 2026 Evotis S.A.S.
 
-Maintained by [Pipelex](https://pipelex.com).
-"Pipelex" is a trademark of Evotis S.A.S.
+Maintained by [Pipelex](https://pipelex.com). "Pipelex" is a trademark of Evotis S.A.S.
