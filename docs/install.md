@@ -1,6 +1,6 @@
 # Install the MTHDS plugin
 
-The MTHDS plugin is superseded by [the Pipelex plugin](https://github.com/Pipelex/pipelex-plugins), which is the one to install to build and run methods from your coding agent. This page is for those who already use the MTHDS plugin. The one-line installs are in the [README](../README.md#install); these are the same steps, run by hand.
+The one-line installs are in the [README](../README.md#install); these are the same steps, run by hand.
 
 Every install starts with the `mthds-agent` CLI and its bootstrap, which installs `uv`, the `plxt` linter and the runtime the skills drive.
 

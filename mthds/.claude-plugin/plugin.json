@@ -6,6 +6,6 @@
   "repository": "https://github.com/mthds-ai/mthds-plugins",
   "license": "MIT",
   "name": "mthds",
-  "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard. Superseded by the Pipelex plugin, from the Pipelex/pipelex-plugins marketplace.",
+  "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard, on a runtime you run yourself. For the easier, hosted route, install the Pipelex plugin from Pipelex/pipelex-plugins.",
   "version": "0.15.1"
 }

@@ -1,20 +1,20 @@
 # mthds-plugins
 
-The MTHDS plugin for Claude Code and Codex, superseded by the Pipelex plugin.
+The MTHDS plugin for Claude Code and Codex, which builds and runs AI methods entirely on software you run yourself.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mthds-ai/mthds-plugins/blob/main/LICENSE)
 
-**To build and run AI methods from your coding agent, install [the Pipelex plugin](https://github.com/Pipelex/pipelex-plugins).** It supersedes this one: its skills write and run methods, its hook checks every edit, and it brings the Pipelex tools with it. This page is kept for those who already use the MTHDS plugin.
+**For the easiest way to build and run methods from your coding agent, install [the Pipelex plugin](https://github.com/Pipelex/pipelex-plugins) instead.** It runs on the Pipelex hosted platform, which brings more features and a simpler setup: no runtime to install and no provider keys to manage.
 
 ## What this repository is
 
-This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives Claude Code and Codex the `mthds-*` skills and a hook that validates every `.mthds` file your agent edits. The skills work through the [`mthds-agent`](https://www.npmjs.com/package/mthds) CLI, which drives a runtime installed on your machine.
+This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives Claude Code and Codex the `mthds-*` skills and a hook that validates every `.mthds` file your agent edits. It needs no account and no hosted service: the skills drive the [`mthds-agent`](https://www.npmjs.com/package/mthds) CLI, which runs your methods on the [Pipelex](https://github.com/Pipelex/pipelex) runtime installed on your machine, or on a [`pipelex-api`](https://github.com/Pipelex/pipelex-api) server you host, with your own AI provider keys or a local model.
 
-[MTHDS](https://mthds.ai/latest/) is an open standard for AI methods, and a method runs on any MTHDS-compliant runtime; [Pipelex](https://github.com/Pipelex/pipelex) is the reference one. Methods are shared on the [MTHDS Hub](https://mthds.sh).
+[MTHDS](https://mthds.ai/latest/) is an open standard for AI methods, and a method runs on any MTHDS-compliant runtime; Pipelex is the reference one. Methods are shared on the [MTHDS Hub](https://mthds.sh).
 
 ## Install
 
-If you already use the MTHDS plugin and need it on another machine, paste the line for your agent into its chat, not into a terminal, and the agent runs the rest.
+Paste the line for your agent into its chat, not into a terminal, and the agent runs the rest.
 
 **Claude Code**
 
