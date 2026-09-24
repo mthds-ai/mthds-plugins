@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "The MTHDS plugin: skills that build and run AI methods on a runtime you run yourself. The Pipelex plugin, from Pipelex/pipelex-plugins, is the easier, hosted route.",
-    "version": "0.15.1"
+    "version": "0.15.2"
   },
   "plugins": [
     {
