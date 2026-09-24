@@ -24,6 +24,21 @@ Both plugins validate `.mthds` files automatically after edits. The validation p
 - **Implementation:** `mthds-agent codex hook` — a TypeScript subcommand of mthds-js. The validation runtime lives in the npm package, not the plugin.
 - **Wiring:** the plugin bundles `hooks/codex-hooks.json` and points the Codex plugin manifest's `hooks` field at it. Codex discovers it directly — no per-user install step. Loading it requires `[features] plugin_hooks = true` (see below).
 
+## What stops the agent and what only informs it
+
+A `PostToolUse` hook runs after the write, so blocking never undoes the edit: the file is already saved, and a block hands the reason back to the agent to fix. A non-blocking outcome reaches the agent as `additionalContext`, or only as a warning on stderr.
+
+| Stage or condition | Claude Code | Codex |
+|---|---|---|
+| `plxt` missing | Blocks | Blocks |
+| `mthds-agent` missing | Blocks | The hook command itself cannot start |
+| `pipelex-agent` missing | Not checked by the hook | Blocks |
+| `plxt lint` fails | Blocks | Blocks |
+| `plxt fmt` fails | Warns on stderr, does not block | Blocks |
+| Validation error in the input domain, an unknown domain, or no verdict | Blocks | Blocks |
+| Validation error in the config or runtime domain | `additionalContext`, does not block | `additionalContext`, does not block |
+| Valid bundle with pending signatures | `additionalContext` nudge, does not block | Passes silently |
+
 ## Why the differences
 
 ### `apply_patch` envelope vs `tool_input.file_path`

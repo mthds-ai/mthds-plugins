@@ -14,7 +14,7 @@ This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives C
 
 ## Install
 
-If you already use the MTHDS plugin and need it on another machine, paste the line for your agent and it runs the rest.
+If you already use the MTHDS plugin and need it on another machine, paste the line for your agent into its chat, not into a terminal, and the agent runs the rest.
 
 **Claude Code**
 
@@ -53,13 +53,13 @@ The skills work the same in both agents: `/skill-name` in Claude Code, `$skill-n
 
 ## Automatic validation
 
-After every edit your agent makes to a `.mthds` file, the plugin's hook runs three checks and blocks the edit when one fails:
+After every edit your agent makes to a `.mthds` file, the plugin's hook checks the file in three stages, and when the file is wrong it stops your agent and hands it the errors to fix:
 
 1. **Lint** — `plxt lint` validates the TOML structure and the schema.
 2. **Format** — `plxt fmt` formats the file.
-3. **Validate** — `mthds-agent validate bundle` checks that the method is semantically correct.
+3. **Validate** — the runtime's validator checks that the method is semantically correct.
 
-A missing `plxt` or `mthds-agent` blocks `.mthds` edits until it is installed. How the hook differs between Claude Code and Codex is in [Codex vs Claude Code hooks](docs/codex-vs-claude-hooks.md).
+A problem with your environment rather than with the file, such as a missing configuration, is passed to your agent as context without stopping it, and so is a formatting failure in Claude Code. A missing `plxt` stops the agent on every `.mthds` edit until it is installed. What each stage does in each agent is in [Codex vs Claude Code hooks](docs/codex-vs-claude-hooks.md).
 
 ## Documentation
 
