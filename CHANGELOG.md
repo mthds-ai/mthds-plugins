@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.15.2] - 2026-09-24
+
+### Changed
+
+- **README, marketplace and plugin descriptions**: the README's first screen, the Claude marketplace and `mthds` plugin descriptions, and the Codex plugin's short and long descriptions now say that the MTHDS plugin builds and runs methods on software you run yourself — the Pipelex runtime on your machine or your own `pipelex-api` server — and point to the Pipelex plugin from the `Pipelex/pipelex-plugins` marketplace as the easier, hosted route. The manual install and Codex configuration move to `docs/install.md`, and the README's validation section now says which hook failures stop the agent and which only inform it, with the table per agent in `docs/codex-vs-claude-hooks.md`.
+- **`ruff` pinned to exactly `0.16.4`**: the development dependency moves from a `>=0.6.8` floor to the version the Ruff VS Code extension bundles, so the editor and the CLI run the same binary and a pre-0.16 editor binary no longer reports phantom `invalid-syntax` diagnostics on `pyproject.toml`. No published plugin content changes.
+
 ## [v0.15.1] - 2026-08-18
 
 ### Added

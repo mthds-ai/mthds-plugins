@@ -10,8 +10,8 @@
   "hooks": "./hooks/codex-hooks.json",
   "interface": {
     "displayName": "MTHDS",
-    "shortDescription": "Build, run, validate, and edit AI methods following the MTHDS standard.",
-    "longDescription": "A complete toolkit for the MTHDS open standard \u2014 build methods from scratch, validate structure and semantics, run methods with any inference backend, and edit existing workflows. Includes automatic .mthds file validation via hooks.",
+    "shortDescription": "Build and run MTHDS methods on a runtime you run yourself.",
+    "longDescription": "Skills for the MTHDS open standard: build methods from scratch, validate their structure and semantics, run them on the Pipelex runtime on your machine or on your own pipelex-api server, and edit existing ones, with automatic .mthds file validation through a hook. For the easier route, with no runtime to install, use the Pipelex plugin from the Pipelex/pipelex-plugins marketplace.",
     "developerName": "Pipelex",
     "category": "Developer Tools",
     "websiteURL": "https://mthds.ai",
@@ -21,6 +21,6 @@
     ]
   },
   "name": "mthds",
-  "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard.",
-  "version": "0.15.1"
+  "description": "Skills for building, running, validating, and editing AI methods following the MTHDS standard, on a runtime you run yourself. For the easier, hosted route, install the Pipelex plugin from Pipelex/pipelex-plugins.",
+  "version": "0.15.2"
 }
