@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **`mthds-inputs`' PDF recipes are rewritten from scratch**: the canvas, multi-page and table recipes are new scripts with new sample documents, and each keeps everything it shows, along with a `PAGE_SIZE` switch for A4, in one marked content block, refuses to run while its output path is still a placeholder, and writes its file atomically and identically on every run. The table recipe checks its column widths against the page's text frame, repeats its header row on every page and computes each verdict from the limits it prints, and the canvas recipe stops rather than draw text past the edge of the page; the multi-page and table recipes no longer write to the same file name.
+
+### Removed
+
+- **The public test PDF offered as a last resort**: its URL now answers with an HTML page instead of a PDF, which a method would have received as its document, so a PDF input is generated with the recipes instead.
+
 ## [v0.15.2] - 2026-09-24
 
 ### Changed
