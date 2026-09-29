@@ -64,7 +64,7 @@ Both hooks run Stage 3 **leniently**, passing `--allow-signatures` to `validate 
 Both hooks pin `--allow-signatures --format json --error-format json` (the two streams are independent — `--format` governs the success envelope on stdout, `--error-format` the error report on stderr, and `--error-format` *inherits* `--format` when omitted, so pinning both keeps each stream machine-readable). Both classify on the **structured JSON verdict** — `is_valid` from the stdout success envelope, `error_domain` / `message` / `validation_errors` from the stderr error envelope — not a markdown grep. The two hooks diverge only on the **success nudge**:
 
 - **Claude hook** reads the `pending_signatures` array from the stdout success envelope and, if non-empty, emits a **non-blocking** `additionalContext` nudge listing the still-unimplemented signatures.
-- **Codex hook** does not emit the nudge for v1 — the orchestrator skill tracks `pending_signatures` itself, so the Codex nudge is a deferred follow-up (see `wip/deferred-issues.md`), not a correctness gap.
+- **Codex hook** does not emit the nudge for v1 — the orchestrator skill tracks `pending_signatures` itself, so the Codex nudge is a deferred follow-up (L-260929-3268e4), not a correctness gap.
 
 (Canonical reference for the two-stream `--format` / `--error-format` design: `mthds-plugins/CLAUDE.md` §"`--format` vs `--error-format`" and `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
 
