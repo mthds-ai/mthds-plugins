@@ -8,7 +8,7 @@
 
 ### Removed
 
-- **The public test PDF offered as a last resort**: its URL now answers with an HTML page instead of a PDF, which a method would have received as its document, so a PDF input is generated with the recipes instead.
+- **Public test file URLs as a fallback**: the public test PDF's URL now answers with an HTML page instead of a PDF, which a method would have received as its document, so the skill no longer offers a public URL for any format, and a PDF input is generated with the recipes instead.
 
 ## [v0.15.2] - 2026-09-24
 
