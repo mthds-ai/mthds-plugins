@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **`mthds-inputs`' PDF recipes are rewritten from scratch**: the canvas, multi-page and table recipes are new scripts with new sample documents, and each keeps everything it prints, its labels and the way it writes figures included, along with a `PAGE_SIZE` switch for A4, in one marked content block, so a document in another language is an edit of that block alone; each refuses to run while its output path is still a placeholder, and writes its file atomically and identically on every run. The table recipe takes any grid of text, such as a price list or a schedule, checks its column widths against the page's text frame, refuses a row with the wrong number of values and repeats its header row on every page, and the canvas recipe stops rather than draw text past the edge of the page; the multi-page and table recipes no longer write to the same file name.
+
+### Removed
+
+- **Public test file URLs as a fallback**: the public test PDF's URL now answers with an HTML page instead of a PDF, which a method would have received as its document, so the skill no longer offers a public URL for any format, and a PDF input is generated with the recipes instead.
+
 ## [v0.15.2] - 2026-09-24
 
 ### Changed
