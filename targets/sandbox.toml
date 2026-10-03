@@ -23,11 +23,10 @@ remote_storage_inputs = true
 # publish / share / pkg — none of which fit a locked-down "build .mthds" sandbox
 # (this also drops the only AskUserQuestion and doctor usages).
 include = [
-  "mthds-build",
+  "mthds-design",
   "mthds-edit",
   "mthds-check",
   "mthds-fix",
   "mthds-explain",
   "mthds-inputs",
-  "mthds-recursive",
 ]

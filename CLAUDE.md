@@ -21,7 +21,7 @@ targets/
 └── codex.toml                 # Codex target config (version, identity)
 templates/                     # SOURCE OF TRUTH — all .j2 templates live here
 ├── skills/
-│   ├── mthds-build/SKILL.md.j2   # Jinja2 template for each skill
+│   ├── mthds-design/SKILL.md.j2  # Jinja2 template for each skill
 │   ├── mthds-check/SKILL.md.j2
 │   ├── ...
 │   └── shared/
@@ -36,23 +36,21 @@ templates/                     # SOURCE OF TRUTH — all .j2 templates live here
     ├── hooks.json.j2              # Claude PostToolUse hook config
     ├── codex-hooks.json.j2        # Codex PostToolUse hook config (plugin-bundled)
     └── validate-mthds.sh.j2       # .mthds file validator
-skills/                        # STATIC ASSETS ONLY — canonical references/, symlinked by targets
-├── mthds-build/references/    # Static skill-specific reference docs
-├── mthds-edit/references/
-└── ...
-bin/                           # Static executables, symlinked by targets
+skills/                        # STATIC ASSETS ONLY — canonical references/, copied into each target
+└── mthds-design/references/   # Static skill-specific reference docs
+bin/                           # Static executables, copied into each target
 mthds/                         # Prod plugin (generated, checked in)
 ├── .claude-plugin/plugin.json # Generated from targets/prod.toml + plugin-base.json
 ├── skills/                    # Rendered with prod variables (registry install commands)
-│   └── */references/ ->       # Symlinks to ../../skills/*/references/
+│   └── */references/          # Copies of skills/*/references/
 ├── hooks/                     # Rendered with prod variables
-└── bin/ -> ../bin             # Symlink
+└── bin/                       # Copy of bin/
 mthds-dev/                     # Dev plugin (generated, checked in)
 ├── .claude-plugin/plugin.json # Generated from targets/dev.toml + plugin-base.json
 ├── skills/                    # Rendered with dev variables (local install paths)
-│   └── */references/ ->       # Symlinks to ../../skills/*/references/
+│   └── */references/          # Copies of skills/*/references/
 ├── hooks/                     # Rendered with dev variables
-└── bin/ -> ../bin             # Symlink
+└── bin/                       # Copy of bin/
 scripts/
 ├── gen_skill_docs.py          # Template renderer (multi-target)
 └── check.py                   # Validation checks

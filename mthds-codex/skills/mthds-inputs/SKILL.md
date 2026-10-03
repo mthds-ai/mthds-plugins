@@ -51,7 +51,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 | User provides file paths, folder paths, or mentions "my data" / "this file" / "use these images" / "here's my PDF" | **User Data** (or Mixed if some inputs remain unfilled) |
 | User says "test data" / "generate inputs" / "synthesize" / "fake data" / "sample data" | **Synthetic** |
 | User says "template" / "schema" / "placeholder" / "what inputs does it need?" | **Template** |
-| No clear signal (e.g., called after `/mthds-build` with no further context) | **Template**, then offer to populate |
+| No clear signal (e.g., called after `/mthds-design` with no further context) | **Template**, then offer to populate |
 
 **Interactive additions**: Ask about:
 - Which user files map to which inputs (when ambiguous)

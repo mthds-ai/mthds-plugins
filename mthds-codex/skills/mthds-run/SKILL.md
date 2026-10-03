@@ -126,7 +126,7 @@ mthds-agent doctor  # outputs markdown
 
 If inputs were already prepared during this conversation — via `/mthds-inputs` (user-data, synthetic, or mixed strategy), or by manually assembling `inputs.json` with real values earlier in this session — skip the schema fetch and readiness check. The inputs are ready. Proceed directly to Step 4 with a normal run.
 
-This applies when you just wrote or saw `inputs.json` being written with real content values. It does NOT apply after `/mthds-build` (which saves a placeholder template) or after `/mthds-inputs` with the template strategy.
+This applies when you just wrote or saw `inputs.json` being written with real content values. It does NOT apply after `/mthds-design`, which saves no inputs, or after `/mthds-inputs` with the template strategy.
 
 #### Full check — cold start
 

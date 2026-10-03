@@ -492,7 +492,7 @@ class TestHookValidateMthds:
         assert len(reason) < 10000
 
     # --- Stage 3 lenient validation (--allow-signatures) ---
-    # The hook validates leniently so recursive/stepwise builds aren't blocked
+    # The hook validates leniently so stepwise designs aren't blocked
     # mid-construction, and on a valid verdict reads pending_signatures from the
     # JSON success envelope to emit a non-blocking nudge. Errors are read from the
     # JSON error envelope on stderr (--error-format json) by the classifier tests
@@ -503,7 +503,7 @@ class TestHookValidateMthds:
 
         Proves the template actually passes --allow-signatures, the pinned
         format streams (--format json / --error-format json), and -L <parent>/
-        — the invocation shape recursive builds depend on, and the granularity
+        — the invocation shape stepwise designs depend on, and the granularity
         that lets a domain-only child member file (D2) validate against the whole
         assembled library on every save.
         """

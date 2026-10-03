@@ -93,7 +93,7 @@ fi
 # (--format json / --error-format json are pinned so the machine read holds under
 # ANY configured runner — pipelex or api). Validated leniently (--allow-signatures)
 # so a bundle whose graph still reaches PipeSignature headers isn't blocked
-# mid-construction (recursive/stepwise builds); on a signature-free bundle lenient
+# mid-construction (stepwise designs); on a signature-free bundle lenient
 # ≡ strict, so it's a no-op for vibe/build/hand-edits. The strict gate lives in the
 # skill's finalize step + `run` (which always rejects signatures).
 #

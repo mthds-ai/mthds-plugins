@@ -33,7 +33,7 @@ scripts/gen_skill_docs.py       renders .j2 templates with merged variables
 
 **`templates/`** contains all `.j2` source files. Never edit files in `mthds/` or `mthds-dev/` directly — they are generated output.
 
-**`skills/`** at the root contains only static assets (`references/` subdirectories) that are symlinked by all targets. **`mthds/`** and **`mthds-dev/`** are generated output directories (build artifacts checked into git).
+**`skills/`** at the root contains only static assets (`references/` subdirectories) that are copied into every target. **`mthds/`** and **`mthds-dev/`** are generated output directories (build artifacts checked into git).
 
 ## Target configuration
 
@@ -75,7 +75,7 @@ plxt_install_cmd = "uv tool install /workspace/vscode-pipelex/"
 
 [skills]
 # Optional: build only a subset of skills. Omit for all skills.
-# include = ["mthds-build", "mthds-check"]
+# include = ["mthds-design", "mthds-check"]
 ```
 
 ### Variable resolution
@@ -97,9 +97,9 @@ mthds/                         (prod target)
 ├── .claude-plugin/
 │   └── plugin.json           generated (inherits author/repo/license from plugin-base.json)
 ├── skills/
-│   ├── mthds-build/
+│   ├── mthds-design/
 │   │   ├── SKILL.md           rendered with target's variables
-│   │   └── references/ ->     symlink to ../../skills/mthds-build/references
+│   │   └── references/        copied from ../../skills/mthds-design/references
 │   ├── ...
 │   └── shared/
 │       ├── error-handling.md   rendered (all shared files are rendered per-target)
@@ -108,10 +108,12 @@ mthds/                         (prod target)
 ├── hooks/
 │   ├── hooks.json             rendered
 │   └── validate-mthds.sh      rendered (executable)
-└── bin/ ->                    symlink to ../bin
+└── bin/                       copied from ../bin (omitted when env_check is false)
 ```
 
-Only `bin/` and `references/` are symlinked — everything else is rendered per-target with that target's variables.
+Only `bin/` and `references/` are copied as they are — everything else is rendered per-target with that target's variables. They are copies rather than symlinks because a marketplace install that copies one plugin directory cannot follow a link to its siblings.
+
+**The build owns these directories.** A skill directory no template renders any more, or a `references/` copy whose source is gone, is removed by the next `make build`, so retiring or renaming a skill is one gesture whose deletions show in the same diff. `make check` reports a `references/` copy that is missing, stale or orphaned, and a `SKILL.md` no template renders, each cured by `make build`.
 
 ## Per-target skill overlays
 
@@ -121,8 +123,8 @@ Overlays are append-only, so they add or override behavior (a later instruction 
 
 Current overlays (all for the `mthds-sandbox` target — a locked-down, platform-driven build sandbox):
 
-- **Workspace check (silent)** — `mthds-build`, `mthds-recursive`: after finishing, ensure the bundle lives under `mthds-wip/<bundle_dir>/`, moving it silently if not.
-- **Method summary (on request only)** — `mthds-build`, `mthds-recursive`, `mthds-check`, `mthds-edit`, `mthds-fix`: after a successful build/edit/fix/validation the agent must not auto-emit a method walkthrough or change recap (pipeline-flow diagram + step/change breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks. (`mthds-explain` is intentionally excluded — summarizing is its whole job.)
+- **Workspace check (silent)** — `mthds-design`: after finishing, ensure the bundle lives under `mthds-wip/<bundle_dir>/`, moving it silently if not.
+- **Method summary (on request only)** — `mthds-design`, `mthds-check`, `mthds-edit`, `mthds-fix`: after a successful design/edit/fix/validation the agent must not auto-emit a method walkthrough or change recap (pipeline-flow diagram + step/change breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks. (`mthds-explain` is intentionally excluded — summarizing is its whole job.)
 
 The mechanism is implemented in `render_templates()` (`scripts/gen_skill_docs.py`, `target_name` parameter) and verified by `tests/unit/test_sandbox_overlay.py`.
 
@@ -152,7 +154,7 @@ python scripts/gen_skill_docs.py --target dev --check  # freshness check
 
 1. Create `targets/<name>.toml` with `[plugin]` section (name, version, description, source)
 2. Add the plugin to `.claude-plugin/marketplace.json` `plugins` array
-3. Run `make build` — the output directory is created with rendered files and symlinks
+3. Run `make build` — the output directory is created with rendered files and copied assets
 4. Run `make check` — validates shared, Claude, and Codex consistency
 
 ## Version management
