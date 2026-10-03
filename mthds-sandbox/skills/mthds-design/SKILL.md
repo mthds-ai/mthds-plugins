@@ -1,7 +1,7 @@
 ---
 name: mthds-design
 description: Design a new MTHDS method bundle (.mthds files) top-down, contract-first. Use when the user says "design a method", "build a method", "create a pipeline", "build a workflow", "new .mthds file", "make a method", "write a method that does X", "turn this workflow into MTHDS", or wants any new method from scratch. Construction adapts to complexity — a shallow, fully understood graph is written directly as one runnable bundle, and deep, uncertain or staged work goes stepwise, one validated signature at a time.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 allowed-tools:
   - Bash
   - Read
