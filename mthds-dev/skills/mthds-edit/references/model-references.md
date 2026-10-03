@@ -1,6 +1,6 @@
 # Model References
 
-The `model` field on pipe specs (PipeLLM, PipeExtract, PipeImgGen, PipeSearch) selects which model to use for that pipe.
+The `model` field on pipe specs (PipeLLM, PipeExtract, PipeImgGen, PipeSearch, PipeJudge) selects which model to use for that pipe.
 
 ## When to set `model`
 
@@ -38,6 +38,7 @@ mthds-agent models --type llm              # Filter by category
 mthds-agent models --type extract
 mthds-agent models --type img_gen
 mthds-agent models --type search
+mthds-agent models --type judgment
 mthds-agent models --backend openai        # Filter by provider
 mthds-agent models --type llm -b anthropic # Combine both filters
 ```

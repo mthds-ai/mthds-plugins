@@ -313,6 +313,7 @@ mthds-agent models --type llm
 mthds-agent models --type extract
 mthds-agent models --type img_gen
 mthds-agent models --type search
+mthds-agent models --type judgment
 ```
 
 If the user asks for a specific model but the request is ambiguous, use `check-model` to resolve it:
