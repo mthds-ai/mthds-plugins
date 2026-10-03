@@ -1,7 +1,7 @@
 ---
 name: mthds-build
 description: Build new AI method from scratch using the MTHDS standard (.mthds bundle files). Use when user says "create a pipeline", "build a workflow", "new .mthds file", "make a method", "design a pipe", or wants to create any new method from scratch. Guides the user through a 10-phase construction process.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 
 ---
 
@@ -79,7 +79,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.22.1" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.29.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -308,7 +308,7 @@ Check:
 
 **Goal**: Convert pipe drafts to validated TOML using the CLI.
 
-**Omit `model` by default** — a default model is used automatically and handles most cases. Only set `model` when the pipe clearly needs a specialized model (e.g., vision, code analysis, high-quality image generation) or when the user explicitly requests a specific model. See [Model References](references/model-references.md) for the reference kinds and decision guide.
+**Omit `model` by default** — a default model is used automatically and handles most cases. Only set `model` when the pipe clearly needs a specialized model (e.g., vision, code analysis, high-quality image generation) or when the user explicitly requests a specific model. See [Model References](references/model-references.md) for the reference kinds and decision guide. **PipeJudge is the exception**: no default judgment model is served, so a PipeJudge always names its `model`, picked from `mthds-agent models --type judgment`.
 
 To look up available models when needed:
 ```bash
@@ -320,7 +320,7 @@ mthds-agent models --type search
 mthds-agent models --type judgment
 ```
 
-If the user asks for a specific model but the request is ambiguous, use `check-model` to resolve it:
+If the user asks for a specific model but the request is ambiguous, use `check-model` to resolve it, with the `--type` of the pipe's category (`llm` for PipeLLM, `extract` for PipeExtract, `img_gen` for PipeImgGen, `search` for PipeSearch, `judgment` for PipeJudge):
 ```bash
 mthds-agent check-model "<user's request>" --type llm
 ```

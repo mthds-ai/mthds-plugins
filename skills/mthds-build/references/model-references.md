@@ -15,6 +15,8 @@ The `model` field is **optional**. Omitting it uses sensible defaults that work 
 - No special model capabilities are needed
 - The user has no model preference
 
+**PipeJudge is the exception**: no default judgment model is served, so a PipeJudge always names its `model`. Pick one from `mthds-agent models --type judgment`.
+
 ## Reference Kinds
 
 When you do set `model`, use one of these reference kinds:
@@ -45,7 +47,7 @@ mthds-agent models --type llm -b anthropic # Combine both filters
 
 ## Validating an Ambiguous Request
 
-If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it:
+If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it. Pass the `--type` of the pipe's category — `llm` for PipeLLM, `extract` for PipeExtract, `img_gen` for PipeImgGen, `search` for PipeSearch, `judgment` for PipeJudge — since a reference is checked against that category alone:
 
 ```bash
 mthds-agent check-model "$writing-creative" --type llm

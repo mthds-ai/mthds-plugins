@@ -4,9 +4,11 @@
 
 ### Added
 
-- **The `judgment` model category**: the build skill and the model references of `mthds-build` and `mthds-edit` list `mthds-agent models --type judgment` with the other categories, and name `PipeJudge` among the pipes whose `model` field selects a model.
+- **The `judgment` model category**: the build skill and the model references of `mthds-build` and `mthds-edit` list `mthds-agent models --type judgment` with the other categories and name `PipeJudge` among the pipes whose `model` field selects a model. Because no default judgment model is served, they tell an agent that a `PipeJudge` always names its `model`. They also say to pass `check-model` the `--type` of the pipe's category, since a reference is checked against that category alone.
 
 ### Changed
+
+- **`min_mthds_version` moves from 0.22.1 to 0.29.0**: `mthds-agent` 0.29.0 is the first release that accepts `--type judgment`, so the env-check now asks an older `mthds-agent` to upgrade. On the default local runner, the command also needs a `pipelex` release whose `pipelex-agent` knows the category.
 
 - **`mthds-inputs`' PDF recipes are rewritten from scratch**: the canvas, multi-page and table recipes are new scripts with new sample documents, and each keeps everything it prints, its labels and the way it writes figures included, along with a `PAGE_SIZE` switch for A4, in one marked content block, so a document in another language is an edit of that block alone; each refuses to run while its output path is still a placeholder, and writes its file atomically and identically on every run. The table recipe takes any grid of text, such as a price list or a schedule, checks its column widths against the page's text frame, refuses a row with the wrong number of values and repeats its header row on every page, and the canvas recipe stops rather than draw text past the edge of the page; the multi-page and table recipes no longer write to the same file name.
 

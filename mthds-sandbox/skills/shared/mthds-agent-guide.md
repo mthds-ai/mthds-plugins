@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.22.1`.
+All skills in this plugin require `mthds-agent >= 0.29.0`.
 
 ## Agent CLI
 
