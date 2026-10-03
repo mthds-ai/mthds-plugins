@@ -151,7 +151,7 @@ Use bare or qualified (`native.Text`) — bare wins on resolution. Never redecla
 |------|-------------|
 | `Text` | A string. |
 | `Image` | A binary image (JPEG, PNG, ...). |
-| `Document` | A document file or a web page URL. The default extraction models read a PDF, an image or a web page: a Word, Excel or PowerPoint file can pass validation and then fail the run at the extraction, so a method over Office documents takes the PDF exported from them. See `PipeExtract`'s section before designing over Office files. |
+| `Document` | A document file or a web page URL. The default extraction models read a PDF or an image, and a web page needs `model = "@default-extract-web-page"`: a Word, Excel or PowerPoint file can pass validation and then fail the run at the extraction, so a method over Office documents takes the PDF exported from them. See `PipeExtract`'s section before designing over Office files. |
 | `Page` | A single extracted page (`text_and_images`, `page_view` — the latter only when the `PipeExtract` that produced it set `page_views = true` on a PDF). |
 | `Html` | HTML content. |
 | `TextAndImages` | Mixed text + images. |
@@ -450,7 +450,7 @@ One guard: a `Date` carrying a time of day does not collapse into a `date` field
 
 ### PipeExtract — extract pages from a Document or Image
 
-**The default extraction models read a PDF, an image or a web page.** A Word, Excel or PowerPoint file passes validation, then fails the run at this step with an extraction error. When the user's files are Office documents, say so at the contract and design for the PDF they export from them (Word's *Save as PDF*, or `soffice --headless --convert-to pdf` where LibreOffice is installed): the input stays a `Document`, its description says PDF, and the test inputs are PDFs too.
+**The default extraction models read a PDF or an image**, and a web page needs the web-page model, as below. A Word, Excel or PowerPoint file passes validation, then fails the run at this step with an extraction error. When the user's files are Office documents, say so at the contract and design for the PDF they export from them (Word's *Save as PDF*, or `soffice --headless --convert-to pdf` where LibreOffice is installed): the input stays a `Document`, its description says PDF, and the test inputs are PDFs too.
 
 ```toml
 [pipe.extract_document]
@@ -570,10 +570,10 @@ signature_for = "PipeLLM"   # optional hint: the intended implementation type
 - `signature_for` records the *intended* next-level type. It is a **hint, not a binding contract** — the implementation may override it. It may **not** be `"PipeSignature"`. Omit it if unsure.
 
 **`signature_for` → operator or controller** (the next-level decision when you expand a signature):
-- **Operator (leaf)** — a single step: `PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`. Replace the signature with the concrete operator; that branch is done.
-- **Controller (composite)** — multiple steps, iteration, branching, or parallelism: `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`. Replace the signature with the controller, wire its sub-pipes, and forward-declare each not-yet-built sub-pipe as its own `PipeSignature`.
+- **Operator (leaf)** — a single step: `PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`. Implement it as the concrete operator, under the same code; that branch is done.
+- **Controller (composite)** — multiple steps, iteration, branching, or parallelism: `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`. Implement it as the controller, under the same code: wire its sub-pipes, and forward-declare each not-yet-built sub-pipe as its own `PipeSignature`.
 
-**Header ↔ definition contract.** A concrete pipe satisfies a signature of the same code when their `inputs`/`output` match **by concept identity** — bare↔qualified (`Brief` ≡ `thisdomain.Brief`) and native (`Text` ≡ `native.Text`) spellings are equivalent, multiplicity compared structurally. Spelling need not be byte-identical, but both sides must declare `inputs`/`output` explicitly. A definition whose contract differs from its header is a hard error.
+**Header ↔ definition contract.** A concrete pipe satisfies a signature of the same code when their `inputs`/`output` match **by concept identity** — bare↔qualified (`Brief` ≡ `thisdomain.Brief`) and native (`Text` ≡ `native.Text`) spellings are equivalent, multiplicity compared structurally. Spelling need not be byte-identical, but both sides must declare `inputs`/`output` explicitly. A definition whose contract differs from its header is a hard error. The concrete definition supersedes the signature wherever it sits in the bundle: it may replace the header in place, or go in another file while the header stays, which is how a stepwise design proceeds. Two concrete definitions of one code are a duplicate, and an error.
 
 **Validation and the runnable gate:** `mthds-agent validate bundle` is strict by default and rejects a reachable signature. With `--allow-signatures` it accepts each one — each mints a mock of its declared output — so a design scaffold with pending signatures passes, and the verdict lists them under `## Pending signatures (N)` with a `⚠️ … NOT yet runnable` line: the library-wide list of pipes still declared as contract-only signatures, which is the design's todo list. The method is **runnable** when strict validation passes and prints the `✅ … this method is runnable.` line. Live execution of a signature always fails (`PipeSignatureNotExecutableError`), so drain the backlog before running.
 

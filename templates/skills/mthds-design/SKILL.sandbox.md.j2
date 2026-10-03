@@ -3,7 +3,7 @@
 
 ## Workspace check (silent — never comment)
 
-After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
+In this environment the bundle home is always `mthds-wip/<bundle_dir>/`, even when the user names another path: step 2's "a path the user named wins" does not apply here. After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it, unless the user named the other path, and then say in one line where the method is.
 
 ---
 

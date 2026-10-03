@@ -28,7 +28,7 @@ Design a new `.mthds` method **contract-first**, directly or stepwise (step 3). 
 
 ### 1. Capture the contract
 
-Read the [MTHDS language reference](../shared/mthds-reference.md) **before writing**: it is the syntax source of truth. For what it places outside the authoring subset (`dict` field types, `PipeStructure`, inline `templating_style` blocks and the like), write the closest in-scope equivalent and call out the deviation.
+Read the [MTHDS language reference](../shared/mthds-reference.md) **before writing**: it is the syntax source of truth. For what it places outside the authoring subset (`dict` field types, `PipeStructure` and the like), write the closest in-scope equivalent and call out the deviation.
 
 Fix the **input concept(s)**, the **output concept** and the **description**, precise enough to implement against, and specify every boundary concept fully now. Shape each concept from all its known consumers: it must be structured if any consumer field-reads it (`$x.field`, a construct `from = "x.field"`), and can stay simple otherwise. Declare each concept exactly once, complete, owned by the root boundary or by the controller that introduces it.
 
@@ -49,7 +49,7 @@ When borderline, take the simplest path that can be written **completely** and v
 
 ### 4. Direct construction
 
-Design the whole graph in memory, then write `bundle.mthds` top-down — metadata, concepts, the concrete main pipe, its leaves — with concept codes checked library-wide and explicit `inputs` and `output` on every pipe. Write it with your agent's file tools, never through the shell, so the plugin's hook checks it. More than one file only at a natural module boundary, never one per pipe, and every file of the bundle declares the same `domain`. Include **no temporary `PipeSignature` declarations**. Leave `model` out unless the user asks for a model, a setting or a kind of behaviour, and then look the reference up as the language reference's [model section](../shared/mthds-reference.md#model-references) says. **If the design would need a placeholder or a guessed contract, or writing or validation exposes an unresolved structural boundary**, stop extending the draft and read [stepwise.md](references/stepwise.md) before changing any file.
+Design the whole graph in memory, then write `bundle.mthds` top-down — metadata, concepts, the concrete main pipe, its leaves — with concept codes checked library-wide and explicit `inputs` and `output` on every pipe. Write it with your agent's file tools, never through the shell, so the plugin's hook checks it. More than one file only at a natural module boundary, never one per pipe, and every file of the bundle declares the same `domain`. Include **no temporary `PipeSignature` declarations**. Leave `model` out unless the user asks for a model, a setting or a kind of behaviour, or the pipe's input is one the default model cannot read, such as a web page for a `PipeExtract`; then look the reference up as the language reference's [model section](../shared/mthds-reference.md#model-references) says. **If the design would need a placeholder or a guessed contract, or writing or validation exposes an unresolved structural boundary**, stop extending the draft and read [stepwise.md](references/stepwise.md) before changing any file.
 
 ### 5. Validate
 
@@ -86,7 +86,7 @@ For a completed method, validation **without** `--allow-signatures` must pass an
 
 ## Workspace check (silent — never comment)
 
-After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it.
+In this environment the bundle home is always `mthds-wip/<bundle_dir>/`, even when the user names another path: step 2's "a path the user named wins" does not apply here. After finishing, make sure the finished method is in the right workspace: `bundle.mthds` must be under `mthds-wip/<bundle_dir>/`. If it ended up anywhere else, move it (with its `inputs/` and any library dir) into `mthds-wip/<bundle_dir>/`. Do this silently — never mention it, unless the user named the other path, and then say in one line where the method is.
 
 ---
 
