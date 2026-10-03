@@ -40,6 +40,8 @@ class Platform(StrEnum):
 TARGETS_DIR_NAME = "targets"
 DEFAULTS_FILE = "defaults.toml"
 TEMPLATES_DIR_NAME = "templates"
+# The rendered shared files' directory under a target's skills/, never a skill of its own.
+SHARED_SKILL_DIR = "shared"
 
 # Codex discovers plugin marketplaces at `.agents/plugins/marketplace.json`
 # (preferred) or `.claude-plugin/marketplace.json` (fallback). We ship a
@@ -354,12 +356,7 @@ def _refresh_copy(src: Path, dst: Path) -> None:
     before copytree runs. Plain files/dirs are removed too so the build is
     idempotent.
     """
-    # is_symlink() must be checked before is_dir(): a symlink-to-dir is both,
-    # and rmtree would chase the link and delete its target.
-    if dst.is_symlink() or dst.is_file():
-        dst.unlink()
-    elif dst.is_dir():
-        shutil.rmtree(dst)
+    _remove_path(dst)
     shutil.copytree(src, dst)
 
 
@@ -388,12 +385,9 @@ def setup_static_assets(
     if env_check:
         if bin_src.is_dir():
             _refresh_copy(bin_src, bin_dst)
-    # Locked-down target: drop any stale bin/ (is_symlink before is_dir — a
-    # symlink-to-dir is both, and rmtree would chase the link).
-    elif bin_dst.is_symlink() or bin_dst.is_file():
-        bin_dst.unlink()
-    elif bin_dst.is_dir():
-        shutil.rmtree(bin_dst)
+    else:
+        # Locked-down target: drop any stale bin/.
+        _remove_path(bin_dst)
 
     if include_skills is not None:
         skill_names = include_skills
@@ -411,6 +405,51 @@ def setup_static_assets(
         refs_dst = skill_output / "references"
         if refs_src.is_dir():
             _refresh_copy(refs_src, refs_dst)
+        else:
+            # A skill whose references/ source was retired: drop the stale copy,
+            # or it keeps shipping in every target.
+            _remove_path(refs_dst)
+
+    # A skill retired or renamed upstream: its output directory is the build's own
+    # and nothing produces it any more, so remove it rather than ship it stale.
+    for skill_output in sorted(output_skills_dir.iterdir()):
+        if skill_output.name != SHARED_SKILL_DIR and skill_output.name not in skill_names:
+            _remove_path(skill_output)
+
+
+def _remove_path(path: Path) -> None:
+    """Remove a file, a symlink (never followed) or a directory tree, if present."""
+    # is_symlink() before is_dir(): a symlink-to-dir is both, and rmtree would
+    # chase the link and delete its target.
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
+
+
+def reference_copy_mismatches(base_dir: Path, output_dir: Path, skill_names: list[str]) -> list[str]:
+    """The freshness findings for every skill's copied references/: missing, stale or orphaned copies."""
+    findings: list[str] = []
+    output_skills_dir = output_dir / "skills"
+    for skill_name in skill_names:
+        refs_src = base_dir / "skills" / skill_name / "references"
+        refs_dst = output_skills_dir / skill_name / "references"
+        if not refs_src.is_dir():
+            if refs_dst.exists() or refs_dst.is_symlink():
+                findings.append(f"  ORPHAN: {refs_dst.relative_to(base_dir)} (its source is gone: `make build` removes it)")
+            continue
+        src_files = {path.relative_to(refs_src) for path in refs_src.rglob("*") if path.is_file()}
+        dst_files: set[Path] = set()
+        if refs_dst.is_dir():
+            dst_files = {path.relative_to(refs_dst) for path in refs_dst.rglob("*") if path.is_file()}
+        for rel in sorted(src_files - dst_files):
+            findings.append(f"  MISSING: {(refs_dst / rel).relative_to(base_dir)}")
+        for rel in sorted(dst_files - src_files):
+            findings.append(f"  ORPHAN: {(refs_dst / rel).relative_to(base_dir)} (its source is gone: `make build` removes it)")
+        for rel in sorted(src_files & dst_files):
+            if (refs_src / rel).read_bytes() != (refs_dst / rel).read_bytes():
+                findings.append(f"  STALE: {(refs_dst / rel).relative_to(base_dir)}")
+    return findings
 
 
 def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False) -> BuildResult:
@@ -572,7 +611,13 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
             for skill_md in sorted(output_skills_dir.glob("*/SKILL.md")):
                 if skill_md.parent not in rendered_skill_parents:
                     rel = skill_md.relative_to(base_dir)
-                    all_stale.append(f"  ORPHAN: {rel} (no corresponding .j2 template)")
+                    all_stale.append(f"  ORPHAN: {rel} (no corresponding .j2 template: `make build` removes it)")
+
+        # Copied references/ must match their source; a non-root target only, since a
+        # root target's skills/ is the source itself.
+        if not config.is_root:
+            rendered_skill_names = sorted(path.name for path in rendered_skill_parents if path.parent == output_skills_dir)
+            all_stale.extend(reference_copy_mismatches(base_dir, output_dir, rendered_skill_names))
 
         # Detect leaked .j2 files in output directories (should only be in templates/)
         if output_skills_dir.is_dir():

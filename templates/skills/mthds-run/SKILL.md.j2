@@ -15,8 +15,9 @@ Execute MTHDS method bundles and interpret their JSON output.
 
 {% include 'skills/shared/preamble.md.j2' %}
 
+Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
+
 {% endif -%}
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 {% if env_check -%}
 ### Step 1 — Pipelex Runtime Check (mandatory)

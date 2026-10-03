@@ -62,8 +62,6 @@ Modify existing MTHDS method bundles.
 
 ## Process
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
-
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.
 
 1. **Read the existing .mthds file** — Understand current structure before making changes
@@ -112,7 +110,7 @@ Do not write `.mthds` files manually, do not do any other work. The CLI is requi
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
-- [Model References](references/model-references.md) — read when setting or changing model references in a pipe. The `model` field is optional — omit it to use defaults
+- [Model references](../shared/mthds-reference.md#model-references) — read before setting or changing a pipe's `model`. The field is optional: omit it to use the default
 
 ---
 

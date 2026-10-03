@@ -89,7 +89,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
+Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
 
 ### Step 1 — Pipelex Runtime Check (mandatory)
 
