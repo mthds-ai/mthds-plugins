@@ -50,7 +50,7 @@ mthds-agent models --type llm -b anthropic # Combine both filters
 If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it. Pass the `--type` of the pipe's category — `llm` for PipeLLM, `extract` for PipeExtract, `img_gen` for PipeImgGen, `search` for PipeSearch, `judgment` for PipeJudge — since a reference is checked against that category alone:
 
 ```bash
-mthds-agent check-model "$writing-creative" --type llm
+mthds-agent check-model '$writing-creative' --type llm
 mthds-agent check-model "@best-claude" --type llm
 mthds-agent check-model "gpt-4o" --type llm
 ```
