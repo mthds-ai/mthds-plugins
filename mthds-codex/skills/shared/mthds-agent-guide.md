@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.22.1`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.22.1`.
+All skills in this plugin require `mthds-agent >= 0.29.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.29.0`.
 
 ## IMPORTANT PREREQUISITES
 
@@ -317,7 +317,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent concept` | Validate and structure a concept from JSON spec (returns raw TOML) | `mthds-agent concept --spec '{...}'` |
 | `mthds-agent pipe` | Validate and structure a pipe from JSON spec (returns raw TOML). Field names: `type`, `pipe_code`, and optionally `model`. Omit `model` to use defaults; set it only for specialized needs or explicit user requests | `mthds-agent pipe --spec '{"type": "PipeLLM", "pipe_code": "my_pipe", "prompt": "...", ...}'` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
-| `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON) | `mthds-agent check-model "$writing-creative" --type llm` |
+| `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON) | `mthds-agent check-model '$writing-creative' --type llm` |
 | `mthds-agent accept-gateway-terms` | Accept Pipelex Gateway terms and mark inference setup complete | `mthds-agent accept-gateway-terms` |
 | `mthds-agent doctor` | Check config health and auto-fix (outputs markdown) | `mthds-agent doctor` |
 | `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |

@@ -1,6 +1,6 @@
 # Model References
 
-The `model` field on pipe specs (PipeLLM, PipeExtract, PipeImgGen, PipeSearch) selects which model to use for that pipe.
+The `model` field on pipe specs (PipeLLM, PipeExtract, PipeImgGen, PipeSearch, PipeJudge) selects which model to use for that pipe.
 
 ## When to set `model`
 
@@ -14,6 +14,8 @@ The `model` field is **optional**. Omitting it uses sensible defaults that work 
 - The pipe does a standard text generation, extraction, search, or image generation task
 - No special model capabilities are needed
 - The user has no model preference
+
+**PipeJudge is the exception**: no default judgment model is served, so a PipeJudge always names its `model`. Pick one from `mthds-agent models --type judgment`.
 
 ## Reference Kinds
 
@@ -38,13 +40,14 @@ mthds-agent models --type llm              # Filter by category
 mthds-agent models --type extract
 mthds-agent models --type img_gen
 mthds-agent models --type search
+mthds-agent models --type judgment
 mthds-agent models --backend openai        # Filter by provider
 mthds-agent models --type llm -b anthropic # Combine both filters
 ```
 
 ## Validating an Ambiguous Request
 
-If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it:
+If the user asks for a specific model but the request doesn't obviously match a known preset or alias, use `check-model` to resolve it. Pass the `--type` of the pipe's category — `llm` for PipeLLM, `extract` for PipeExtract, `img_gen` for PipeImgGen, `search` for PipeSearch, `judgment` for PipeJudge — since a reference is checked against that category alone:
 
 ```bash
 mthds-agent check-model '$writing-creative' --type llm
