@@ -76,7 +76,7 @@ The new file bounds the ordinary fix:
 
 ## Converging
 
-When the verdict prints the `✅ … this method is runnable.` line, validate once more **without** `--allow-signatures`. That strict validation rejects any reachable signature, so its pass is the skill's runnable gate; go on to the skill's step 6.
+When the verdict prints the `✅ … this method is runnable.` line, validate once more **without** `--allow-signatures`, the form the skill's runnable gate takes. A signature is never a validation error, so the gate is that line, which only an empty backlog prints, not the pass alone; then go on to the skill's step 6.
 
 ## Stopping early
 

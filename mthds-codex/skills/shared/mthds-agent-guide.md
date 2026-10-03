@@ -213,7 +213,7 @@ mthds-agent run bundle mthds-wip/pipeline_01/
 
 ## Lenient Validation — `--allow-signatures`
 
-A bundle that contains `PipeSignature` pipes (contract-only headers, used by stepwise design) fails **strict** validation by default. Pass `--allow-signatures` to validate **leniently** — reachable signatures are accepted, each minting a mock of its declared output:
+A bundle that contains `PipeSignature` pipes (contract-only headers, used by stepwise design) still validates: a signature is never a validation error, and the verdict lists the pending ones. Pass `--allow-signatures` to validate **leniently**, which changes only how validation runs — each signature is dry-run too, minting a mock of its declared output:
 
 ```bash
 mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
@@ -221,8 +221,8 @@ mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
 
 `mthds-agent` forwards the flag verbatim to the pipelex CLI (`.allowUnknownOption()`), so no `mthds-agent`-side option is required.
 
-- **Lenient (`--allow-signatures`)** — accepts a bundle whose dependency graph reaches signatures. Use it after each layer of a stepwise design, while signatures still remain.
-- **Strict (default)** — rejects any reachable signature. Passing strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
+- **Lenient (`--allow-signatures`)** — mock-runs each signature, and a valid bundle exits 0 whether or not it is runnable. Use it after each layer of a stepwise design, while signatures still remain.
+- **Strict (default)** — leaves signatures out of the dry run, and on the pipelex runner a valid bundle that is not yet runnable exits 1. The `✅ … this method is runnable.` line of a strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
 
 On a bundle with **no** signatures, lenient and strict are identical — `--allow-signatures` is a no-op there.
 
