@@ -8,15 +8,13 @@ description: Design a new MTHDS method bundle (.mthds files) top-down, contract-
 
 Design a new `.mthds` method **contract-first**, directly or stepwise (step 3). A change to an existing method is `/mthds-edit`'s.
 
-{% if env_check -%}
 ## Step 0 — Environment Check (mandatory, do this FIRST)
 
 {% include 'skills/shared/preamble.md.j2' %}
 
 Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
 
-{% endif -%}
-> **No backend setup needed**: designing and validating never run the method, so no inference backend or API key is required.{% if can_run_methods %} Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.{% endif %}
+> **No backend setup needed**: designing and validating never run the method, so no inference backend or API key is required. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
 ## Guards
 
@@ -65,13 +63,11 @@ For a completed method, validation **without** `--allow-signatures` must pass an
 
 1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
 2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to the bundle.
-{%- if can_run_methods %}
 3. **Next steps**: suggest a dry run with mock inference, which needs no real inputs, then `/mthds-inputs` to prepare real ones and a run:
    ```bash
    mthds-agent run bundle <bundle_home>/ --dry-run --mock-inputs
    mthds-agent run bundle <bundle_home>/
    ```
-{%- endif %}
 
 ## Stops
 
