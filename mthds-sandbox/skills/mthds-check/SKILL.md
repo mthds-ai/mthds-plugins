@@ -15,8 +15,6 @@ Validate and review MTHDS bundles based on the MTHDS standard without making cha
 
 ## Process
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
-
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.
 
 ### Step 1: Read the .mthds File

@@ -58,7 +58,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 | User provides file paths, folder paths, or mentions "my data" / "this file" / "use these images" / "here's my PDF" | **User Data** (or Mixed if some inputs remain unfilled) |
 | User says "test data" / "generate inputs" / "synthesize" / "fake data" / "sample data" | **Synthetic** |
 | User says "template" / "schema" / "placeholder" / "what inputs does it need?" | **Template** |
-| No clear signal (e.g., called after `/mthds-build` with no further context) | **Template**, then offer to populate |
+| No clear signal (e.g., called after `/mthds-design` with no further context) | **Template**, then offer to populate |
 
 **Interactive additions**: Ask about:
 - Which user files map to which inputs (when ambiguous)
@@ -67,8 +67,6 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 - Specific values or constraints for certain fields
 
 ---
-
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.
 

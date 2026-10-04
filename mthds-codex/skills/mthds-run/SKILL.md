@@ -89,7 +89,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
+Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
 
 ### Step 1 — Pipelex Runtime Check (mandatory)
 
@@ -126,7 +126,7 @@ mthds-agent doctor  # outputs markdown
 
 If inputs were already prepared during this conversation — via `/mthds-inputs` (user-data, synthetic, or mixed strategy), or by manually assembling `inputs.json` with real values earlier in this session — skip the schema fetch and readiness check. The inputs are ready. Proceed directly to Step 4 with a normal run.
 
-This applies when you just wrote or saw `inputs.json` being written with real content values. It does NOT apply after `/mthds-build` (which saves a placeholder template) or after `/mthds-inputs` with the template strategy.
+This applies when you just wrote or saw `inputs.json` being written with real content values. It does NOT apply after `/mthds-design`, which saves no inputs, or after `/mthds-inputs` with the template strategy.
 
 #### Full check — cold start
 

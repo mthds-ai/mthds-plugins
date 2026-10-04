@@ -1,338 +1,396 @@
 # MTHDS Language Reference
 
-Complete reference for the MTHDS declarative language.
+The reference for the MTHDS language, with copy-pasteable examples: read it before writing or editing a `.mthds` file, and for any syntax question while reading one.
 
-## Bundle Structure
+**Write and edit a `.mthds` file with your agent's file tools, never through the shell.** The plugin's hook runs after each write or edit those tools make: it lints the file, formats it in place and validates the method, and returns a failure with the line to fix. A file written or changed by a heredoc, `sed` or a script run in the shell is never checked. The format can reorder the file, so read it again before a change that matches its text.
+
+## 1. Bundle Skeleton
 
 ```toml
-domain = "domain_code"
-description = "Domain description"  # Optional
-main_pipe = "pipe_code"             # Optional - default pipe to run
+domain = "snake_case_domain"          # required — namespace for all concepts and pipes
+description = "What this bundle does" # optional
+main_pipe = "main_pipe_code"          # optional but recommended — entry point
+
+# system_prompt = """                 # optional — default system prompt for all PipeLLM pipes
+# You are a careful assistant.
+# """
 
 [concept]
-ConceptName = "Description"
+# Simple concepts go here (one-liner descriptions)
 
-[concept.StructuredConcept]
-description = "Concept with fields"
+# [concept.StructuredConcept]
+# Structured concepts go in their own table
 
-[concept.StructuredConcept.structure]
-field_name = "Field description"  # Simple text field (optional)
-typed_field = { type = "text", description = "...", required = true }
-
-[pipe.pipe_code]
-type = "PipeLLM"
-description = "What this pipe does"
-inputs = { input_name = "ConceptName" }
-output = "OutputConcept"
-prompt = """
-Your prompt here with @block_var and $inline_var
-"""
+[pipe.main_pipe_code]
+# Each pipe gets its own [pipe.<pipe_code>] table
 ```
 
-## Naming Conventions
+**Naming rules:**
+- `domain` — `snake_case`, may have dots (e.g. `legal.contracts`). Reserved first segments: `native`, `mthds`, `pipelex`.
+- Concept codes — `PascalCase`, singular, no adjectives (`Invoice`, not `Invoices` or `LargeInvoice`).
+- Pipe codes — `snake_case`.
+- Input names — `snake_case`.
 
-- **Domain**: `snake_case` (e.g., `invoice_processing`)
-- **Concepts**: `PascalCase`, singular, no circumstantial adjectives (e.g., `Invoice` not `Invoices` or `LargeInvoice`)
-- **Pipes**: `snake_case` (e.g., `extract_invoice`)
+**A bundle split across files shares its header by domain.** Every file that declares the same `domain` is one domain at run time: the `system_prompt` written once in the root is the default of every `PipeLLM` of that domain, whichever file defines it, the root's `description` is the domain's, and a sibling file declares only `domain`. Two files giving different values keep the first loaded, with a warning, so write each once. A file with another `domain` is another domain and inherits nothing.
 
-## Native Concepts
+**Ordering convention:** main pipe (controller) first, then sub-pipes in execution order. Concepts can come before or after pipes.
 
-Use directly without defining: `Dynamic`, `Text`, `Image`, `Document`, `Html`, `TextAndImages`, `Number`, `YesNo`, `Date`, `Time`, `Page`, `JSON`, `SearchResult`, `Anything`, `Composite`
+## 2. Concepts
 
-> **Note**: `Document` is the native concept for any document (PDF, Word, etc.). `Image` is for any image format (JPEG, PNG, etc.). File formats like "PDF" or "JPEG" are not concepts.
+Two ways to declare a concept. Pick one per concept.
 
-Each native concept has a content class with specific attributes (e.g., `Image` has `url`, `public_url`, `filename`, `caption`; `YesNo` has `yes_no`; `Date` has `date` and optional `time`; `Time` has `time`; `Page` has `text_and_images` and `page_view`). See [Native Content Types Reference](native-content-types.md) for the full attribute reference — useful when writing `$var.field` in prompts or `from = "input.field"` in construct blocks.
+### 2a. Simple Concept (no structure)
 
-## Concept Definitions
-
-### Simple Concept (refines native)
+Use the flat `[concept]` table, one line per concept:
 
 ```toml
-[concept.Landscape]
-description = "A scenic outdoor photograph"
-refines = "Image"
+[concept]
+Topic = "A subject or theme that can be used as the basis for a joke"
+Joke = "A humorous one-liner intended to make people laugh"
 ```
 
-### Inline Structure (recommended)
+A simple concept has no fields. It's just a named type.
+
+### 2b. Concept that Refines a Native Concept
+
+A refining concept gets a `[concept.<Code>]` table with `refines`:
+
+```toml
+[concept.Topic]
+description = "A subject or theme that can be used as the basis for a joke"
+refines = "Text"
+```
+
+Refinement means substitutability: any pipe that accepts `Text` also accepts `Topic`.
+
+`refines` accepts:
+- bare code: `"Text"`
+- domain-qualified: `"legal.ContractClause"`
+- cross-package: `"acme->legal.ContractClause"`
+
+### 2c. Structured Concept (fields)
+
+Define fields in a `[concept.<Code>.structure]` sub-table:
 
 ```toml
 [concept.Invoice]
 description = "A commercial invoice"
 
 [concept.Invoice.structure]
-invoice_number = "The unique identifier"  # Optional text field
-issue_date = { type = "date", description = "Issue date", required = true }
-total_amount = { type = "number", description = "Total", required = true }
-line_items = { type = "list", item_type = "text", description = "Items" }
+invoice_number = { type = "text", description = "Unique identifier", required = true }
+issue_date     = { type = "date", description = "Issue date", required = true }
+total_amount   = { type = "number", description = "Total amount due", required = true }
+vendor_name    = "The vendor's name"   # shorthand: a REQUIRED text field
+notes          = { type = "text", description = "Free-text notes" }
 ```
 
-**Field types**: `text`, `integer`, `boolean`, `number`, `date`, `datetime`, `time`, `list`, `dict`, `concept`
+**A bare string is a required text field.** `vendor_name = "The vendor's name"` declares exactly `{ type = "text", required = true, description = "The vendor's name" }`. The shorthand carries a description and nothing else, so an optional text field, or a field needing any other key, is written as a table.
 
-**Choices (enum-like values)**:
+**Constraint:** `refines` and `structure` are mutually exclusive — pick one.
+
+### 2d. Field Blueprint Reference
+
+| Attribute | Required | Description |
+|-----------|----------|-------------|
+| `description` | Yes | Human-readable description of the field. |
+| `type` | Conditional | Field type. Required unless `choices` is given, and omitted when it is. |
+| `required` | No | Default `false`. |
+| `default_value` | No | Must match `type`. Not allowed on `concept`, and never together with `required = true`: a default applies when the field is omitted, which a required field never is. |
+| `choices` | No | List of allowed string values (enum-like). |
+| `concept_ref` | Conditional | Required when `type = "concept"`. |
+| `item_type` | Conditional | Required when `type = "list"`. |
+| `item_concept_ref` | Conditional | Required when `item_type = "concept"`. |
+
+**Supported field types** (use exactly these strings):
+
+| Type | Default value example |
+|------|----------------------|
+| `"text"` | `"hello"` |
+| `"integer"` | `42` |
+| `"number"` | `2.5` |
+| `"boolean"` | `true` |
+| `"date"` | (a calendar date) |
+| `"datetime"` | (a point in time: a date with a time of day) |
+| `"time"` | (a time of day, optionally with a UTC offset) |
+| `"list"` | `["a", "b"]` |
+| `"concept"` | not allowed |
+
+> **Outside the authoring subset:** `dict` is a valid field type, which takes `key_type` and `value_type`, so a bundle you read may carry one; never write one. Model the data as a structured concept instead.
+
+### 2e. Concept References in Fields
+
 ```toml
 [concept.Order.structure]
-status = { choices = ["pending", "processing", "shipped", "delivered"], description = "Order status" }
-priority = { choices = ["low", "medium", "high"], required = true, description = "Priority level" }
-score = { type = "number", choices = ["0", "0.5", "1", "1.5", "2"], description = "Score on a half-point scale" }
+customer = { type = "concept", concept_ref = "Customer", description = "The buying customer" }
+items    = { type = "list", item_type = "concept", item_concept_ref = "LineItem", description = "Order line items" }
+tags     = { type = "list", item_type = "text", description = "Free-form tags" }
 ```
-When `choices` is present without a `type`, it defaults to `text`. You can pair choices with `text`, `integer`, or `number` types explicitly. This generates Python `Literal` types (e.g., `Literal["pending", "processing", "shipped", "delivered"]`), providing type-safe constrained values.
 
-**Concept references**:
+Rules:
+- `concept_ref` only when `type = "concept"`.
+- `item_concept_ref` only when `item_type = "concept"`.
+- Bare codes resolve to the current bundle's domain. Use `domain.ConceptCode` for cross-domain refs.
+- `concept_ref` also takes a native concept (`native.Date`, `native.Image`, …). Use it when the field must hold the whole native value with every attribute: a `native.Date` field keeps the date, the time and its UTC offset together, where a `date` field holds only the calendar day.
+
+### 2f. Choices (enum-like)
+
 ```toml
-customer = { type = "concept", concept_ref = "myapp.Customer", description = "..." }
-items = { type = "list", item_type = "concept", item_concept_ref = "myapp.LineItem", description = "..." }
-deadline = { type = "concept", concept_ref = "native.Date", description = "..." }
+[concept.Order.structure]
+status   = { choices = ["pending", "processing", "shipped", "delivered"], description = "Order status", required = true }
+priority = { choices = ["low", "medium", "high"], description = "Priority" }
 ```
-`concept_ref` also accepts a native concept (`native.Date`, `native.Time`, `native.Image`, …). Use that form when the field must hold the whole native value with every attribute — a `native.Date` field keeps the date, the time and its UTC offset together, where a bare `date` field holds only the calendar day.
 
-## Pipe Types
+A field with `choices` omits `type`. Its values are strings: the field takes only the listed ones, and generated Python types it as a `Literal` of them. A numeric scale is an `integer` or `number` field without `choices`.
 
-### PipeLLM - Generate text/objects with LLMs
+## 3. Native Concepts (always available)
+
+Use bare or qualified (`native.Text`) — bare wins on resolution. Never redeclare a native concept code.
+
+| Code | When to use |
+|------|-------------|
+| `Text` | A string. |
+| `Image` | A binary image (JPEG, PNG, ...). |
+| `Document` | A document file or a web page URL. The default extraction models read a PDF or an image, and a web page needs `model = "@default-extract-web-page"`: a Word, Excel or PowerPoint file can pass validation and then fail the run at the extraction, so a method over Office documents takes the PDF exported from them. See `PipeExtract`'s section before designing over Office files. |
+| `Page` | A single extracted page (`text_and_images`, `page_view` — the latter only when the `PipeExtract` that produced it set `page_views = true` on a PDF). |
+| `Html` | HTML content. |
+| `TextAndImages` | Mixed text + images. |
+| `Number` | A numeric value. |
+| `YesNo` | A yes/no answer (`yes_no`). |
+| `Date` | A calendar date with optional time (`date`, `time`). |
+| `Time` | A time of day with an optional UTC offset (`time`). |
+| `JSON` | A JSON value. |
+| `SearchResult` | Web search output (`answer`, `sources`). |
+| `Anything` | Any type. |
+| `Dynamic` | Dynamically typed value. |
+| `Composite` | Named components, usually from PipeParallel. |
+
+> File formats like "PDF" or "JPEG" are NOT concepts. Use `Document` and `Image` respectively.
+
+Each native concept has a content class with its own attributes: an `Image` has `url`, `filename` and `caption`, a `Page` has `text_and_images` and `page_view`. [Native Content Types](native-content-types.md) lists them all, for writing `$var.field` in a prompt or `from = "input.field"` in a construct.
+
+## 4. Multiplicity and Presence
+
+Applies to `inputs` values and `output`:
+
+| Syntax | Meaning |
+|--------|---------|
+| `ConceptName` | Single item. |
+| `ConceptName[]` | Variable-length list. |
+| `ConceptName[N]` | Exactly N items. |
+| `ConceptName?` | Optional single item: it may resolve as a recorded absence. |
+| `ConceptName!` | Forced single input: the run fails if it is absent. Inputs only. |
+
+Examples: `Text`, `Text[]`, `Image[3]`, `legal.Clause[]`, `Text?`. Nesting is forbidden — no `Text[][]` — and a presence marker never combines with a count: `Text[]?` is invalid, since a list that received nothing is empty.
+
+## 5. Pipe Skeleton
+
+Every pipe gets a `[pipe.<pipe_code>]` table with these base fields:
+
+```toml
+[pipe.my_pipe]
+type        = "PipeLLM"         # one of the types below
+description = "What it does"
+inputs      = { x = "Text", y = "Document[]" }
+output      = "Summary"
+# ...plus type-specific fields
+```
+
+- `type`, `description`, `output` are required for every pipe.
+- `inputs` is optional in the schema but almost always present. Keys are `snake_case`, values are concept refs with optional multiplicity. Keep on a single line.
+
+## 6. Pipe Type Reference
+
+### PipeLLM — generate text or structured output via an LLM
 
 ```toml
 [pipe.summarize]
-type = "PipeLLM"
-description = "Summarize text"
-inputs = { text = "Text" }
-output = "Summary"
-prompt = """
-Summarize this text:
-
-@text
-"""
-```
-
-**With system prompt and model settings**:
-```toml
-[pipe.expert_analysis]
-type = "PipeLLM"
-description = "Expert analysis"
-inputs = { document = "Document" }
-output = "Analysis"
-system_prompt = "You are a financial analyst expert."
-model = { model = "gpt-4o", temperature = 0.2 }
-prompt = """
-Analyze this document:
+type        = "PipeLLM"
+description = "Summarize a document"
+inputs      = { document = "Document" }
+output      = "Summary"
+prompt      = """
+Summarize the following document:
 
 @document
 """
+# system_prompt = "You are a careful summarizer."   # optional, overrides bundle-level
+# model = "$writing-factual"                        # optional
 ```
 
-**Multiple outputs**:
-- `output = "Idea[3]"` - exactly 3 items
-- `output = "Idea[]"` - variable number
-- Nesting is not supported — `Idea[][]` is invalid.
+**Type-specific fields:** `prompt` (almost always required), `system_prompt` (optional), `model` (optional).
 
-**Vision (images)**:
+**Multi-output:** `output = "Idea[3]"` (exactly 3), `output = "Idea[]"` (variable).
+
+**Vision:** put an `Image` in `inputs` and reference it as `$image` or `@image` in the prompt.
+
+### Model references
+
+Every pipe with a `model` field (`PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeJudge`) takes a reference of one of four kinds, told apart by its sigil:
+
+| Kind | Sigil | Example | What it names |
+|---|---|---|---|
+| Preset | `$` | `$writing-factual` | a model with the settings suited to a kind of task; the kind to prefer |
+| Alias | `@` | `@default-text-from-pdf` | a stable name the deployment points at one model |
+| Waterfall | `~` | `~<name>` | fallback models, tried in order |
+| Handle | none | `<handle>` | one model, by its own name |
+
+On a `PipeLLM`, `model` may instead be an inline table of settings, whose `temperature` is required: `model = { model = "@default-general", temperature = 0.2 }`. The table's own `model` is an alias, a waterfall or a handle, never a preset.
+
+**Omit `model` unless the user asks for a model, a setting such as a temperature, or a kind of behaviour such as factual writing**: the default is one the runner is set up to serve, while a reference nobody asked for pins a model the runner's backends or gateway may refuse, which validation cannot see, so every run fails.
+
+**A pipe whose input the default model cannot read names the model that can**, whether or not the user asked: a `PipeExtract` over a web page sets `model = "@default-extract-web-page"`, as its section says. Validation cannot see this one either, since it never knows what a `Document` will hold.
+
+**A `PipeJudge` always names its model**, whether or not the user asked, since no default judgment model is served.
+
+**Look a reference up before writing it.** `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves, by category: `llm` for a `PipeLLM`, `extract` for a `PipeExtract`, `img_gen` for a `PipeImgGen`, `search` for a `PipeSearch` and `judgment` for a `PipeJudge`. It works on both runners and spends no credit. On the pipelex runner, `mthds-agent check-model '<reference>' --type <category>` checks one reference against the pipe's category alone: quote it in single quotes, since the shell would expand a `$` preset inside double quotes to nothing. On the API runner `check-model` refuses, so find the reference in the listing instead.
+
+- **A kind of behaviour**: list the pipe's category and write the preset whose name fits it, saying which one you chose.
+- **A model or a reference the user typed**: check it, or find it in the listing on the API runner, and act on the first of these that fits. When it is valid, write it. When a note says the same name exists under another sigil (`best-claude` exists as `@best-claude`), write that one and say so. When it is not valid and suggestions follow, offer them and write only what the user picks. A handle the listing does not name may still be served: write it only as a pipe's `model` string, where `mthds-agent validate bundle` checks it against every model the runner serves.
+- **A model and a setting**: the setting needs an inline table, whose model must check valid or appear in the listing, and must not be a preset. When the model the user named falls short, say so and offer the choice between the setting on an alias the listing shows and the model without the setting.
+- **A setting but no model**: offer the category's presets, which carry settings for a kind of task, or put the setting in an inline table on an alias the listing shows. Never invent a handle.
+
+**Validation never looks inside an inline table**: a reference there that does not resolve fails only when a run reaches the pipe, after credit is spent, so write one only once the check or the listing confirms a reference that is not a preset.
+
+**The listing is what the runner can serve, not what the account may use**: a backend or a gateway can still refuse a listed model when a run starts, after the method validated. A listed model is no promise, and leaving `model` out stays the safest choice.
+
+### PipeSequence — execute steps in order
+
 ```toml
-[pipe.analyze_image]
-type = "PipeLLM"
-inputs = { image = "Image" }
-output = "ImageAnalysis"
-prompt = "Describe this image: $image"
-```
-
-### PipeSequence - Chain pipes sequentially
-
-```toml
-[pipe.process_document]
-type = "PipeSequence"
-description = "Extract, summarize, translate"
-inputs = { document = "Document" }
-output = "FrenchSummary"
+[pipe.process_invoice]
+type        = "PipeSequence"
+description = "Extract then analyze"
+inputs      = { document = "Document" }
+output      = "InvoiceData"
 steps = [
-    { pipe = "extract_text", result = "extracted" },
-    { pipe = "summarize", result = "summary" },
-    { pipe = "translate_french", result = "french" }
+    { pipe = "extract_text", result = "pages" },
+    { pipe = "analyze_invoice", result = "invoice_data" },
 ]
 ```
 
-**Batch processing** (parallel over list):
+**Step blueprint:**
+- `pipe` — the pipe reference: bare (`extract_text`) for a pipe of this domain, domain-qualified (`finance.extract_text`) for a pipe of another domain (section 8).
+- `result` — optional: the working-memory name for this step's output, which is how a later step refers to it.
+- `nb_output` or `multiple_output` — optional, never both: how many items the step's output is expected to hold (`nb_output`, an integer), or that it holds several (`multiple_output = true`).
+- `batch_over` + `batch_as` — optional inline batch (see below). Must both be present or both absent.
+
+**Inline batch step:**
+
 ```toml
 steps = [
-    { pipe = "process_item", batch_over = "items", batch_as = "item", result = "processed" }
+    { pipe = "process_item", batch_over = "items", batch_as = "item", result = "processed" },
 ]
 ```
 
-**Naming constraint**: `batch_as` must differ from `batch_over`. Use plural for `batch_over` and singular for `batch_as` (e.g., `batch_over = "items"`, `batch_as = "item"`).
+`batch_as` (singular) MUST differ from `batch_over` (plural). `batch_over` supports dotted paths (e.g. `"search_result.sources"`).
 
-> **Critical — PipeSequence step schema**: Each step has exactly: `pipe` (required), `result` (required), and optionally `batch_over`/`batch_as`. Steps do **not** have an `inputs` field — data flows automatically through working memory. Each step can access the sequence's `inputs` plus all previous steps' `result` values by variable name.
+**Steps have NO `inputs` field.** Each step automatically sees the sequence's inputs and all earlier steps' `result` values.
 
-### PipeCondition - Conditional branching
-
-```toml
-[pipe.route_by_category]
-type = "PipeCondition"
-description = "Route based on category"
-inputs = { input_data = "CategorizedInput" }
-output = "Text"
-expression = "input_data.category"
-default_outcome = "process_medium"
-
-[pipe.route_by_category.outcomes]
-small = "process_small"
-medium = "process_medium"
-large = "process_large"
-```
-
-Use `default_outcome = "fail"` for strict matching.
-
-### PipeBatch - Map operation over a list
-
-Applies the same pipe to each item in a list. Like a `map` operation: list in, list out, each item transformed by the same pipe.
+### PipeBatch — map one pipe over each item in a list
 
 ```toml
 [pipe.process_all_documents]
-type = "PipeBatch"
-description = "Process each document in the list"
-inputs = { documents = "Document[]", context = "Context" }
-output = "Summary[]"
-input_list_name = "documents"
-input_item_name = "document"
+type             = "PipeBatch"
+description      = "Process each document in the list"
+inputs           = { documents = "Document[]", context = "Context" }
+output           = "Summary[]"
 branch_pipe_code = "summarize_document"
+input_list_name  = "documents"
+input_item_name  = "document"
 ```
 
-**Required fields:**
-- `branch_pipe_code` - The pipe to apply to each item (use simple name, no domain prefix)
-- `input_list_name` - The input list to iterate over (must be in inputs with `[]`)
-- `input_item_name` - The variable name for each item (used by the branch pipe)
+**Required:** `branch_pipe_code` (the pipe applied to each item, a pipe reference like a step's `pipe`), `input_list_name` (the input holding the list, declared with `[]`), `input_item_name` (the name each item is passed to the branch pipe under).
 
-**Naming convention and constraints**:
-- `input_list_name`: a **plural** noun (e.g., `"documents"`, `"reports"`, `"items"`)
-- `input_item_name`: the **singular** form (e.g., `"document"`, `"report"`, `"item"`)
-- `input_item_name` must NOT equal `input_list_name` (they represent different things)
-- `input_item_name` must NOT equal any key in `inputs` (it would shadow the batch input)
-- For compound names: list `"report_data"` → item `"single_report_data"`
+**Constraints:**
+- `input_item_name` MUST differ from `input_list_name`: name the list in the plural and the item in the singular (`documents` and `document`; for a compound name, `report_data` and `single_report_data`).
+- `input_item_name` MUST NOT match any other key in `inputs`.
+- For non-batched inputs (passed through to the branch), use singular types (e.g. `context = "Context"`, NOT `"Context[]"`): the branch pipe receives one item at a time, and declares singular inputs.
 
-**Multiplicity for non-batched inputs**: Use singular types for inputs passed to the branch pipe. Since the branch pipe receives individual items (not lists), non-batched inputs must match what the branch pipe declares.
+Items run in parallel, and the output list keeps the input order.
 
-```toml
-# If branch pipe declares: inputs = { item = "Item", context = "Context" }
-# Then PipeBatch should use singular for context:
-inputs = { items = "Item[]", context = "Context" }  # NOT "Context[]"
-```
+### PipeParallel — run branches concurrently
 
-Items are processed in parallel for efficiency. Output list preserves input order.
-
-### PipeParallel - Run multiple pipes concurrently
-
-Execute multiple independent pipes in parallel on the same inputs. Each branch runs in isolation with a deep copy of working memory.
-
-`PipeParallel` always combines branch results into its declared `output`.
-
-**With separate outputs** (each branch adds to working memory):
 ```toml
 [pipe.analyze_all_aspects]
-type = "PipeParallel"
-description = "Run multiple analyses in parallel"
-inputs = { document = "Document" }
-output = "Composite"
+type            = "PipeParallel"
+description     = "Run sentiment and topics analyses in parallel"
+inputs          = { document = "Document" }
+output          = "Composite"
 add_each_output = true
 branches = [
     { pipe = "analyze_sentiment", result = "sentiment" },
     { pipe = "extract_topics", result = "topics" },
-    { pipe = "generate_summary", result = "summary" }
 ]
 ```
 
-**With structured output** (branch result names match concept fields):
-```toml
-[concept.FullAnalysis]
-description = "Combined analysis results"
+**Required:** `branches`, each a sub-pipe written like a sequence step. The declared `output` is always the combined result and MUST be `Composite` or a structured concept whose field names match the branches' `result` names. Do not use `[]` or `[N]` on `output`. There is no `combined_output` field: the declared `output` is the combination.
 
-[concept.FullAnalysis.structure]
-sentiment = { type = "text", description = "Sentiment analysis", required = true }
-topics = { type = "text", description = "Extracted topics", required = true }
+Each branch runs on its own deep copy of working memory. `add_each_output = true` is optional and only exposes branch results individually in working memory.
 
-[pipe.analyze_all_aspects]
-type = "PipeParallel"
-description = "Run multiple analyses in parallel"
-inputs = { document = "Document" }
-output = "FullAnalysis"
-add_each_output = true
-branches = [
-    { pipe = "analyze_sentiment", result = "sentiment" },
-    { pipe = "extract_topics", result = "topics" }
-]
-```
-
-**Parameters**:
-- `branches`: Array of `{ pipe = "pipe_code", result = "result_name" }` entries
-- `output`: Must be `Composite` or a structured concept whose field names match branch `result` names. Do not use `[]` or `[N]`.
-- `add_each_output`: If `true`, also adds each branch result to working memory individually
-
-### PipeExtract - Extract text/images from Document/Image/Web Page
+### PipeCondition — route to a pipe based on an expression
 
 ```toml
-[pipe.extract_document]
-type = "PipeExtract"
-description = "Extract content from document"
-inputs = { document = "Document" }
-output = "Page[]"
-model = "@default-text-from-pdf"
+[pipe.route_by_category]
+type                       = "PipeCondition"
+description                = "Route based on category"
+inputs                     = { input_data = "CategorizedInput" }
+output                     = "Text"
+expression_template        = "{{ input_data.category }}"
+default_outcome            = "process_medium"
+
+[pipe.route_by_category.outcomes]
+small  = "process_small"
+medium = "process_medium"
+large  = "process_large"
 ```
 
-```toml
-[pipe.extract_web_page]
-type = "PipeExtract"
-description = "Extract content from web page"
-inputs = { web_page = "Document" }
-output = "Page[]"
-model = "@default-extract-web-page"
-```
+**Required:** `expression_template` (Jinja2) or `expression` (bare value) — exactly one. Plus `outcomes` and `default_outcome`.
 
-Output is `Page[]` (a list of pages with `text_and_images` and `page_view`).
+`default_outcome`, like each value of `outcomes`, accepts a pipe reference OR the special values `"fail"` (abort) or `"continue"` (pass-through, no sub-pipe).
 
-> **Note**: Use `Document` for PDFs, other document formats, and web page URLs. For web pages, use `@default-extract-web-page` as the model. `Image` for images. "PDF" and "URL" are formats, not native concepts.
+**`"continue"` leaves the output absent**, so a condition that can reach it, as its `default_outcome` or as an outcome, MUST declare its output optional with `?` (`output = "Text?"`). Validation rejects it otherwise.
 
-### PipeCompose - Template composition
+> **Always set `default_outcome`**, even when outcomes appear exhaustive (e.g. yes/no). Validation rejects pipes without one.
+
+### PipeCompose — template or construct output
+
+**Template mode** (produces text):
 
 ```toml
 [pipe.compose_email]
-type = "PipeCompose"
-description = "Compose email from template"
-inputs = { customer = "Customer", deal = "Deal" }
-output = "Text"
+type        = "PipeCompose"
+description = "Compose an email body"
+inputs      = { customer = "Customer", deal = "Deal" }
+output      = "Text"
 template = """
 Hi $customer.name,
 
-Following up on $deal.product_name...
+Following up on $deal.product_name:
 
 @deal.details
 """
 ```
 
-**Construct mode** (build structured objects):
-```toml
-[pipe.build_invoice]
-type = "PipeCompose"
-inputs = { order = "Order", customer = "Customer" }
-output = "Invoice"
+**Template table form:** `template` may be a table instead of a string, carrying `template` and `category`, and optionally `templating_style` and `extra_context`. That table is where a category is set, never a field of the pipe:
 
-[pipe.build_invoice.construct]
-invoice_number = { template = "INV-$order.id" }
-customer_name = { from = "customer.name" }
-total = { from = "order.total" }
+```toml
+[pipe.render_report]
+type        = "PipeCompose"
+description = "Render the report as Markdown"
+inputs      = { report = "Report" }
+output      = "Text"
+
+[pipe.render_report.template]
+category = "markdown"
+template = """
+# $report.title
+
+@report.body
+"""
 ```
 
-#### Template Shorthand Syntax
-
-| Shorthand | Jinja2 Expansion | Use |
-|-----------|-----------------|-----|
-| `$variable` | `{{ variable|format() }}` | Inline substitution within a sentence |
-| `@variable` | `{{ variable|tag("variable") }}` | Block insertion as a standalone tagged block |
-| `@?variable` | `{% if variable %}{{ variable|tag("variable") }}{% endif %}` | Conditional — renders only if truthy |
-
-- Dotted paths: `$user.name`, `@doc.summary`, `@?extra.notes`
-- Dollar amounts (`$100`) are NOT matched — must start with a letter/underscore
-- Trailing dots treated as punctuation: `$amount.` → `{{ amount|format() }}.`
-- Raw Jinja2 (`{{ }}`, `{% %}`) always available alongside shorthands
-
-#### Template Categories
-
-| Category | Use When | Key Filters |
+| Category | Use when | Key filters |
 |----------|----------|-------------|
-| `basic` | General-purpose text | `format`, `tag` |
+| `basic` | General-purpose text; a string `template` is `basic` | `format`, `tag` |
 | `expression` | Simple expressions | *(none)* |
 | `html` | Web content (autoescaped) | `format`, `tag`, `escape_script_tag` |
 | `markdown` | Markdown output | `format`, `tag`, `escape_script_tag` |
@@ -340,265 +398,291 @@ total = { from = "order.total" }
 | `llm_prompt` | LLM prompt composition | `format`, `tag`, `with_images` |
 | `img_gen_prompt` | Image generation prompts | `format`, `tag`, `with_images` |
 
-#### Template vs Construct Mode
+**Construct mode** (assembles a structured concept field-by-field):
 
-| | Template Mode | Construct Mode |
-|---|---|---|
-| **Use when** | Producing text output (prompts, reports, emails) | Building structured objects field-by-field |
-| **Output type** | Typically `Text`, `Html`, or similar | Structured concepts with fields |
-| **Syntax** | Jinja2 template with `$`/`@`/`@?` shorthand | `{ from = "..." }`, `{ template = "..." }`, or literals |
-| **Category** | Set via `category` field | N/A |
-
-**Construct field methods:**
-| Method | Syntax | Use case |
-|--------|--------|----------|
-| `template` | `{ template = "text $var" }` | String interpolation |
-| `from` | `{ from = "input.field" }` | Reference a whole input or a nested field |
-| Direct value | `"string"` or `123` or `[...]` | Static/fixed values |
-
-`from` also accepts a whole input variable, not just a dotted path: a whole native stuff copied into a native-typed field converts to the native value automatically — `Text` → `text`, `Number` → `number` or `integer`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same (`Text[]` → `list` of `text`) — for required and optional fields alike. One guard: a `Date` carrying a time of day will not collapse into a bare `date` field, since that would drop the time and its UTC offset. Either keep the whole value by typing the target field as the native concept — `{ type = "concept", concept_ref = "native.Date" }` — or take the part you want by dotted path (`{ from = "deadline.date" }`, `{ from = "deadline.time" }`). A `datetime` field is not the way out: no native concept converts into one.
-
-**Static values in construct** - assign directly without wrapping:
 ```toml
-[pipe.build_config.construct]
-name = { template = "$input.name Config" }    # Dynamic from input
-source = { from = "input.source" }            # Reference input field
-version = "1.0"                               # Static string
-count = 5                                     # Static number
-tags = ["tag1", "tag2", "tag3"]               # Static list
-enabled = true                                # Static boolean
+[pipe.build_invoice]
+type        = "PipeCompose"
+description = "Assemble an Invoice from order data"
+inputs      = { order = "Order", customer = "Customer" }
+output      = "Invoice"
+
+[pipe.build_invoice.construct]
+invoice_number = { template = "INV-$order.id" }
+customer_name  = { from = "customer.name" }
+total          = { from = "order.total" }
+status         = "pending"     # literal
+tags           = ["urgent"]    # literal list
 ```
 
-**Common mistake:** Do NOT use `{ value = [...] }` - just assign the value directly.
+Each construct field is one of:
+- `{ from = "input.path" }` — variable reference: a whole input variable or a dotted path into it.
+- `{ template = "..." }` — Jinja2 template string with shorthands.
+- A literal value (string, number, boolean, list), assigned directly and never wrapped in `{ value = ... }`.
 
-### PipeImgGen - Generate images
+**Output** in construct mode MUST be a single concept (no `[]` or `[N]`).
+
+**Copying whole inputs into native fields:** `from` is not limited to dotted paths — it can name a whole input variable. When that input is a native stuff and the target field is native-typed, the composer converts the value automatically — `Text` → `text`, `Number` → `number` or `integer`, `YesNo` → `boolean`, `Date` → `date`, `Time` → `time`, and lists of them into a `list` of the same — for required and optional fields alike:
+
+```toml
+[concept.ScreeningReport]
+description = "The final screening report"
+
+[concept.ScreeningReport.structure]
+match_score         = { type = "number", description = "The match score", required = true }
+rejection_email     = { type = "text", description = "The rejection email, if any" }
+interview_questions = { type = "list", item_type = "text", description = "Questions to ask, if any" }
+
+[pipe.assemble_report]
+type        = "PipeCompose"
+description = "Assemble the screening report from previously generated pieces"
+inputs      = { score = "Number", email = "Text", questions = "Text[]" }
+output      = "ScreeningReport"
+
+[pipe.assemble_report.construct]
+match_score         = { from = "score" }      # whole Number stuff → required number field
+rejection_email     = { from = "email" }      # whole Text stuff → optional text field
+interview_questions = { from = "questions" }  # whole Text[] stuff → optional list of text
+```
+
+When the target field expects a content object (a concept-typed field), the object is kept as-is — the conversion fires only when the field expects the native type.
+
+One guard: a `Date` carrying a time of day does not collapse into a `date` field, since that would drop the time and its UTC offset. Either keep the whole value by typing the target field as the native concept — `{ type = "concept", concept_ref = "native.Date" }` — or take the part you want by dotted path (`{ from = "deadline.date" }`, `{ from = "deadline.time" }`). A `datetime` field is not the way out: no native concept converts into one.
+
+### PipeExtract — extract pages from a Document or Image
+
+**The default extraction models read a PDF or an image**, and a web page needs the web-page model, as below. A Word, Excel or PowerPoint file passes validation, then fails the run at this step with an extraction error. When the user's files are Office documents, say so at the contract and design for the PDF they export from them (Word's *Save as PDF*, or `soffice --headless --convert-to pdf` where LibreOffice is installed): the input stays a `Document`, its description says PDF, and the test inputs are PDFs too.
+
+```toml
+[pipe.extract_document]
+type        = "PipeExtract"
+description = "Extract content from a document"
+inputs      = { document = "Document" }
+output      = "Page[]"
+# model               = "@default-text-from-pdf"  # optional
+# page_views          = true                      # optional, PDFs only: fills each Page's page_view
+# page_views_dpi      = 150                       # optional, with page_views
+# max_page_images     = 0                         # optional: 0 keeps no embedded images
+# page_image_captions = true                      # optional, caption-capable models only
+# render_js           = true                      # optional, web pages only
+# include_raw_html    = true                      # optional, web pages only
+```
+
+**Constraints:**
+- Exactly one input. Input concept SHOULD be `Document` (or refine it) or `Image`.
+- Output MUST be `"Page[]"`.
+
+**Optional fields:**
+
+| Field | What it does |
+|-------|--------------|
+| `model` | Which extraction model to use, e.g. `"@default-text-from-pdf"` or `"@default-extract-web-page"`. |
+| `page_views` | PDFs only: renders every page as an image and puts it in that `Page`'s `page_view`. **Off by default, and `page_view` stays unset without it** — a method that shows a page, or sends one to a vision model, must set `page_views = true`. On a web page, the run fails when it reaches the render, after the extraction has been paid for. |
+| `page_views_dpi` | Resolution of those renders; omitted, the runtime's `default_page_views_dpi` applies (72 unless configured otherwise). Only has an effect alongside `page_views = true`. |
+| `max_page_images` | How many of the images embedded in the pages the extraction keeps: `0` keeps none, and a positive `N` caps them — per page on some models, across the whole document on others. Omitted, the model preset's own limit applies; the default models have none, so every image is kept. |
+| `page_image_captions` | Requires a model that captions the images it pulls out: on any other, the run fails with a capability error. It does not switch captioning on — a caption-capable model returns its captions whether or not this is set — so it only guards a method that depends on captions against the wrong model. |
+| `render_js` | Web pages only: runs the page's JavaScript before reading it. The web-page model (`@default-extract-web-page`) honours it; other models ignore it or refuse the run. |
+| `include_raw_html` | Web pages only: also keeps the fetched page's raw HTML, readable as `$page.text_and_images.raw_html`. The web-page model honours it; other models ignore it or refuse the run. |
+
+**With an `Image` input**, `page_views` and `page_image_captions` cannot be turned on, and `page_views_dpi` and `max_page_images` cannot be set at all: they describe a document's pages, and validation rejects them on an image.
+
+**A web page is read only with `model = "@default-extract-web-page"`.** Its input is still a `Document`, the page's URL in the `url` field, but the default extraction model reads PDFs and images: given a web page, it fails the run at this step with `Could not identify file type of given bytes`, after validation has passed. A URL to a PDF is a PDF, which the default reads.
+
+### PipeSearch — search the web
+
+```toml
+[pipe.search_topic]
+type        = "PipeSearch"
+description = "Search the web for information on a topic"
+inputs      = { topic = "Text" }
+output      = "SearchResult"
+prompt      = "What is $topic?"
+# model           = "$standard"                # optional: "$standard" or "$deep"
+# from_date       = "2026-01-01"               # optional, YYYY-MM-DD
+# to_date         = "2026-06-30"               # optional, YYYY-MM-DD
+# include_domains = ["reuters.com", "bbc.com"] # optional: only these domains
+# exclude_domains = ["example.com"]            # optional: never these domains
+# max_results     = 5                          # optional: omitted, the provider's default
+```
+
+**Required:** `prompt`, a query template that takes `$variable` shorthands. **Output** MUST be `SearchResult` or a concept that refines `SearchResult`: an `answer` text and a `sources` list with title, URL, and snippet for each source.
+
+### PipeImgGen — generate images
 
 ```toml
 [pipe.generate_image]
-type = "PipeImgGen"
-description = "Generate image"
-inputs = { img_prompt = "Text" }
-output = "Image"
-prompt = "$img_prompt"
-model = "$gen-image"
-aspect_ratio = "landscape_16_9"
+type         = "PipeImgGen"
+description  = "Generate an image from a prompt"
+inputs       = { img_prompt = "Text" }
+output       = "Image"
+prompt       = "$img_prompt"
+# model       = "$gen-image"           # optional, e.g. "$gen-image" or "@default-premium"
+# aspect_ratio = "landscape_16_9"      # optional, model-dependent (below)
 ```
 
-**Required fields:**
-- `prompt` - Template for the text sent to the generator; must reference the input variable (e.g., `"$img_prompt"`)
+**Required:** `prompt` (even if it's just a passthrough like `"$img_prompt"`). Declared `inputs` are injected into the `prompt` template.
 
-**Optional fields:**
-- `model` - Model preset (e.g., `"$gen-image"`, `"@default-premium"`)
-- `aspect_ratio` - Output image shape (e.g., `"landscape_16_9"`); see "Aspect ratio values" below
-
-Declared `inputs` are injected into the `prompt` template: text inputs (`Text`) are interpolated via `$var`; image inputs (`Image`, or a list `Image[]`) are referenced in the prompt and injected as reference images (image-to-image / editing) — the same vision pattern as image inputs to PipeLLM:
+**Image-to-image:** declare an `Image` (or `Image[]`) input and reference it in the `prompt`:
 
 ```toml
 inputs = { ref = "Image", instruction = "Text" }
 prompt = "Apply this change to $ref: $instruction"
 ```
 
-Each referenced image is injected as an `[Image N]` token passed to the generator alongside the rendered text, bounded by the model's `max_prompt_images`.
+Each referenced image is injected as an `[Image N]` token (reference image), bounded by the model's `max_prompt_images`.
 
-**Aspect ratio values** (use enum names, not ratios):
-`square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`
+**Aspect ratio values** (enum names, not ratios): `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`, and the banner shapes `landscape_4_1`, `landscape_8_1`, `portrait_1_4`, `portrait_1_8`.
 
-Aspect-ratio support is model-dependent — only `square` works on every model. The newest models cover the full range: `gpt-image-2` supports all of them, `nano-banana-2` nearly all. Older `gpt-image-1` / `gpt-image-1.5` accept only `square`, `landscape_3_2`, and `portrait_2_3`. If you need a specific shape like `landscape_16_9` or `portrait_9_16`, choose a model that supports it rather than assuming the default does.
+Aspect-ratio support is model-dependent, and only `square` works on every model. The newest models cover nearly the full range: `gpt-image-2` supports every value but the banner shapes, and `nano-banana-2` and `nano-banana-2-lite` every value but `portrait_9_21`, so a banner shape needs one of those two. The older `gpt-image-1` and `gpt-image-1.5` accept only `square`, `landscape_3_2` and `portrait_2_3`. For a specific shape such as `landscape_16_9` or `portrait_9_16`, choose a model that supports it rather than assuming the default does.
 
-**Common mistake:** The `prompt` field is required separately from inputs - you must explicitly reference the input variable.
-
-### PipeSearch - Search the web
+### PipeFunc — call a registered Python function
 
 ```toml
-[pipe.search_topic]
-type = "PipeSearch"
-description = "Search the web for information"
-inputs = { topic = "Text" }
-output = "SearchResult"
-model = "$standard"
-prompt = "What is $topic?"
+[pipe.capitalize_text]
+type          = "PipeFunc"
+description   = "Uppercase the input text"
+inputs        = { text = "Text" }
+output        = "Text"
+function_name = "capitalize"
 ```
 
-**Required fields:**
-- `prompt` - Search query, supports `$variable` template syntax for dynamic queries
+Only use this when the user has a registered function. Otherwise prefer PipeCompose or PipeLLM.
 
-**Optional fields:**
-- `model` - Search preset (e.g., `"$standard"`, `"$deep"`)
+**`function_name` is a registry key, not an import path.** It names an entry in the runtime's flat, process-wide function registry — by default the decorated function's own name, and otherwise whatever string `@pipe_func(name=…)` was given — and resolution is a lookup with no import. So nothing in a bundle says which module defines a registered function, and a dotted name is just a key that happens to contain dots. Name the function, not a path to it.
 
-**Optional filtering fields:**
-- `from_date` - Start date filter in YYYY-MM-DD format (e.g., `"2026-01-01"`)
-- `to_date` - End date filter in YYYY-MM-DD format
-- `include_domains` - Restrict search to these domains only (e.g., `["reuters.com", "bbc.com"]`)
-- `exclude_domains` - Exclude results from these domains
-- `max_results` - Maximum number of search results to return (integer). If omitted, uses the provider's default
+The function must already be registered in the runtime that executes the method: a `function_name` naming something the runtime has not registered fails at run time, not at validation.
 
-Output must be `SearchResult` or a concept that refines `SearchResult` (contains `answer` text and `sources` list with title, URL, and snippet for each source).
+### PipeSignature — a contract-only header (forward declaration)
 
-**Example with filters:**
-```toml
-[pipe.search_recent_news]
-type            = "PipeSearch"
-description     = "Search specific sources for recent news"
-inputs          = { topic = "Text" }
-output          = "SearchResult"
-model           = "$standard"
-prompt          = "What are the latest developments about $topic?"
-from_date       = "2026-01-01"
-include_domains = ["reuters.com", "apnews.com", "bbc.com"]
-max_results     = 5
-```
-
-### PipeFunc - Custom Python functions
+A `PipeSignature` declares a pipe by its **contract only** — `description`, `inputs`, `output`, and an optional `signature_for` hint — with **no implementation**. It is the C-style *forward declaration* that top-down design relies on: commit to what a pipe takes and returns before writing how it works.
 
 ```toml
-[pipe.process_data]
-type = "PipeFunc"
-description = "Custom processing"
-inputs = { data = "InputData" }
-output = "ProcessedData"
-function_name = "my_registered_function"
+[pipe.summarize_doc]
+description   = "Produce a summary of a document (contract only)."
+inputs        = { doc = "Document" }
+output        = "Summary"
+signature_for = "PipeLLM"   # optional hint: the intended implementation type
 ```
 
-Function must be registered in `func_registry` and accept `working_memory: WorkingMemory`.
+**Rules:**
+- **No `type` field** — a pipe entry *is* a signature because it omits `type`. Writing `type = "PipeSignature"` is invalid and gets rejected at lint time; never write it.
+- **No implementation fields** — no `prompt`, `steps`, `branch_pipe_code`, `outcomes`, etc. The signature is purely the contract.
+- `inputs` and `output` are declared **explicitly**, exactly as any pipe — pipes never infer `inputs` from prompt sigils. Multiplicity (`[]`, `[N]`) works as usual.
+- `signature_for` records the *intended* next-level type. It is a **hint, not a binding contract** — the implementation may override it. It may **not** be `"PipeSignature"`. Omit it if unsure.
 
-## Prompt Variable Syntax
+**`signature_for` → operator or controller** (the next-level decision when you expand a signature):
+- **Operator (leaf)** — a single step: `PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeCompose`, `PipeFunc`. Implement it as the concrete operator, under the same code; that branch is done.
+- **Controller (composite)** — multiple steps, iteration, branching, or parallelism: `PipeSequence`, `PipeBatch`, `PipeParallel`, `PipeCondition`. Implement it as the controller, under the same code: wire its sub-pipes, and forward-declare each not-yet-built sub-pipe as its own `PipeSignature`.
 
-- `@variable` - Block insertion (multi-line, with delimiters). Put alone on its own line.
-- `$variable` - Inline insertion (short text). Use within sentences.
+**Header ↔ definition contract.** A concrete pipe satisfies a signature of the same code when their `inputs`/`output` match **by concept identity** — bare↔qualified (`Brief` ≡ `thisdomain.Brief`) and native (`Text` ≡ `native.Text`) spellings are equivalent, multiplicity compared structurally. Spelling need not be byte-identical, but both sides must declare `inputs`/`output` explicitly. A definition whose contract differs from its header is a hard error. The concrete definition supersedes the signature wherever it sits in the bundle: it may replace the header in place, or go in another file while the header stays, which is how a stepwise design proceeds. Two concrete definitions of one code are a duplicate, and an error.
 
-**Structured content is auto-expanded**: When you use `@structured_var`, Pipelex automatically formats ALL fields of the structured concept. No need to manually enumerate fields.
+**Validation and the runnable gate:** a signature is never a validation error. `mthds-agent validate bundle` passes a sound bundle that still holds signatures, and the verdict lists them under `## Pending signatures (N)` with a `⚠️ … NOT yet runnable` line: the library-wide list of pipes still declared as contract-only signatures, which is the design's todo list. `--allow-signatures` changes only how validation runs: each signature is then dry-run too, minting a mock of its declared output, while without the flag signatures are left out of the dry run and, on the pipelex runner, a bundle that is not yet runnable exits non-zero. The method is **runnable** when validation without `--allow-signatures` prints the `✅ … this method is runnable.` line. Live execution of a signature always fails (`PipeSignatureNotExecutableError`), so drain the backlog before running.
+
+## 7. Prompt Template Shorthands
+
+Applies to: `prompt` (PipeLLM, PipeImgGen, PipeSearch), `system_prompt` (PipeLLM), `template` (PipeCompose), and `{ template = "..." }` in construct fields.
+
+| Shorthand | Expands to | Use |
+|-----------|-----------|-----|
+| `$variable` | `{{ variable\|format() }}` | Inline substitution. |
+| `@variable` | `{{ variable\|tag("variable") }}` | Block insertion (put on its own line). |
+| `@?variable` | `{% if variable %}{{ variable\|tag("variable") }}{% endif %}` | Conditional block. |
+
+- Dotted paths work: `$user.name`, `@doc.summary`.
+- Dollar amounts (`$100`) and version-like strings (`@2.0`) are NOT matched — must start with a letter or underscore.
+- Trailing dots are treated as punctuation: `$amount.` → `{{ amount|format() }}.`
+- Raw Jinja2 (`{{ ... }}`, `{% ... %}`) always works alongside the shorthands.
+
+**Validation:** every variable in a prompt MUST be a declared input (root name), and every declared input MUST be referenced in the prompt at least once.
+
+**Structured inputs auto-expand:** `@theme` formats ALL fields of `theme`. Don't manually enumerate fields unless you need a specific one inline (`$theme.palette.primary`).
+
+## 8. Cross-Domain References
+
+| Item | Same domain | Another domain |
+|------|-------------|----------------|
+| Concept | `"Invoice"` | `"finance.Invoice"` |
+| Pipe (in `steps`, `branches`, `outcomes`, `default_outcome`, `branch_pipe_code`) | `"extract_text"` | `"finance.extract_text"` |
+
+Both forms are valid wherever a concept or a pipe is referenced: a bare reference resolves within the bundle's own domain, and a domain-qualified one within the named domain. A third form, `alias->domain.code`, reaches a domain of a dependency. A pipe's definition key, `[pipe.<pipe_code>]`, is always bare.
+
+When the bundle stays in one domain (the common case), use bare names everywhere.
+
+A reference to another domain resolves only when the file that defines it is loaded too, so validate with the library directory: `mthds-agent validate bundle <root>.mthds -L <bundle dir>/` loads every `.mthds` file beneath it.
+
+## 9. Formatting Rules
+
+- Keep `inputs = { ... }` on a single line.
+- Use double-quoted strings; triple-quoted `"""..."""` for multi-line prompts.
+- Put the main pipe (controller) before its sub-pipes for top-down readability.
+- Don't redeclare a native concept code.
+
+## 10. Common Mistakes to Avoid
+
+- ❌ `inputs` field on a `PipeSequence` step — steps see the sequence's inputs automatically.
+- ❌ Adjectives or circumstances in concept names (`LongArticle`, `CounterArgument`).
+- ❌ Plural concept names (`Invoices` — use `Invoice` plus multiplicity).
+- ❌ An optional field written as a bare string — the shorthand is always a required text field.
+- ❌ Omitting `prompt` on `PipeImgGen` because "the input is already a prompt" — `prompt = "$img_prompt"` is still required.
+- ❌ Omitting `default_outcome` on `PipeCondition` because outcomes "look exhaustive" — still required.
+- ❌ A `PipeCondition` that can reach `"continue"` with an output lacking `?`.
+- ❌ `PipeParallel` output that is not `Composite` or a structured concept matching branch `result` names.
+- ❌ A `combined_output` field on `PipeParallel` — there is none; the declared `output` is the combination.
+- ❌ A `category` field on a `PipeCompose` — it belongs in the `template` table.
+- ❌ Wrapping a construct literal in `{ value = ... }` — assign it directly.
+- ❌ Writing a `dict` field — outside the authoring subset.
+- ❌ Writing a `PipeStructure` — outside the authoring subset; use `PipeLLM` with a structured output concept instead.
+- ❌ `default_value` on a `concept`-typed field, or together with `required = true` — not allowed.
+- ❌ Referencing a variable in a prompt without declaring it in `inputs` — validation will fail.
+- ❌ Declaring an `input` that no prompt references — also rejected.
+- ❌ Adding implementation fields (`prompt`, `steps`, …) to a `PipeSignature` — it is contract-only.
+- ❌ Writing `type = "PipeSignature"` — a signature header has NO `type` field at all; omitting `type` is what makes it a signature.
+- ❌ `signature_for = "PipeSignature"` — must name a real implementation type, or omit it entirely.
+- ❌ A definition whose `inputs`/`output` contract differs from its header's — they must match by concept identity.
+
+## 11. End-to-End Example
 
 ```toml
-# GOOD - concise, auto-expands all fields
-prompt = """
-Based on this theme configuration, create a prompt template:
+domain      = "joke_generation"
+description = "Generating one-liner jokes from topics"
+main_pipe   = "generate_jokes_from_topics"
 
-@theme
-"""
+[concept.Topic]
+description = "A subject or theme that can be used as the basis for a joke"
+refines     = "Text"
 
-# BAD - verbose, manually listing fields (unnecessary)
-prompt = """
-Based on this theme:
-- Primary: $theme.palette.primary
-- Secondary: $theme.palette.secondary
-...
-"""
-```
+[concept.Joke]
+description = "A humorous one-liner intended to make people laugh"
+refines     = "Text"
 
-Use `$var.field` only when you need a specific field inline within a sentence.
-
-## Input Multiplicity
-
-```toml
-inputs = { doc = "Text" }        # Single item
-inputs = { docs = "Text[]" }     # Variable list
-inputs = { pair = "Image[2]" }   # Exactly 2 items
-```
-
-Nesting is not supported — `Text[][]` is invalid.
-
-## Cross-Domain References
-
-### Concepts use domain prefix
-Same domain (no prefix): `inputs = { invoice = "Invoice" }`
-Different domain (prefix required): `inputs = { invoice = "finance.Invoice" }`
-
-### Pipes use flat namespace (NO domain prefix)
-**Critical**: Pipe references in `branch_pipe_code`, `pipe`, and sequence steps use simple names only. All pipes loaded into a library share a flat namespace.
-
-```toml
-# WRONG - will fail validation
-branch_pipe_code = "pipe_design.detail_pipe_spec"
-steps = [{ pipe = "builder.design_pipe_signatures", result = "sigs" }]
-
-# CORRECT - use simple pipe names
-branch_pipe_code = "detail_pipe_spec"
-steps = [{ pipe = "design_pipe_signatures", result = "sigs" }]
-```
-
-### Validating cross-domain bundles
-When a bundle references pipes/concepts from other domains, use `--library-dir` to load all related .mthds files:
-
-```bash
-# Single file won't resolve cross-domain references
-mthds-agent validate bundle my_bundle.mthds  # May fail
-
-# Load entire directory to resolve references
-mthds-agent validate bundle my_bundle.mthds --library-dir path/to/bundles/
-```
-
-## Model Configuration
-
-**Direct model**:
-```toml
-model = { model = "gpt-4o", temperature = 0.7 }
-```
-
-**Preset** (defined in deck):
-```toml
-model = "$writing-creative"
-```
-
-## TOML Formatting Rules
-
-**Inputs must be on one line**:
-```toml
-# WRONG
-inputs = {
-    a = "A",
-    b = "B"
-}
-
-# CORRECT
-inputs = { a = "A", b = "B" }
-```
-
-## Pipe Ordering
-
-**Put controller pipes before the pipes they reference.** Place the main pipe first, then sub-pipes in execution order. This makes the method easier to read top-down.
-
-## Complete Example
-
-```toml
-domain = "document_processing"
-description = "Document processing methods"
-main_pipe = "process_invoice"
-
-[concept.InvoiceData]
-description = "Extracted invoice information"
-
-[concept.InvoiceData.structure]
-vendor = { type = "text", description = "Vendor name", required = true }
-total = { type = "number", description = "Total amount", required = true }
-items = { type = "list", item_type = "text", description = "Line items" }
-
-# Main pipe first (controller)
-[pipe.process_invoice]
-type = "PipeSequence"
-description = "Full invoice processing pipeline"
-inputs = { document = "Document" }
-output = "InvoiceData"
+[pipe.generate_jokes_from_topics]
+type        = "PipeSequence"
+description = "Generate 3 joke topics and create a joke for each"
+output      = "Joke[]"
 steps = [
-    { pipe = "extract_from_document", result = "pages" },
-    { pipe = "analyze_invoice", result = "invoice_data" }
+    { pipe = "generate_topics", result = "topics" },
+    { pipe = "batch_generate_jokes", result = "jokes" },
 ]
 
-# Then sub-pipes in execution order
-[pipe.extract_from_document]
-type = "PipeExtract"
-description = "Extract content from document"
-inputs = { document = "Document" }
-output = "Page[]"
-model = "@default-text-from-pdf"
+[pipe.generate_topics]
+type        = "PipeLLM"
+description = "Generate 3 distinct topics suitable for jokes"
+output      = "Topic[3]"
+prompt      = "Generate 3 distinct and varied topics for crafting one-liner jokes."
 
-[pipe.analyze_invoice]
-type = "PipeLLM"
-description = "Extract invoice data from text"
-inputs = { pages = "Page[]" }
-output = "InvoiceData"
-prompt = """
-Extract invoice information from these pages:
+[pipe.batch_generate_jokes]
+type             = "PipeBatch"
+description      = "Generate a joke for each topic"
+inputs           = { topics = "Topic[]" }
+output           = "Joke[]"
+branch_pipe_code = "generate_joke"
+input_list_name  = "topics"
+input_item_name  = "topic"
 
-@pages
-"""
+[pipe.generate_joke]
+type        = "PipeLLM"
+description = "Write a clever one-liner joke about the given topic"
+inputs      = { topic = "Topic" }
+output      = "Joke"
+prompt      = "Write a clever one-liner joke about $topic. Be concise and witty."
 ```
