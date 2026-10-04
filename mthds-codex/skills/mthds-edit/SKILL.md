@@ -163,7 +163,7 @@ Until the environment check passes, write no `.mthds` file and do no other work:
    If errors, see [Error Handling Reference](../shared/error-handling.md) for recovery strategies by error domain. Use /mthds-fix skill for automatic error resolution.
 
 5. **Regenerate inputs if needed**:
-   - If inputs changed, run `mthds-agent inputs bundle <file>.mthds -L <bundle-dir>/`
+   - If inputs changed, run `mthds-agent inputs bundle <file>.mthds -L <bundle-dir>/ --explicit`
    - Update existing inputs.json if present
 
 6. **Present completion**:

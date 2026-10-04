@@ -93,18 +93,20 @@ The `/inputs` subdirectory is only created when there are actual data files to s
 Extract the input template from the method:
 
 ```bash
-mthds-agent inputs bundle <bundle.mthds> -L <bundle-dir>/ [--pipe specific_pipe]
+mthds-agent inputs bundle <bundle.mthds> -L <bundle-dir>/ --explicit [--pipe <domain.pipe_code>]
 ```
+
+`--explicit` wraps every input in its `{concept, content}` envelope, the shape every strategy below fills in. Without it the command prints bare values, a URL or a string, which name no concept.
 
 **Output format:**
 ```json
 {
   "success": true,
-  "pipe_code": "process_document",
+  "pipe_ref": "doc_processing.process_document",
   "inputs": {
     "document": {
       "concept": "native.Document",
-      "content": {"url": "https://mock-xxxxxxxx.invalid/..."}
+      "content": {"url": "https://mock.invalid/url"}
     },
     "context": {
       "concept": "native.Text",
@@ -132,10 +134,9 @@ Based on the heuristics above and what the user has provided, follow the appropr
 The fastest path. Produces a placeholder `inputs.json` that the user can fill in manually.
 
 1. Take the `inputs` object from Step 2's output
-2. For `url` fields, replace the mock URLs (e.g., `https://mock-xxxxxxxx.invalid/...`) with descriptive placeholders that explicitly tell the path resolution is relative to inputs.json, e.g:
+2. For `url` fields, replace the mock URLs (`https://mock.invalid/...`) with descriptive placeholders that explicitly tell the path resolution is relative to inputs.json, e.g:
   good: `<VARNAME-url-or-path-relative-to-this-inputs-file>` ✅ do this
   bad:  `<path-to-VARNAME>` ❌ don't do that
-This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
 This placeholder means "replace with either a real URL, an absolute path, or a path relative to the saved `inputs.json` file itself," not relative to the current working directory.
 3. Save it to `<output_dir>/inputs.json` (next to `bundle.mthds`)
 4. Report the saved file path and show the template content
@@ -850,7 +851,7 @@ mthds-agent run bundle <bundle-dir>/
 **Method**: Haiku pipeline expecting `theme: Text`
 
 ```bash
-mthds-agent inputs bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
+mthds-agent inputs bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/ --explicit
 ```
 
 Save the `inputs` from the output directly to `mthds-wip/pipeline_01/inputs.json`.
