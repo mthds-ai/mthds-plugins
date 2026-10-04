@@ -226,7 +226,7 @@ Summarize the following document:
 
 ### Model references
 
-Every pipe with a `model` field (`PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`) takes a reference of one of four kinds, told apart by its sigil:
+Every pipe with a `model` field (`PipeLLM`, `PipeExtract`, `PipeSearch`, `PipeImgGen`, `PipeJudge`) takes a reference of one of four kinds, told apart by its sigil:
 
 | Kind | Sigil | Example | What it names |
 |---|---|---|---|
@@ -241,7 +241,9 @@ On a `PipeLLM`, `model` may instead be an inline table of settings, whose `tempe
 
 **A pipe whose input the default model cannot read names the model that can**, whether or not the user asked: a `PipeExtract` over a web page sets `model = "@default-extract-web-page"`, as its section says. Validation cannot see this one either, since it never knows what a `Document` will hold.
 
-**Look a reference up before writing it.** `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves, by category: `llm` for a `PipeLLM`, `extract` for a `PipeExtract`, `img_gen` for a `PipeImgGen` and `search` for a `PipeSearch`. It works on both runners and spends no credit. On the pipelex runner, `mthds-agent check-model '<reference>' --type <category>` checks one reference: quote it in single quotes, since the shell would expand a `$` preset inside double quotes to nothing. On the API runner `check-model` refuses, so find the reference in the listing instead.
+**A `PipeJudge` always names its model**, whether or not the user asked, since no default judgment model is served.
+
+**Look a reference up before writing it.** `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves, by category: `llm` for a `PipeLLM`, `extract` for a `PipeExtract`, `img_gen` for a `PipeImgGen`, `search` for a `PipeSearch` and `judgment` for a `PipeJudge`. It works on both runners and spends no credit. On the pipelex runner, `mthds-agent check-model '<reference>' --type <category>` checks one reference against the pipe's category alone: quote it in single quotes, since the shell would expand a `$` preset inside double quotes to nothing. On the API runner `check-model` refuses, so find the reference in the listing instead.
 
 - **A kind of behaviour**: list the pipe's category and write the preset whose name fits it, saying which one you chose.
 - **A model or a reference the user typed**: check it, or find it in the listing on the API runner, and act on the first of these that fits. When it is valid, write it. When a note says the same name exists under another sigil (`best-claude` exists as `@best-claude`), write that one and say so. When it is not valid and suggestions follow, offer them and write only what the user picks. A handle the listing does not name may still be served: write it only as a pipe's `model` string, where `mthds-agent validate bundle` checks it against every model the runner serves.

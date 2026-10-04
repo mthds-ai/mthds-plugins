@@ -110,7 +110,7 @@ Modify existing MTHDS method bundles.
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
-- [Model references](../shared/mthds-reference.md#model-references) — read before setting or changing a pipe's `model`. The field is optional: omit it to use the default
+- [Model references](../shared/mthds-reference.md#model-references) — read before setting or changing a pipe's `model`. The field is optional, except on a `PipeJudge`, which always names one: omit it to use the default
 
 ---
 
