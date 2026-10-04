@@ -33,7 +33,7 @@ Verified against `mthds-agent 0.9.0` → editable `_recursive` pipelex (2026-06-
 | `validate bundle` | **markdown** (`# Validation passed`, a `✅ … runnable` / `⚠️ … NOT yet runnable` verdict, `## Pending signatures (N)`) | **markdown** (`# Error: …`, `- **error_domain:** …`) | Same with or without `--allow-signatures`. **Not** JSON. `--format json` success envelope adds `is_runnable` (= `pending_signatures` empty) alongside `pending_signatures`. Verdict / `is_runnable` only on `validate bundle` (incl. `--pipe`), not `validate all` / `validate pipe`. |
 | `inputs bundle` | **JSON** (`{ "success": true, "inputs": {…} }`) | (untested) | Output is structured data (a schema/template), so JSON is the natural form for any consumer. |
 | `run bundle` | **JSON** (compact concept output; `--with-memory` → full envelope) | (untested — assume markdown, same pipelex two-stream) | stdout is the method *result* (data), not prose. |
-| `concept` / `pipe` | **raw TOML** | JSON on stderr (per guide) | Agent splices the TOML into the bundle. |
+| `concept` / `pipe` | — | — | Removed from `mthds-agent` in 0.30.0, on both runners; see B7. |
 | `models` / `check-model` | **markdown** | — | Human/LLM-readable lists. |
 | `doctor` | **markdown** (supports `--format json`) | — | session-start hook overrides to `--format json`. |
 | `bootstrap` / `update-check` / `mthds-env-check` | **status tokens** (`BOOTSTRAP_*`, `UP_TO_DATE …`, `MTHDS_AGENT_OUTDATED …`) | — | Bespoke line protocol, neither JSON nor markdown. |
@@ -96,13 +96,13 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 
 #### B5 — `inputs bundle` · `mthds-design`, `mthds-edit`, `mthds-run`, `mthds-inputs`
 - Default JSON stdout. The LLM shows the input schema/template to the user (and `/mthds-inputs` consumes it). **Verdict: ✓ ACCEPTABLE** — this is *structured data*, not an error or explanation; JSON is the natural shape for a schema regardless of consumer. (Not a "format follows consumer" case.)
-- Every call passes `--explicit`, the template's other axis: without it the command prints light values (a bare URL, a bare string), while the strategies of `/mthds-inputs` fill in the `{concept, content}` envelope. The API runner honours the flag only from the mthds release that projects the template from `/v1/pipe-io` (mthds-js#141); before it, the flag was dropped on that arm (L-260830-659d48).
+- Every call passes `--explicit`, the template's other axis: without it the command prints light values (a bare URL, a bare string), while the strategies of `/mthds-inputs` fill in the `{concept, content}` envelope. The API runner honours the flag from `mthds-agent` 0.30.0, which projects the template from `/v1/pipe-io` and is the plugin's floor; 0.29.0 dropped it on that arm (L-260830-659d48).
 
 #### B6 — `run bundle` · `mthds-run`, `mthds-design`, `mthds-edit`, `mthds-explain`, `mthds-inputs`
 - Default compact concept JSON stdout = the method *result* (data the LLM displays / pipes via `--with-memory`). Errors: default (assume markdown). **Verdict: ✓ ACCEPTABLE** for stdout (data). *Open:* nobody parses `run` errors programmatically today, so markdown-default errors are fine; revisit only if a software consumer of `run` errors appears.
 
-#### B7 — `concept` / `pipe` · no skill (retired 2026-10-03)
-- No skill calls them since `mthds-design` replaced `mthds-build` (L-261003-d2e739): the design skill writes the bundle's TOML itself and `validate bundle` judges it, so nothing reaches the `/v1/build/concept` and `/v1/build/pipe-spec` routes on the API runner. L-261003-996b90 removes the commands' API-runner arms from `mthds-js`.
+#### B7 — `concept` / `pipe` · removed in `mthds-agent` 0.30.0
+- No skill calls them since `mthds-design` replaced `mthds-build` (L-261003-d2e739): the design skill writes the bundle's TOML itself and `validate bundle` judges it, so nothing reaches the `/v1/build/concept` and `/v1/build/pipe-spec` routes on the API runner. `mthds-agent` 0.30.0, the plugin's floor, deletes both commands on both runners (L-261003-996b90), and calling either fails as an unknown command.
 
 #### B8 — `models` / `check-model` · the language reference's model section (`shared/mthds-reference.md`), read by `mthds-design` and `mthds-edit`
 - Markdown stdout. LLM reads. `check-model` refuses on the API runner, so the reference has the agent find a reference in the `models` listing there. **Verdict: ✓ CORRECT.**
