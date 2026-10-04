@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **The inputs template's shape**: `mthds-inputs`, `mthds-run`, `mthds-edit` and `mthds-design` now run `mthds-agent inputs bundle` with `--explicit`, so the template they fill in keeps each input's `{concept, content}` envelope, as their documentation always showed, instead of the bare values the command prints by default. The documented output now names the pipe `pipe_ref` and shows the template's mock URLs under `https://mock.invalid/`, which `mthds-run`'s readiness check also counts as placeholders.
+- **The inputs template's shape**: `mthds-inputs`, `mthds-run`, `mthds-edit` and `mthds-design` now run `mthds-agent inputs bundle` with `--explicit`, so the template they fill in keeps each input's `{concept, content}` envelope, as their documentation always showed, instead of the bare values the command prints by default. On the API runner the flag takes effect from the first `mthds-agent` release after 0.29.0, which is the first to honour it there. The documented template shows its mock URLs under `https://mock.invalid/`, which `mthds-run`'s readiness check also counts as placeholders.
 
 ### Removed
 
