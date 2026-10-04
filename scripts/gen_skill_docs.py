@@ -452,6 +452,24 @@ def reference_copy_mismatches(base_dir: Path, output_dir: Path, skill_names: lis
     return findings
 
 
+def orphan_skill_directories(base_dir: Path, output_skills_dir: Path, skill_names: list[str]) -> list[str]:
+    """The freshness findings for every directory under a target's skills/ that no skill renders.
+
+    A directory that still holds a SKILL.md is reported by the SKILL.md orphan check, so this
+    covers the rest, such as a retired skill left with only its references/ copy: the build
+    removes both, and both keep shipping until it runs.
+    """
+    findings: list[str] = []
+    if not output_skills_dir.is_dir():
+        return findings
+    for skill_output in sorted(output_skills_dir.iterdir()):
+        if not skill_output.is_dir() or skill_output.name == SHARED_SKILL_DIR or skill_output.name in skill_names:
+            continue
+        if not (skill_output / "SKILL.md").is_file():
+            findings.append(f"  ORPHAN: {skill_output.relative_to(base_dir)}/ (no skill renders it: `make build` removes it)")
+    return findings
+
+
 def build_target(base_dir: Path, config: TargetConfig, *, dry_run: bool = False) -> BuildResult:
     """Build a single target: render templates, set up output directory.
 
@@ -618,6 +636,7 @@ def check_freshness(base_dir: Path, target_name: str = "prod") -> int:
         if not config.is_root:
             rendered_skill_names = sorted(path.name for path in rendered_skill_parents if path.parent == output_skills_dir)
             all_stale.extend(reference_copy_mismatches(base_dir, output_dir, rendered_skill_names))
+            all_stale.extend(orphan_skill_directories(base_dir, output_skills_dir, rendered_skill_names))
 
         # Detect leaked .j2 files in output directories (should only be in templates/)
         if output_skills_dir.is_dir():

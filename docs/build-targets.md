@@ -113,7 +113,7 @@ mthds/                         (prod target)
 
 Only `bin/` and `references/` are copied as they are — everything else is rendered per-target with that target's variables. They are copies rather than symlinks because a marketplace install that copies one plugin directory cannot follow a link to its siblings.
 
-**The build owns these directories.** A skill directory no template renders any more, or a `references/` copy whose source is gone, is removed by the next `make build`, so retiring or renaming a skill is one gesture whose deletions show in the same diff. `make check` reports a `references/` copy that is missing, stale or orphaned, and a `SKILL.md` no template renders, each cured by `make build`.
+**The build owns these directories.** A skill directory no template renders any more, or a `references/` copy whose source is gone, is removed by the next `make build`, so retiring or renaming a skill is one gesture whose deletions show in the same diff. `make check` reports a `references/` copy that is missing, stale or orphaned, and a skill directory no template renders, whether or not it still holds a `SKILL.md`, each cured by `make build`.
 
 ## Per-target skill overlays
 

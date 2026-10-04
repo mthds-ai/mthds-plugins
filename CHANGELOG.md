@@ -16,7 +16,7 @@
 ### Fixed
 
 - **Wrong statements in the MTHDS language reference and the agent guide**: a bare-string structure field is a required text field, not an optional one; a domain-qualified pipe reference such as `finance.extract_text` is valid, not a validation failure; validation without `--allow-signatures` passes a bundle that still holds signatures and marks it not runnable, rather than rejecting it; a field with `choices` omits `type` and holds one of the listed strings, so the example that gave such a field `type = "number"` is gone; the agent guide shows the not-yet-runnable verdict above the `## Pending signatures (N)` heading, the order pipelex prints them in; and the `check-model` example no longer puts a `$` preset in double quotes, which the shell expanded to nothing. The reference also documents the `datetime` and `time` field types and list defaults, which the standard allows, and the four banner aspect ratios `landscape_4_1`, `landscape_8_1`, `portrait_1_4` and `portrait_1_8`.
-- **Retired files kept shipping in the built plugins**: the build now removes a skill directory or a `references/` copy that nothing produces any more, and `make check` reports a missing, stale or orphaned `references/` copy.
+- **Retired files kept shipping in the built plugins**: the build now removes a skill directory or a `references/` copy that nothing produces any more, and `make check` reports a missing, stale or orphaned `references/` copy, and a skill directory nothing renders, even one left without its `SKILL.md`.
 
 ### Removed
 
