@@ -37,7 +37,7 @@ The skills work the same in both agents: `/skill-name` in Claude Code, `$skill-n
 | Skill | What it does |
 |:------|:-------------|
 | `mthds-upgrade` | Upgrade the MTHDS stack to its latest version |
-| `mthds-build` | Build a new method bundle from scratch |
+| `mthds-design` | Design a new method bundle: contract first, written directly or step by step, validated until it runs |
 | `mthds-check` | Validate a bundle, without changing it |
 | `mthds-edit` | Modify an existing bundle |
 | `mthds-explain` | Explain and document a method |
@@ -49,7 +49,6 @@ The skills work the same in both agents: `/skill-name` in Claude Code, `$skill-n
 | `mthds-pkg` | Manage MTHDS packages: init, dependencies, lock |
 | `mthds-publish` | Publish methods to mthds.sh |
 | `mthds-share` | Share methods on social media |
-| `mthds-recursive` | Write a complete bundle directly, in a single pass |
 
 ## Automatic validation
 

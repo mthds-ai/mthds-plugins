@@ -1,6 +1,6 @@
 [plugin]
 name = "mthds-dev"
-version = "0.15.2"
+version = "0.16.0"
 description = "Development build of MTHDS skills — for iteration and testing."
 source = "mthds-dev/"
 
@@ -24,4 +24,4 @@ plxt_install_cmd = "rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.t
 plxt_upgrade_cmd = "rm -rf /tmp/vscode-pipelex-build /tmp/vscode-pipelex-build.tar && mkdir -p /tmp/vscode-pipelex-build && tar -C /workspace/vscode-pipelex --exclude=./target --exclude=./.venv --exclude=./.git --exclude=./node_modules -cf /tmp/vscode-pipelex-build.tar . && tar -C /tmp/vscode-pipelex-build -xf /tmp/vscode-pipelex-build.tar && rm -f /tmp/vscode-pipelex-build.tar && uv tool install --upgrade /tmp/vscode-pipelex-build/"
 
 # [skills]
-# include = ["mthds-build", "mthds-check"]  # build only a subset
+# include = ["mthds-design", "mthds-check"]  # build only a subset

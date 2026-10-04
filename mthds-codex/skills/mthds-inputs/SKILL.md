@@ -1,7 +1,7 @@
 ---
 name: mthds-inputs
 description: Prepare inputs for MTHDS methods. Use when user says "prepare inputs", "create inputs", "use my files", "generate test data", "template", "synthesize inputs", "mock inputs", "I have a PDF/image/document to use", "make sample data", or wants to create inputs.json for running a .mthds pipeline. Handles user-provided files, synthetic data generation, placeholder templates, and mixed approaches. Defaults to automatic mode.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 
 ---
 
@@ -51,7 +51,7 @@ Prepare input data for running MTHDS method bundles. This skill is the single en
 | User provides file paths, folder paths, or mentions "my data" / "this file" / "use these images" / "here's my PDF" | **User Data** (or Mixed if some inputs remain unfilled) |
 | User says "test data" / "generate inputs" / "synthesize" / "fake data" / "sample data" | **Synthetic** |
 | User says "template" / "schema" / "placeholder" / "what inputs does it need?" | **Template** |
-| No clear signal (e.g., called after `/mthds-build` with no further context) | **Template**, then offer to populate |
+| No clear signal (e.g., called after `/mthds-design` with no further context) | **Template**, then offer to populate |
 
 **Interactive additions**: Ask about:
 - Which user files map to which inputs (when ambiguous)
@@ -81,7 +81,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.22.1" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.29.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -139,7 +139,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
+Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
@@ -461,105 +461,305 @@ Generate test documents based on the document type needed.
 
 > `reportlab` is a dependency of `pipelex` — always available, no additional installation needed.
 > For how to invoke Python, see [Python Execution Reference](../shared/python-execution.md).
+> Every word a recipe prints, labels included, and the way it writes figures sit in its content block, so a document in another language is an edit of that block alone.
 
-#### Basic PDF (Canvas API)
+#### Basic PDF (canvas)
+
+One page drawn with the canvas API, for letters, notes, notices and certificates. Coordinates are points (1/72 inch) up and right from the bottom-left corner; y is the text's baseline.
+
 ```bash
 "$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+import os
+import sys
+from pathlib import Path
 
-c = canvas.Canvas("<output_dir>/inputs/test_document.pdf", pagesize=letter)
-width, height = letter
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.utils import simpleSplit
+from reportlab.pdfgen.canvas import Canvas
 
-# Add text
-c.drawString(100, height - 100, "Hello World!")
-c.drawString(100, height - 120, "This is a PDF created with reportlab")
+OUT = "<output_dir>/inputs/test_document.pdf"
+if "<" in OUT or ">" in OUT:
+    sys.exit(f"Refusing to run: OUT still holds a placeholder: {OUT}")
+Path(OUT).parent.mkdir(parents=True, exist_ok=True)
 
-# Add a line
-c.line(100, height - 140, 400, height - 140)
-
-# Save
-c.save()
-PYEOF
-```
-
-#### Multi-Page PDF (Platypus)
-```bash
-"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet
-
-doc = SimpleDocTemplate("<output_dir>/inputs/test_report.pdf", pagesize=letter)
-styles = getSampleStyleSheet()
-story = []
-
-# Add content
-title = Paragraph("Report Title", styles['Title'])
-story.append(title)
-story.append(Spacer(1, 12))
-
-body = Paragraph("This is the body of the report. " * 20, styles['Normal'])
-story.append(body)
-story.append(PageBreak())
-
-# Page 2
-story.append(Paragraph("Page 2", styles['Heading1']))
-story.append(Paragraph("Content for page 2", styles['Normal']))
-
-# Build PDF
-doc.build(story)
-PYEOF
-```
-
-#### Professional Reports with Tables
-```bash
-"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-
-# Sample data
-data = [
-    ['Product', 'Q1', 'Q2', 'Q3', 'Q4'],
-    ['Widgets', '120', '135', '142', '158'],
-    ['Gadgets', '85', '92', '98', '105']
+# ==== CONTENT: all printed text; edit only this block ====
+# Built-in fonts: characters outside Latin-1 print as black boxes.
+PAGE_SIZE = letter  # or A4
+CLINIC = "Wrenfield Veterinary Clinic"
+ADDRESS = ["214 Sorrel Street, Aldenmoor Springs", "Tel. 555-0147"]
+DATE = "October 6, 2026"
+RECIPIENT = ["Ms. Dana Whitlock", "88 Quarry Hill Road", "Aldenmoor Springs"]
+SUBJECT = "Vaccination reminder for Biscuit (patient WVC-30412)"
+BODY = [
+    "Dear Ms. Whitlock,",
+    "Biscuit is due for her yearly rabies and DHPP boosters. We have booked her in with Dr. Pascoe on "
+    "Thursday, October 22, 2026, at 10:15 a.m. Please bring her vaccination card.",
+    "If this time does not suit you, call us at least a day ahead.",
+    "Kind regards,",
 ]
+SIGNER = "Dr. Imogen Pascoe, DVM"
+# ==== END CONTENT ====
 
-# Create PDF with table
-doc = SimpleDocTemplate("<output_dir>/inputs/test_report.pdf")
-elements = []
+MARGIN = 72
 
-# Add title
-styles = getSampleStyleSheet()
-title = Paragraph("Quarterly Sales Report", styles['Title'])
-elements.append(title)
 
-# Add table with advanced styling
-table = Table(data)
-table.setStyle(TableStyle([
-    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-    ('FONTSIZE', (0, 0), (-1, 0), 14),
-    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-    ('GRID', (0, 0), (-1, -1), 1, colors.black)
-]))
-elements.append(table)
+def render(path):
+    width, height = PAGE_SIZE
+    room = width - 2 * MARGIN
+    y = height - MARGIN
+    # invariant=1: byte-identical reruns.
+    c = Canvas(path, pagesize=PAGE_SIZE, invariant=1)
+    c.setTitle(SUBJECT)
 
-doc.build(elements)
+    def put(text, font="Helvetica", size=11, right=False):
+        # The canvas never wraps, clips or adds pages: overflow would vanish silently.
+        nonlocal y
+        if c.stringWidth(text, font, size) > room or y < MARGIN:
+            raise ValueError(f"Does not fit the page; shorten it or use Platypus: {text!r}")
+        c.setFont(font, size)
+        if right:
+            c.drawRightString(width - MARGIN, y, text)
+        else:
+            c.drawString(MARGIN, y, text)
+        y -= size * 1.4  # the step grows with the font, or big lines touch
+
+    put(CLINIC, "Helvetica-Bold", 20)
+    for line in ADDRESS:
+        put(line, size=9)
+    c.line(MARGIN, y, width - MARGIN, y)
+    y -= 36
+    put(DATE, right=True)
+    y -= 15
+    for line in RECIPIENT:
+        put(line)
+    y -= 15
+    put(SUBJECT, "Helvetica-Bold")
+    y -= 10
+    for paragraph in BODY:
+        for line in simpleSplit(paragraph, "Helvetica", 11, room):
+            put(line)
+        y -= 8
+    y -= 22
+    put(SIGNER, "Helvetica-Bold")
+    put(CLINIC)
+    c.save()
+
+
+PART = str(Path(OUT).with_name(f".{Path(OUT).stem}.part{Path(OUT).suffix}"))
+try:
+    render(PART)
+    os.replace(PART, OUT)
+finally:
+    Path(PART).unlink(missing_ok=True)
+print(f"wrote {OUT}")
 PYEOF
 ```
 
-**Last resort** — use a public test PDF URL:
-```json
-{
-  "url": "https://www.w3.org/WAI/WCAG21/Techniques/pdf/img/table-word.pdf",
-  "mime_type": "application/pdf"
-}
+The canvas never wraps, so the script wraps paragraphs and fails rather than let text run off the page; real paragraph wrapping belongs in Platypus. `PAGE_SIZE = A4` gives A4.
+
+#### Multi-page PDF (Platypus)
+
+Headings and paragraphs that Platypus flows over numbered pages, for reports, policies, contracts and manuals; the title is also the PDF's title metadata.
+
+```bash
+"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
+import os
+import sys
+from pathlib import Path
+from xml.sax.saxutils import escape
+
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate
+
+OUT = "<output_dir>/inputs/test_report.pdf"
+if "<" in OUT or ">" in OUT:
+    sys.exit(f"Refusing to run: OUT still holds a placeholder: {OUT}")
+Path(OUT).parent.mkdir(parents=True, exist_ok=True)
+
+# ==== CONTENT: all printed text; edit only this block ====
+# Built-in fonts: characters outside Latin-1 print as black boxes.
+PAGE_SIZE = letter  # or A4
+SECTIONS_START_ON_NEW_PAGE = False
+TITLE = "Building Condition Inspection Report"
+DETAILS = [("Property", "Corran Quay Residences, 40 Tidewater Lane, Port Aldery"),
+           ("Prepared for", "Corran Quay Owners' Association"),
+           ("Inspected", "September 14, 2026, by Priya Ostrander, Halvard & Moss Building Surveyors")]
+REFERENCE, PAGE_LABEL = "HM-2026-0388", "Page"
+# Items are paragraphs or (subheading, paragraph) pairs.
+SECTIONS = [
+    ("Overview", [
+        "We visually inspected the roof, elevations, garage and common parts of this block of 24 "
+        "apartments, built in 1988.",
+        "The building is in fair condition. The most serious findings are water entering at the north-east "
+        "parapet and corroded railing brackets on six south balconies, which should not be used until an engineer "
+        "has assessed them.",
+    ]),
+    ("Findings by area", [
+        ("Roof and drainage: Fair", "The membrane has blistered near the north-east corner, where the parapet "
+         "coping joints have opened. Three of the five outlets were partly blocked, and the corridor ceiling "
+         "below the corner is damp."),
+        ("Elevations and balconies: Poor", "The brickwork is sound, but the railing brackets on six south "
+         "balconies are rusting where they enter the slab, and the concrete around two of them has cracked."),
+        ("Structure: Good", "There is no sign of settlement or movement."),
+        ("Fire safety: Fair", "The alarm panel showed no faults, but the third-floor fire door to the east "
+         "stairwell no longer closes on its own."),
+    ]),
+    ("Recommendations", [
+        ("Within one week", "Keep residents off the six balconies and commission a structural engineer."),
+        ("Within one month", "Repair the closer of the third-floor fire door."),
+        ("Before winter", "Repoint the parapet coping, repair the membrane, clear the outlets, then repair the "
+         "stained ceiling."),
+        ("Within a year", "Budget for renewing the roof membrane, which is near the end of its life."),
+    ]),
+]
+# ==== END CONTENT ====
+
+
+def style(name, font="Times-Roman", size=12, **extra):
+    # Leading follows size, or an enlarged font's wrapped lines touch.
+    return ParagraphStyle(name, fontName=font, fontSize=size, leading=size * 1.35, **extra)
+
+
+TITLE_STYLE = style("title", "Helvetica-Bold", 22, spaceAfter=10)
+# keepWithNext: no heading left alone at the foot of a page.
+H1 = style("h1", "Helvetica-Bold", 16, spaceBefore=14, spaceAfter=6, keepWithNext=1)
+H2 = style("h2", "Helvetica-Bold", 12.5, spaceBefore=8, spaceAfter=2, keepWithNext=1)
+BODY = style("body", spaceAfter=7)
+
+
+def para(text, style):
+    # Paragraph parses markup: an unescaped "<" or "&" raises or loses text.
+    return Paragraph(escape(text), style)
+
+
+def footer(canvas, doc):
+    canvas.setFont("Helvetica", 8.5)
+    canvas.drawString(doc.leftMargin + 6, 40, f"{TITLE}, {REFERENCE}")
+    canvas.drawRightString(doc.pagesize[0] - doc.rightMargin - 6, 40, f"{PAGE_LABEL} {canvas.getPageNumber()}")
+
+
+def render(path):
+    story = [para(TITLE, TITLE_STYLE)]
+    story += [Paragraph(f"<b>{escape(k)}:</b> {escape(v)}", BODY) for k, v in DETAILS]
+    for number, (heading, items) in enumerate(SECTIONS):
+        if number and SECTIONS_START_ON_NEW_PAGE:
+            story.append(PageBreak())
+        story.append(para(heading, H1))
+        for item in items:
+            story += [para(item[0], H2), para(item[1], BODY)] if isinstance(item, tuple) else [para(item, BODY)]
+    # invariant=1: byte-identical reruns.
+    doc = SimpleDocTemplate(path, pagesize=PAGE_SIZE, title=TITLE, invariant=1)
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
+
+
+PART = str(Path(OUT).with_name(f".{Path(OUT).stem}.part{Path(OUT).suffix}"))
+try:
+    render(PART)
+    os.replace(PART, OUT)
+finally:
+    Path(PART).unlink(missing_ok=True)
+print(f"wrote {OUT}")
+PYEOF
 ```
+
+Add items to `SECTIONS` to lengthen it. Sections flow on; `SECTIONS_START_ON_NEW_PAGE = True` gives each a new page, `PAGE_SIZE = A4` an A4 page.
+
+#### Table report (Platypus)
+
+A titled table for price lists, schedules, rosters and any other grid of text; every cell wraps.
+
+```bash
+"$(uv tool dir)/pipelex/bin/python" << 'PYEOF'
+import os
+import sys
+from pathlib import Path
+from xml.sax.saxutils import escape
+
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.pagesizes import A4, landscape, letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Table
+
+OUT = "<output_dir>/inputs/test_table.pdf"
+if "<" in OUT or ">" in OUT:
+    sys.exit(f"Refusing to run: OUT still holds a placeholder: {OUT}")
+Path(OUT).parent.mkdir(parents=True, exist_ok=True)
+
+# ==== CONTENT: all printed text; edit only this block ====
+# Built-in fonts: characters outside Latin-1 print as black boxes.
+PAGE_SIZE = letter  # or A4; landscape(letter) when the columns cannot fit
+HEADING = "Brackenwold Nursery"
+TITLE = "Autumn price list 2026"
+INFO = "Prices per plant in euros, VAT included, valid October 1 to November 30, 2026."
+COLUMNS = ["Code", "Plant", "Pot size", "Price (€)"]
+COL_WIDTHS = [58, 250, 70, 70]  # points, one per column; a word wider than its column breaks mid-word
+RIGHT_ALIGNED = ["Price (€)"]  # headers of the columns to right-align
+ROWS = [  # one value per column
+    ("BW-1102", "Acer palmatum 'Copperwick' (Japanese maple)", "10 L", "42.00"),
+    ("BW-1107", "Amelanchier lamarckii 'Harrow Mist' (snowy mespilus), multi-stemmed, 150 to 175 cm", "25 L", "68.50"),
+    ("BW-1318", "Hydrangea paniculata 'Wintermoor' (panicle hydrangea)", "7.5 L", "24.00"),
+    ("BW-1344", "Lavandula angustifolia 'Tollard Blue' (lavender), tray of six plugs for edging", "9 cm", "15.60"),
+    ("BW-1402", "Malus domestica 'Farthing Russet' (dessert apple), two-year bush", "12 L", "36.00"),
+    ("BW-1466", "Prunus laurocerasus (cherry laurel), hedging, 80 to 100 cm", "3 L", "11.25"),
+    ("BW-1611", "Taxus baccata (yew), root-balled hedging, 60 to 80 cm", "Root ball", "14.80"),
+    ("BW-1690", "Viburnum tinus 'Greyhollow' (laurustinus)", "5 L", "21.00"),
+]
+# ==== END CONTENT ====
+
+NAVY, STRIPE, RULE = HexColor("#1F3B57"), HexColor("#EDF1F5"), HexColor("#B8C3CD")
+# Cells are Paragraphs: they wrap, and ignore the table's FONT, TEXTCOLOR and ALIGN.
+CELL = ParagraphStyle("cell", fontName="Helvetica", fontSize=9, leading=11.5)
+HEAD = ParagraphStyle("head", CELL, fontName="Helvetica-Bold", textColor=white)
+TEXT = ParagraphStyle("text", CELL, fontSize=10, leading=14, spaceBefore=4)
+BIG = ParagraphStyle("big", TEXT, fontName="Helvetica-Bold", fontSize=15, leading=20, textColor=NAVY)
+GRID = [("BACKGROUND", (0, 0), (-1, 0), NAVY), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white, STRIPE]),
+        ("LINEBELOW", (0, 1), (-1, -1), 0.25, RULE), ("BOX", (0, 0), (-1, -1), 0.6, NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]
+
+
+def right(style):
+    return ParagraphStyle(style.name + "-right", style, alignment=TA_RIGHT)
+
+
+def cell(text, style):
+    # Paragraph parses markup: an unescaped "<" or "&" raises or loses text.
+    return Paragraph(escape(str(text)), style)
+
+
+def render(path):
+    # invariant=1: byte-identical reruns.
+    doc = SimpleDocTemplate(path, pagesize=PAGE_SIZE, title=TITLE, invariant=1)
+    frame = doc.width - 12  # 6 pt frame padding each side: 456 pt on Letter
+    # Platypus checks only heights: a table too wide runs off the page silently.
+    if len(COL_WIDTHS) != len(COLUMNS) or sum(COL_WIDTHS) > frame:
+        raise ValueError(f"Need {len(COLUMNS)} widths totalling at most {frame:.0f} pt")
+    if not set(RIGHT_ALIGNED) <= set(COLUMNS):
+        raise ValueError(f"RIGHT_ALIGNED names a column that COLUMNS lacks: {RIGHT_ALIGNED}")
+    head = [right(HEAD) if h in RIGHT_ALIGNED else HEAD for h in COLUMNS]
+    body = [right(CELL) if h in RIGHT_ALIGNED else CELL for h in COLUMNS]
+    rows = [[cell(h, s) for h, s in zip(COLUMNS, head)]]
+    for n, row in enumerate(ROWS, 1):
+        # reportlab pads a short row with blanks, and zip() drops extra values.
+        if len(row) != len(COLUMNS):
+            raise ValueError(f"Row {n} {row!r} has {len(row)} values for {len(COLUMNS)} columns")
+        rows.append([cell(v, s) for v, s in zip(row, body)])
+    doc.build([cell(HEADING, BIG), Paragraph(f"<b>{escape(TITLE)}</b>", TEXT), cell(INFO, TEXT),
+               Table(rows, colWidths=COL_WIDTHS, repeatRows=1, hAlign="LEFT", style=GRID, spaceBefore=10)])
+
+
+PART = str(Path(OUT).with_name(f".{Path(OUT).stem}.part{Path(OUT).suffix}"))
+try:
+    render(PART)
+    os.replace(PART, OUT)
+finally:
+    Path(PART).unlink(missing_ok=True)
+print(f"wrote {OUT}")
+PYEOF
+```
+
+A table too wide for the page runs off it silently, so the widths are checked against the 456 pt Letter frame, and a row with the wrong number of values is refused. Use `landscape(letter)` when the columns cannot fit, `A4` for A4.
 
 ### Word Documents (DOCX)
 
@@ -612,8 +812,7 @@ PYEOF
 **Fallback Strategy:**
 1. For PDFs: use `reportlab` via pipelex's Python (`"$(uv tool dir)/pipelex/bin/python"`)
 2. For DOCX/XLSX: use the `/docx` or `/xlsx` skill, or `uv run --with <package> python`
-3. For any format: use public test file URLs as fallback
-4. As last resort, ask user to provide test files
+3. As last resort, ask user to provide test files
 
 ---
 

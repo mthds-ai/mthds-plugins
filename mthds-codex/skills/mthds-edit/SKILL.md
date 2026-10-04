@@ -1,7 +1,7 @@
 ---
 name: mthds-edit
 description: Edit existing MTHDS bundles (.mthds files). Use when user says "change this pipe", "update the prompt", "rename this concept", "add a step", "remove this pipe", "modify the workflow", "modify the method", "refactor this pipeline", or wants any modification to an existing .mthds file. Supports automatic mode for clear changes and interactive mode for complex modifications.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 
 ---
 
@@ -75,7 +75,7 @@ for f in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/*/mthds/*/bin/mthds-env-che
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.22.1" --codex
+[ -n "$_best_f" ] && exec "$_best_f" "0.29.0" --codex
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -133,7 +133,7 @@ echo "MTHDS_ENV_CHECK_MISSING"
 - Any other output → WARN. The preamble produced unexpected output. Show it to the user verbatim. Proceed to Step 1 cautiously.
 
 
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
+Until the environment check passes, write no `.mthds` file and do no other work: the CLI is required for validation, formatting and execution, and without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
@@ -193,4 +193,4 @@ Do not write `.mthds` files manually, do not do any other work. The CLI is requi
 - [MTHDS Agent Guide](../shared/mthds-agent-guide.md) — read for CLI command syntax or output format details
 - [MTHDS Language Reference](../shared/mthds-reference.md) — read when writing or modifying .mthds TOML syntax
 - [Native Content Types](../shared/native-content-types.md) — read when using `$var.field` in prompts or `from` in construct blocks, to know which attributes each native concept exposes
-- [Model References](references/model-references.md) — read when setting or changing model references in a pipe. The `model` field is optional — omit it to use defaults
+- [Model references](../shared/mthds-reference.md#model-references) — read before setting or changing a pipe's `model`. The field is optional, except on a `PipeJudge`, which always names one: omit it to use the default

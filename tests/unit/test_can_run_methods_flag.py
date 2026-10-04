@@ -23,7 +23,7 @@ DEFAULTS_TOML = REPO_ROOT / "targets" / "defaults.toml"
 
 RUN_MARKER = "mthds-agent run"
 # Skills that carry "run a method" suggestions and must gate them.
-GATED_SKILLS = ["mthds-build", "mthds-edit", "mthds-inputs", "mthds-explain", "mthds-recursive"]
+GATED_SKILLS = ["mthds-design", "mthds-edit", "mthds-inputs", "mthds-explain"]
 
 
 def _default_vars() -> dict[str, object]:
@@ -42,7 +42,7 @@ def _render_doc(rel_path: str, *, can_run_methods: bool) -> str:
 
 
 # Skills that carry the "No backend setup needed → /mthds-runner-setup" pointer.
-RUNNER_SETUP_SKILLS = ["mthds-build", "mthds-check", "mthds-edit", "mthds-explain", "mthds-inputs", "mthds-fix", "mthds-recursive"]
+RUNNER_SETUP_SKILLS = ["mthds-design", "mthds-check", "mthds-edit", "mthds-explain", "mthds-inputs", "mthds-fix"]
 
 
 class TestCanRunMethodsFlag:
@@ -64,11 +64,11 @@ class TestCanRunMethodsFlag:
         assert "## Image Generation" in _render("mthds-inputs", can_run_methods=True)
         assert "## Image Generation" not in _render("mthds-inputs", can_run_methods=False)
 
-    def test_build_off_keeps_non_run_delivery(self) -> None:
-        # Gating run suggestions must not remove the rest of "Present Results".
-        off = _render("mthds-build", can_run_methods=False)
-        assert "Input schema" in off
-        assert "NEVER write `inputs.json` manually" in off
+    def test_design_off_keeps_non_run_delivery(self) -> None:
+        # Gating run suggestions must not remove the rest of the delivery step.
+        off = _render("mthds-design", can_run_methods=False)
+        assert "Project the input schema" in off
+        assert "Never write `inputs.json`." in off
 
     def test_off_strips_run_content_from_shared_guide(self) -> None:
         # The shared CLI guide must not instruct a can_run_methods=false target to

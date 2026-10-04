@@ -21,7 +21,7 @@ targets/
 └── codex.toml                 # Codex target config (version, identity)
 templates/                     # SOURCE OF TRUTH — all .j2 templates live here
 ├── skills/
-│   ├── mthds-build/SKILL.md.j2   # Jinja2 template for each skill
+│   ├── mthds-design/SKILL.md.j2  # Jinja2 template for each skill
 │   ├── mthds-check/SKILL.md.j2
 │   ├── ...
 │   └── shared/
@@ -36,23 +36,21 @@ templates/                     # SOURCE OF TRUTH — all .j2 templates live here
     ├── hooks.json.j2              # Claude PostToolUse hook config
     ├── codex-hooks.json.j2        # Codex PostToolUse hook config (plugin-bundled)
     └── validate-mthds.sh.j2       # .mthds file validator
-skills/                        # STATIC ASSETS ONLY — canonical references/, symlinked by targets
-├── mthds-build/references/    # Static skill-specific reference docs
-├── mthds-edit/references/
-└── ...
-bin/                           # Static executables, symlinked by targets
+skills/                        # STATIC ASSETS ONLY — canonical references/, copied into each target
+└── mthds-design/references/   # Static skill-specific reference docs
+bin/                           # Static executables, copied into each target
 mthds/                         # Prod plugin (generated, checked in)
 ├── .claude-plugin/plugin.json # Generated from targets/prod.toml + plugin-base.json
 ├── skills/                    # Rendered with prod variables (registry install commands)
-│   └── */references/ ->       # Symlinks to ../../skills/*/references/
+│   └── */references/          # Copies of skills/*/references/
 ├── hooks/                     # Rendered with prod variables
-└── bin/ -> ../bin             # Symlink
+└── bin/                       # Copy of bin/
 mthds-dev/                     # Dev plugin (generated, checked in)
 ├── .claude-plugin/plugin.json # Generated from targets/dev.toml + plugin-base.json
 ├── skills/                    # Rendered with dev variables (local install paths)
-│   └── */references/ ->       # Symlinks to ../../skills/*/references/
+│   └── */references/          # Copies of skills/*/references/
 ├── hooks/                     # Rendered with dev variables
-└── bin/ -> ../bin             # Symlink
+└── bin/                       # Copy of bin/
 scripts/
 ├── gen_skill_docs.py          # Template renderer (multi-target)
 └── check.py                   # Validation checks
@@ -154,7 +152,7 @@ Both Claude Code and Codex run a `PostToolUse` hook against `.mthds` files after
 
 Both hooks share the same Stage 3 decision model: BLOCK on input-domain (or missing / unknown — default to block for safety) errors with the validation report as the agent-actionable reason; emit `hookSpecificOutput.additionalContext` on config / runtime domain errors so the agent is informed without editing the file (environment issue, not a bundle issue).
 
-**`--format` vs `--error-format` (non-obvious, easy to get wrong).** `mthds-agent validate` passes through to `pipelex-agent validate`, which has **two independent** output controls: `--format markdown|json` governs the **success** envelope on **stdout**, and `--error-format markdown|json` governs the **error** report on **stderr**. The trap: `--error-format` **inherits `--format`** when omitted, so `--format json` *alone* flips **both** streams to JSON. The Claude Stage 3 classifier reads the **structured JSON verdict** — `is_valid` (and `pending_signatures`) from the success envelope on stdout, and `error_domain` / `message` / `validation_errors` from the error envelope on stderr — so it pins **`--format json --error-format json`** explicitly (both streams JSON). It also pins **`--allow-signatures`**, so an in-progress bundle whose graph still reaches `PipeSignature` headers validates leniently and rides the success envelope (with `pending_signatures`) instead of failing. This is one invocation, not two. (Canonical reference for the CLI's two-stream design: `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
+**`--format` vs `--error-format` (non-obvious, easy to get wrong).** `mthds-agent validate` passes through to `pipelex-agent validate`, which has **two independent** output controls: `--format markdown|json` governs the **success** envelope on **stdout**, and `--error-format markdown|json` governs the **error** report on **stderr**. The trap: `--error-format` **inherits `--format`** when omitted, so `--format json` *alone* flips **both** streams to JSON. The Claude Stage 3 classifier reads the **structured JSON verdict** — `is_valid` (and `pending_signatures`) from the success envelope on stdout, and `error_domain` / `message` / `validation_errors` from the error envelope on stderr — so it pins **`--format json --error-format json`** explicitly (both streams JSON). It also pins **`--allow-signatures`**, which dry-runs each `PipeSignature` header against a mock and exits 0 on a valid bundle. A signature is never a validation error, so in either mode an in-progress bundle rides the success envelope with `is_valid: true` and its `pending_signatures`; the classifier reads that field, never the exit code, which strict mode sets to 1 on the pipelex runner for a bundle that is not yet runnable. This is one invocation, not two. (Canonical reference for the CLI's two-stream design: `pipelex/cli/agent_cli/CLAUDE.md` §"Output format".)
 
 For a full audit of **every** `mthds-agent` call across the plugin (both hooks + all skills), its consumer (software vs LLM), how it exploits stdout/stderr, and whether each format choice is correct — plus the empirically-verified per-command default formats and the open findings to fix — see `docs/mthds-agent-output-audit.md` (working doc).
 

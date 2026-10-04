@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.16.0] - 2026-10-04
+
+### Added
+
+- **The `judgment` model category**: the language reference's model section lists `mthds-agent models --type judgment` with the other categories and names `PipeJudge` among the pipes whose `model` field selects a model. Because no default judgment model is served, it and `mthds-design` tell an agent that a `PipeJudge` always names its `model`. The reference also says that `check-model` checks a reference against the `--type` of the pipe's category alone.
+
+### Changed
+
+- **`mthds-design` replaces `mthds-build` (Breaking)**: the method design skill is renamed `mthds-design` and designs contract-first. It captures the method's inputs, output and meaning, writes the bundle's TOML itself — in one pass for a shallow, fully understood graph, or stepwise through `PipeSignature` headers refined one validated file at a time — and trusts only `mthds-agent validate bundle`, until strict validation says the method is runnable. It no longer converts JSON specs with `mthds-agent concept` and `mthds-agent pipe`, so on the API runner it no longer calls the `/v1/build/concept` and `/v1/build/pipe-spec` routes; type `/mthds-design` where you typed `/mthds-build`.
+- **`min_mthds_version` raised from 0.22.1 to 0.29.0**: `mthds-agent` 0.29.0 is the first release that accepts `--type judgment`, and it validates a method split across several files on the API runner as the pipelex runner does, which `mthds-design`'s stepwise mode and the validation hook rely on. A consumer on an older `mthds-agent` fails the environment check with an upgrade prompt. On the default local runner, `--type judgment` also needs a `pipelex` release whose `pipelex-agent` knows the category.
+- **One MTHDS language reference**: `shared/mthds-reference.md` is rewritten as the single syntax source every skill reads, covering field types, presence markers, every pipe type's fields, `PipeSignature` headers, cross-domain references and model references. The model guidance `mthds-build` and `mthds-edit` each kept in a `model-references.md` is now its model section, which looks a reference up with `mthds-agent models` on both runners and `mthds-agent check-model` on the pipelex runner.
+- **`mthds-inputs`' PDF recipes are rewritten from scratch**: the canvas, multi-page and table recipes are new scripts with new sample documents, and each keeps everything it prints, its labels and the way it writes figures included, along with a `PAGE_SIZE` switch for A4, in one marked content block, so a document in another language is an edit of that block alone; each refuses to run while its output path is still a placeholder, and writes its file atomically and identically on every run. The table recipe takes any grid of text, such as a price list or a schedule, checks its column widths against the page's text frame, refuses a row with the wrong number of values and repeats its header row on every page, and the canvas recipe stops rather than draw text past the edge of the page; the multi-page and table recipes no longer write to the same file name.
+
+### Fixed
+
+- **Wrong statements in the MTHDS language reference and the agent guide**: a bare-string structure field is a required text field, not an optional one; a domain-qualified pipe reference such as `finance.extract_text` is valid, not a validation failure; validation without `--allow-signatures` passes a bundle that still holds signatures and marks it not runnable, rather than rejecting it; a field with `choices` omits `type` and holds one of the listed strings, so the example that gave such a field `type = "number"` is gone; the agent guide shows the not-yet-runnable verdict above the `## Pending signatures (N)` heading, the order pipelex prints them in; and the `check-model` example no longer puts a `$` preset in double quotes, which the shell expanded to nothing. The reference also documents the `datetime` and `time` field types and list defaults, which the standard allows, and the four banner aspect ratios `landscape_4_1`, `landscape_8_1`, `portrait_1_4` and `portrait_1_8`.
+- **Retired files kept shipping in the built plugins**: the build now removes a skill directory or a `references/` copy that nothing produces any more, and `make check` reports a missing, stale or orphaned `references/` copy, and a skill directory nothing renders, even one left without its `SKILL.md`.
+
+### Removed
+
+- **`mthds-recursive` (Breaking)**: its stepwise refinement is now `mthds-design`'s stepwise mode, which the skill chooses by itself for a deep or uncertain graph, or when asked for a scaffold or staged work.
+- **Public test file URLs as a fallback**: the public test PDF's URL now answers with an HTML page instead of a PDF, which a method would have received as its document, so the skill no longer offers a public URL for any format, and a PDF input is generated with the recipes instead.
+
 ## [v0.15.2] - 2026-09-24
 
 ### Changed

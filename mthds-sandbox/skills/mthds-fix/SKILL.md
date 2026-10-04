@@ -1,7 +1,7 @@
 ---
 name: mthds-fix
 description: Fix issues in MTHDS bundles. Use when user says "fix this workflow", "fix this method", "repair validation errors", "the pipeline is broken", "fix the .mthds file", after /mthds-check found issues, or when validation reports errors. Automatically applies fixes and re-validates in a loop.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 allowed-tools:
   - Bash
   - Read
@@ -17,8 +17,6 @@ allowed-tools:
 Automatically fix issues in MTHDS method bundles.
 
 ## Process
-
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.
 

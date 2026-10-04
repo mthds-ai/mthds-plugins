@@ -1,13 +1,12 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.22.1`.
+All skills in this plugin require `mthds-agent >= 0.29.0`.
 
 ## Agent CLI
 
 Agents must use `mthds-agent` exclusively. Output format varies by command:
 - **JSON on stdout**: `run`, `inputs`, `init`, `install`, `package` commands
 - **Markdown on stdout**: `validate` (success report — `# Validation passed`, with a `## Pending signatures` section when signatures remain), `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
-- **Raw TOML on stdout**: `concept`, `pipe` commands (return TOML directly, not wrapped in JSON)
 - **Errors**: JSON on stderr with exit code 1 for the JSON-output commands above. **`validate` emits markdown errors on stderr by default** — it has independent `--format` (success/stdout) and `--error-format` (errors/stderr) controls; see "Lenient Validation" below. `plxt` passthrough commands emit raw text on stderr (see command table).
 
 ## Global Options
@@ -21,11 +20,11 @@ These options apply to **all** `mthds-agent` commands and must appear **before**
 
 ## Building Methods
 
-Use the /mthds-build skill for a guided 10-phase process: requirements → plan → concepts → structure → flow → review → pipes → assemble → validate → deliver. The concept and pipe CLI commands validate and return raw TOML; in Phase 8, deterministically assemble those validated fragments into `bundle.mthds` (not manual authoring), then write the file so lint/format/validate hooks run. Refine with /mthds-edit and /mthds-fix if the result needs adjustments.
+Use the /mthds-design skill: it captures the method's contract, writes the bundle's TOML directly with the agent's file tools — in one pass for a shallow graph, or stepwise through `PipeSignature` headers for a deep one — and validates it until it is runnable. Writing through the file tools lets the lint, format and validate hooks run. Refine with /mthds-edit and /mthds-fix if the result needs adjustments.
 
 ## The Iterative Development Loop
 
-1. **Build or Edit** the `.mthds` file (using /mthds-build or /mthds-edit)
+1. **Design or Edit** the `.mthds` file (using /mthds-design or /mthds-edit)
 2. **Validate** with `mthds-agent validate bundle file.mthds -L dir/`
    - If errors: fix them with /mthds-fix, then re-validate (repeat until clean)
 ## Working Directory Convention
@@ -60,7 +59,7 @@ mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipe
 
 ## Lenient Validation — `--allow-signatures`
 
-A bundle that contains `PipeSignature` pipes (contract-only headers, used by top-down/recursive building) fails **strict** validation by default. Pass `--allow-signatures` to validate **leniently** — reachable signatures are accepted, each minting a mock of its declared output:
+A bundle that contains `PipeSignature` pipes (contract-only headers, used by stepwise design) still validates: a signature is never a validation error, and the verdict lists the pending ones. Pass `--allow-signatures` to validate **leniently**, which changes only how validation runs — each signature is dry-run too, minting a mock of its declared output:
 
 ```bash
 mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
@@ -68,8 +67,8 @@ mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
 
 `mthds-agent` forwards the flag verbatim to the pipelex CLI (`.allowUnknownOption()`), so no `mthds-agent`-side option is required.
 
-- **Lenient (`--allow-signatures`)** — accepts a bundle whose dependency graph reaches signatures. Use it after each layer of a recursive build, while signatures still remain.
-- **Strict (default)** — rejects any reachable signature. Passing strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
+- **Lenient (`--allow-signatures`)** — mock-runs each signature, and a valid bundle exits 0 whether or not it is runnable. Use it after each layer of a stepwise design, while signatures still remain.
+- **Strict (default)** — leaves signatures out of the dry run, and on the pipelex runner a valid bundle that is not yet runnable exits 1. The `✅ … this method is runnable.` line of a strict validation is the gate that says *runnable*. Live execution always rejects signatures (`PipeSignatureNotExecutableError`).
 
 On a bundle with **no** signatures, lenient and strict are identical — `--allow-signatures` is a no-op there.
 
@@ -82,15 +81,15 @@ A successful `validate bundle` states, in plain English, whether the method is *
 - **Runnable** (no signatures remain) — no `## Pending signatures` section, just:
 
   ```
-  ✅ All pipes are concretely implemented — no signatures remain. Strict validation will pass; this method is runnable.
+  ✅ All pipes are concretely implemented — no `PipeSignature` placeholders remain. Strict validation will pass; this method is runnable.
   ```
 
-- **Not yet runnable** — a `## Pending signatures (N)` heading, then the verdict, then one bullet per pending `domain.code` ref:
+- **Not yet runnable** — the verdict, then a `## Pending signatures (N)` heading and one bullet per pending `domain.code` ref:
 
   ```
+  ⚠️ This method is NOT yet runnable — N pipes are still `PipeSignature` placeholders and must be implemented before running:
+
   ## Pending signatures (N)
-
-  ⚠️ This method is NOT yet runnable — N pipe(s) are still contract-only signatures and must be implemented before running:
 
   - `domain.code`
   ```
@@ -146,12 +145,10 @@ The path to the generated graph appears in the stderr logs; when `--format json`
 
 | Command | Purpose | Example |
 |---------|---------|---------|
-| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient/recursive validation) | `mthds-agent validate bundle bundle.mthds --graph` |
+| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle bundle.mthds --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON | `mthds-agent inputs bundle bundle.mthds` |
-| `mthds-agent concept` | Validate and structure a concept from JSON spec (returns raw TOML) | `mthds-agent concept --spec '{...}'` |
-| `mthds-agent pipe` | Validate and structure a pipe from JSON spec (returns raw TOML). Field names: `type`, `pipe_code`, and optionally `model`. Omit `model` to use defaults; set it only for specialized needs or explicit user requests | `mthds-agent pipe --spec '{"type": "PipeLLM", "pipe_code": "my_pipe", "prompt": "...", ...}'` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
-| `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON) | `mthds-agent check-model "$writing-creative" --type llm` |
+| `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON; pipelex runner only) | `mthds-agent check-model '$writing-creative' --type llm` |
 | `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
 | `mthds-agent package list` | Display package manifest | `mthds-agent package list -C <pkg-dir>` |

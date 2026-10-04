@@ -110,14 +110,13 @@ class TestEnvCheckFlag:
             assert marker in on, f"guide: {marker!r} expected when on"
             assert marker not in off, f"guide: {marker!r} must be gated when off"
 
-    def test_off_rewords_vibe_env_check_prerequisite(self) -> None:
-        # mthds-recursive must not gate bundle authoring on an env check that does not
-        # exist in a env_check=false target.
-        on = _render("mthds-recursive", env_check=True)
-        off = _render("mthds-recursive", env_check=False)
-        assert "until the environment check passes" in on
-        assert "until the environment check passes" not in off
-        assert "Do not write `.mthds` files manually" in off
+    def test_off_drops_the_env_check_write_gate(self) -> None:
+        # A skill must not gate bundle authoring on an env check that does not
+        # exist in an env_check=false target.
+        on = _render("mthds-design", env_check=True)
+        off = _render("mthds-design", env_check=False)
+        assert "Until the environment check passes" in on
+        assert "environment check" not in off
 
     def test_off_omits_bin_directory(self, tmp_path: Path) -> None:
         # bin/ only holds the self-install script (which would install the wrong

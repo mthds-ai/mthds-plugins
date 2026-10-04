@@ -1,7 +1,7 @@
 ---
 name: mthds-explain
 description: Explain and document MTHDS bundles. Use when user says "what does this pipeline do?", "explain this workflow", "explain this method", "walk me through this .mthds file", "describe the flow", "document this pipeline", "how does this work?", or wants to understand an existing MTHDS method bundle.
-min_mthds_version: 0.22.1
+min_mthds_version: 0.29.0
 allowed-tools:
   - Bash
   - Read
@@ -17,8 +17,6 @@ allowed-tools:
 Analyze and explain existing MTHDS method bundles in plain language.
 
 ## Process
-
-Do not write `.mthds` files manually, do not do any other work. The CLI is required for validation, formatting, and execution — without it the output will be broken.
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away.
 
