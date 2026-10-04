@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.17.0] - 2026-10-04
 
 ### Changed
 
@@ -12,7 +12,7 @@
 
 ### Removed
 
-- **The `mthds-sandbox` plugin (Breaking)**: the build-assistant target for locked-down hosted sandboxes is gone from the Claude marketplace, along with the `env_check`, `can_run_methods` and `remote_storage_inputs` build switches and the per-target skill overlays only it used. Its `mthds-inputs` skill was the last caller of `mthds-agent inputs upload`; the hosted build sandbox runs the Pipelex plugin from `Pipelex/pipelex-plugins` instead. The `mthds`, `mthds-dev` and `mthds-codex` plugins are unchanged.
+- **The `mthds-sandbox` plugin (Breaking)**: the build-assistant target for locked-down hosted sandboxes is gone from the Claude marketplace, along with the `env_check`, `can_run_methods` and `remote_storage_inputs` build switches and the per-target skill overlays only it used. Its `mthds-inputs` skill was the last caller of `mthds-agent inputs upload`; the hosted build sandbox runs the Pipelex plugin from `Pipelex/pipelex-plugins` instead. The removal does not touch the `mthds`, `mthds-dev` and `mthds-codex` plugins.
 
 ## [v0.16.0] - 2026-10-04
 
