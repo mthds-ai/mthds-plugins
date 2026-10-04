@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **The inputs template's shape**: `mthds-inputs`, `mthds-run`, `mthds-edit` and `mthds-design` now run `mthds-agent inputs bundle` with `--explicit`, so the template they fill in keeps each input's `{concept, content}` envelope, as their documentation always showed, instead of the bare values the command prints by default. On the API runner the flag takes effect from the first `mthds-agent` release after 0.29.0, which is the first to honour it there. The documented template shows its mock URLs under `https://mock.invalid/`, which `mthds-run`'s readiness check also counts as placeholders.
+
 ### Removed
 
 - **The `mthds-sandbox` plugin (Breaking)**: the build-assistant target for locked-down hosted sandboxes is gone from the Claude marketplace, along with the `env_check`, `can_run_methods` and `remote_storage_inputs` build switches and the per-target skill overlays only it used. Its `mthds-inputs` skill was the last caller of `mthds-agent inputs upload`; the hosted build sandbox runs the Pipelex plugin from `Pipelex/pipelex-plugins` instead. The `mthds`, `mthds-dev` and `mthds-codex` plugins are unchanged.

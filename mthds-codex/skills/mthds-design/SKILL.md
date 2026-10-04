@@ -136,7 +136,7 @@ mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph
 
 For a completed method, validation **without** `--allow-signatures` must pass and print the `✅ … this method is runnable.` line: this verdict is the runnable gate, so fix and re-validate until it passes. Then:
 
-1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
+1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --explicit` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
 2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to the bundle.
 3. **Next steps**: suggest a dry run with mock inference, which needs no real inputs, then `/mthds-inputs` to prepare real ones and a run:
    ```bash
