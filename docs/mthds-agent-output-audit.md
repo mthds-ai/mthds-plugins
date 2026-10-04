@@ -122,10 +122,8 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 | # | Where | Problem | Status / fix |
 |---|-------|---------|--------------|
 | ~~**F1**~~ | `mthds-recursive` Step 2 (now `mthds-design`'s stepwise loop) | `--format json` (no `--error-format`) → errors came back JSON to an LLM. | ✅ **RESOLVED 2026-06-08** — Fix B applied (dropped `--format json`; reads the markdown `## Pending signatures` section). |
-| **F2** | Codex hook (mthds-js `codex-hook.ts:285`) | Relies on the *default* error format being markdown (no explicit pin); also still strict (no `--allow-signatures`). | OPEN — fold into **Phase 5**: `… --allow-signatures --error-format markdown`. |
+| ~~**F2**~~ | Codex hook (mthds-js `codex-hook.ts`, `runPipelexValidate`) | Relied on the *default* error format being markdown (no explicit pin), and validated strictly (no `--allow-signatures`). | ✅ **RESOLVED 2026-06-10** — the hook pins `--allow-signatures --format json --error-format json` and classifies from the JSON envelope (see A3). |
 | ~~**F3**~~ | `mthds-agent-guide.md.j2` ("Agent CLI" + "Understanding JSON Output") | Claimed *"JSON on stdout: … validate …"* — but `validate` defaults to **markdown**. Misleading. | ✅ **RESOLVED 2026-06-08** — moved `validate` to the markdown-on-stdout bullet, qualified the errors bullet (validate = markdown errors by default, two-stream controls), and corrected the "Understanding JSON Output" note (validate defaults to markdown; `--format json` for the envelope). |
-
-> **Aside (out of scope, noted in passing):** `docs/codex-vs-claude-hooks.md` says the Codex hook runs *"plxt lint, plxt fmt only — Stage 3 disabled"*, but `codex-hook.ts` clearly has a Stage 3 (`runPipelexValidate` + `classifyStage3Result`), and the repo `CLAUDE.md` documents three stages. That doc is stale — fix when touching Codex docs.
 
 ## Open questions / to verify
 

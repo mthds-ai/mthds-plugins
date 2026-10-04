@@ -100,7 +100,7 @@ notes          = { type = "text", description = "Free-text notes" }
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `description` | Yes | Human-readable description of the field. |
-| `type` | Conditional | Field type. Required unless `choices` is given. |
+| `type` | Conditional | Field type. Required unless `choices` is given, and omitted when it is. |
 | `required` | No | Default `false`. |
 | `default_value` | No | Must match `type`. Not allowed on `concept`, and never together with `required = true`: a default applies when the field is omitted, which a required field never is. |
 | `choices` | No | List of allowed string values (enum-like). |
@@ -144,11 +144,10 @@ Rules:
 ```toml
 [concept.Order.structure]
 status   = { choices = ["pending", "processing", "shipped", "delivered"], description = "Order status", required = true }
-priority = { type = "text", choices = ["low", "medium", "high"], description = "Priority" }
-score    = { type = "number", choices = ["0", "0.5", "1"], description = "Half-point score" }
+priority = { choices = ["low", "medium", "high"], description = "Priority" }
 ```
 
-When `choices` is set and `type` is omitted, type defaults to `text`. `choices` is only valid with `text`, `integer`, or `number`. Not valid with `boolean`, `date`, `concept`, or `list`. The field takes only the listed values, and generated Python types it as a `Literal`.
+A field with `choices` omits `type`. Its values are strings: the field takes only the listed ones, and generated Python types it as a `Literal` of them. A numeric scale is an `integer` or `number` field without `choices`.
 
 ## 3. Native Concepts (always available)
 
@@ -539,9 +538,9 @@ prompt = "Apply this change to $ref: $instruction"
 
 Each referenced image is injected as an `[Image N]` token (reference image), bounded by the model's `max_prompt_images`.
 
-**Aspect ratio values** (enum names, not ratios): `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`.
+**Aspect ratio values** (enum names, not ratios): `square`, `landscape_4_3`, `landscape_3_2`, `landscape_16_9`, `landscape_21_9`, `portrait_3_4`, `portrait_2_3`, `portrait_9_16`, `portrait_9_21`, and the banner shapes `landscape_4_1`, `landscape_8_1`, `portrait_1_4`, `portrait_1_8`.
 
-Aspect-ratio support is model-dependent, and only `square` works on every model. The newest models cover the full range: `gpt-image-2` supports all of them, `nano-banana-2` nearly all. The older `gpt-image-1` and `gpt-image-1.5` accept only `square`, `landscape_3_2` and `portrait_2_3`. For a specific shape such as `landscape_16_9` or `portrait_9_16`, choose a model that supports it rather than assuming the default does.
+Aspect-ratio support is model-dependent, and only `square` works on every model. The newest models cover nearly the full range: `gpt-image-2` supports every value but the banner shapes, and `nano-banana-2` and `nano-banana-2-lite` every value but `portrait_9_21`, so a banner shape needs one of those two. The older `gpt-image-1` and `gpt-image-1.5` accept only `square`, `landscape_3_2` and `portrait_2_3`. For a specific shape such as `landscape_16_9` or `portrait_9_16`, choose a model that supports it rather than assuming the default does.
 
 ### PipeFunc — call a registered Python function
 
