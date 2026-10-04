@@ -1,4 +1,4 @@
-min_mthds_version: 0.29.0
+min_mthds_version: 0.30.0
 allowed-tools:
   - Bash
   - Read

@@ -96,7 +96,7 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --graph
 
 #### B5 — `inputs bundle` · `mthds-design`, `mthds-edit`, `mthds-run`, `mthds-inputs`
 - Default JSON stdout. The LLM shows the input schema/template to the user (and `/mthds-inputs` consumes it). **Verdict: ✓ ACCEPTABLE** — this is *structured data*, not an error or explanation; JSON is the natural shape for a schema regardless of consumer. (Not a "format follows consumer" case.)
-- Every call passes `--explicit`, the template's other axis: without it the command prints light values (a bare URL, a bare string), while the strategies of `/mthds-inputs` fill in the `{concept, content}` envelope. The API runner honours the flag only from the mthds release that projects the template from `/v1/pipe-io` (mthds-js#141); before it, the flag was dropped on that arm (L-260830-659d48).
+- Every call passes `--explicit`, the template's other axis: without it the command prints light values (a bare URL, a bare string), while the strategies of `/mthds-inputs` fill in the `{concept, content}` envelope. The API runner honours the flag from `mthds-agent` 0.30.0, which projects the template from `/v1/pipe-io` and is the plugin's floor; 0.29.0 dropped it on that arm (L-260830-659d48).
 
 #### B6 — `run bundle` · `mthds-run`, `mthds-design`, `mthds-edit`, `mthds-explain`, `mthds-inputs`
 - Default compact concept JSON stdout = the method *result* (data the LLM displays / pipes via `--with-memory`). Errors: default (assume markdown). **Verdict: ✓ ACCEPTABLE** for stdout (data). *Open:* nobody parses `run` errors programmatically today, so markdown-default errors are fine; revisit only if a software consumer of `run` errors appears.
