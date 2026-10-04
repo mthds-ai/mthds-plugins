@@ -9,7 +9,7 @@ Stepwise mode materializes uncertainty. Every not-yet-designed pipe is a reachab
 Every validation in this mode is lenient, since the bundle still reaches signatures by design:
 
 ```bash
-mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --allow-signatures --graph
+mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --allow-signatures --graph
 ```
 
 While signatures remain, the Markdown verdict shows a `⚠️ This method is NOT yet runnable …` line, then a `## Pending signatures (N)` heading and one bullet per pipe still declared as a signature. That bullet list is the backlog. When it is empty, the verdict prints `✅ All pipes are concretely implemented … this method is runnable.` and no pending section.

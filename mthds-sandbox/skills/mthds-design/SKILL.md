@@ -36,7 +36,7 @@ Fix the **input concept(s)**, the **output concept** and the **description**, pr
 
 ### 2. The bundle home
 
-A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore, and its root file is `bundle.mthds`. Do not ask the user for the location.
+A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore. That directory is `<bundle_home>` in every command below, and its root file is `bundle.mthds`. Do not ask the user for the location.
 
 ### 3. Infer the construction mode
 
@@ -54,7 +54,7 @@ Design the whole graph in memory, then write `bundle.mthds` top-down — metadat
 ### 5. Validate
 
 ```bash
-mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --graph
+mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph
 ```
 
 `-L` loads every `.mthds` file beneath the bundle directory and keeps the project's other bundles out of its namespace. Read the Markdown verdict it prints. On errors, fix from the error list and its locators, which name the offending file, then validate again; [error handling](../shared/error-handling.md) says how to recover by error domain.
@@ -63,7 +63,7 @@ mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bu
 
 For a completed method, validation **without** `--allow-signatures` must pass and print the `✅ … this method is runnable.` line: this verdict is the runnable gate, so fix and re-validate until it passes. Then:
 
-1. **Project the input schema**: run `mthds-agent inputs bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
+1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
 2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to the bundle.
 
 ## Stops

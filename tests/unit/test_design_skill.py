@@ -37,7 +37,7 @@ class TestDesignSkill:
 
     def test_runnable_gate_is_strict_validation(self) -> None:
         body = self.design
-        assert "mthds-agent validate bundle mthds-wip/<bundle_dir>/bundle.mthds -L mthds-wip/<bundle_dir>/ --graph" in body
+        assert "mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph" in body
         assert "validation **without** `--allow-signatures` must pass" in body
 
     def test_stepwise_validates_leniently_then_strictly(self) -> None:
