@@ -8,27 +8,6 @@ platform = "claude"
 harness_name = "Claude Code"
 session_start_hook = false
 
-# When false, the skills omit the "Step 0 — Environment Check" preamble (and the
-# Pipelex runtime check in mthds-run). Defaults to true so the toolchain is
-# verified before use. Set false for targets that run in a pre-provisioned,
-# locked-down environment where the agent must never run env/doctor/upgrade.
-env_check = true
-
-# When false, the skills omit instructions/suggestions to RUN methods
-# (`mthds-agent run`, dry-run/mock-inference next-steps, running a synthesis
-# pipeline). Defaults to true. Set false for targets where execution is handled
-# elsewhere (e.g. a platform UI) and the agent must never run or suggest running.
-can_run_methods = true
-
-# When true, the mthds-inputs skill must reference every file in inputs.json by a
-# REMOTE URI only (`pipelex-storage://` via `mthds-agent inputs upload`, or an
-# `https://` URL) — never a local path. Defaults to false (files are copied into
-# `<output_dir>/inputs/` and referenced by relative path). Set true for targets
-# whose filesystem is ephemeral and whose runner is a different, sandbox-invisible
-# machine (the hosted build sandbox), where a local path can never resolve at run
-# time.
-remote_storage_inputs = false
-
 # Install/upgrade commands (prod defaults — registry packages)
 mthds_install_cmd = "npm install -g mthds"
 mthds_upgrade_cmd = "npm install -g mthds@latest"
