@@ -1,7 +1,7 @@
 ---
 name: mthds-design
 description: Design a new MTHDS method bundle (.mthds files) top-down, contract-first. Use when the user says "design a method", "build a method", "create a pipeline", "build a workflow", "new .mthds file", "make a method", "write a method that does X", "turn this workflow into MTHDS", or wants any new method from scratch. Construction adapts to complexity — a shallow, fully understood graph is written directly as one runnable bundle, and deep, uncertain or staged work goes stepwise, one validated signature at a time.
-min_mthds_version: 0.29.0
+min_mthds_version: 0.30.0
 allowed-tools:
   - Bash
   - Read
@@ -35,7 +35,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.29.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.30.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -132,7 +132,7 @@ mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph
 
 For a completed method, validation **without** `--allow-signatures` must pass and print the `✅ … this method is runnable.` line: this verdict is the runnable gate, so fix and re-validate until it passes. Then:
 
-1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
+1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --explicit` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
 2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to the bundle.
 3. **Next steps**: suggest a dry run with mock inference, which needs no real inputs, then `/mthds-inputs` to prepare real ones and a run:
    ```bash

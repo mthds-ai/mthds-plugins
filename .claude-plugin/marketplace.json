@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "The MTHDS plugin: skills that build and run AI methods on a runtime you run yourself. The Pipelex plugin, from Pipelex/pipelex-plugins, is the easier, hosted route.",
-    "version": "0.16.0"
+    "version": "0.17.0"
   },
   "plugins": [
     {
@@ -18,11 +18,6 @@
       "name": "mthds-dev",
       "description": "Development build of MTHDS skills — for iteration and testing.",
       "source": "./mthds-dev"
-    },
-    {
-      "name": "mthds-sandbox",
-      "description": "MTHDS build-assistant skills for locked-down sandboxes — no environment checks, no method execution.",
-      "source": "./mthds-sandbox"
     }
   ]
 }

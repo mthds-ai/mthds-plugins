@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.17.0] - 2026-10-04
+
+### Changed
+
+- **`min_mthds_version` raised from 0.29.0 to 0.30.0**: `mthds-agent` 0.30.0 projects the inputs template from the runner's `/v1/pipe-io` answer on the API runner and honours `--explicit` there, which the skills now pass, and it calls none of the `/v1/build/*` routes. On the API runner it needs a runner serving `/v1/pipe-io` (`pipelex-api` v0.33.0 or later). A consumer on an older `mthds-agent` fails the environment check with an upgrade prompt.
+
+### Fixed
+
+- **The inputs template's shape**: `mthds-inputs`, `mthds-run`, `mthds-edit` and `mthds-design` now run `mthds-agent inputs bundle` with `--explicit`, so the template they fill in keeps each input's `{concept, content}` envelope, as their documentation always showed, instead of the bare values the command prints by default. The documented template shows its mock URLs under `https://mock.invalid/`, which `mthds-run`'s readiness check also counts as placeholders.
+
+### Removed
+
+- **The `mthds-sandbox` plugin (Breaking)**: the build-assistant target for locked-down hosted sandboxes is gone from the Claude marketplace, along with the `env_check`, `can_run_methods` and `remote_storage_inputs` build switches and the per-target skill overlays only it used. Its `mthds-inputs` skill was the last caller of `mthds-agent inputs upload`; the hosted build sandbox runs the Pipelex plugin from `Pipelex/pipelex-plugins` instead. The removal does not touch the `mthds`, `mthds-dev` and `mthds-codex` plugins.
+
 ## [v0.16.0] - 2026-10-04
 
 ### Added

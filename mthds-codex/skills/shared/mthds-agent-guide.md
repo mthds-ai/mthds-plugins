@@ -1,6 +1,6 @@
 # MTHDS Agent Guide
 
-All skills in this plugin require `mthds-agent >= 0.29.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.29.0`.
+All skills in this plugin require `mthds-agent >= 0.30.0`. The Step 0 CLI Check in each skill enforces this — parse the output of `mthds-agent --version` and block execution if the version is below `0.30.0`.
 
 ## IMPORTANT PREREQUISITES
 
@@ -312,7 +312,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent init` | Initialize pipelex configuration (non-interactive) | `mthds-agent init -g --config '{"backends": ["openai"]}'` |
 | `mthds-agent run bundle` | Execute a pipeline (compact output by default; use `--with-memory` for full envelope) | `mthds-agent run bundle <bundle-dir>/` |
 | `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle bundle.mthds --graph` |
-| `mthds-agent inputs bundle` | Generate example input JSON | `mthds-agent inputs bundle bundle.mthds` |
+| `mthds-agent inputs bundle` | Generate example input JSON (`--explicit` wraps each input in its `{concept, content}` envelope) | `mthds-agent inputs bundle bundle.mthds --explicit` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON; pipelex runner only) | `mthds-agent check-model '$writing-creative' --type llm` |
 | `mthds-agent accept-gateway-terms` | Accept Pipelex Gateway terms and mark inference setup complete | `mthds-agent accept-gateway-terms` |

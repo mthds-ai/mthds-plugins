@@ -108,25 +108,12 @@ mthds/                         (prod target)
 ├── hooks/
 │   ├── hooks.json             rendered
 │   └── validate-mthds.sh      rendered (executable)
-└── bin/                       copied from ../bin (omitted when env_check is false)
+└── bin/                       copied from ../bin
 ```
 
 Only `bin/` and `references/` are copied as they are — everything else is rendered per-target with that target's variables. They are copies rather than symlinks because a marketplace install that copies one plugin directory cannot follow a link to its siblings.
 
 **The build owns these directories.** A skill directory no template renders any more, or a `references/` copy whose source is gone, is removed by the next `make build`, so retiring or renaming a skill is one gesture whose deletions show in the same diff. `make check` reports a `references/` copy that is missing, stale or orphaned, and a skill directory no template renders, whether or not it still holds a `SKILL.md`, each cured by `make build`.
-
-## Per-target skill overlays
-
-A skill can carry **target-only content** without touching its shared `SKILL.md.j2`. Drop a `SKILL.<target>.md.j2` file next to a skill's `SKILL.md.j2` (where `<target>` is the stem of the target's `.toml`, e.g. `sandbox` for `targets/sandbox.toml`). When that target is built, the overlay is rendered with the same variables and **appended** to the skill's output; every other target stays byte-identical because the shared template is never modified.
-
-Overlays are append-only, so they add or override behavior (a later instruction in the rendered skill wins) but cannot delete earlier content. For removals, gate the shared template with a `{% if %}` on a target variable instead (see `env_check` / `can_run_methods`). Because overlays render in the same Jinja environment, they may use template variables and `{% include %}` shared partials.
-
-Current overlays (all for the `mthds-sandbox` target — a locked-down, platform-driven build sandbox):
-
-- **Workspace check (silent)** — `mthds-design`: after finishing, ensure the bundle lives under `mthds-wip/<bundle_dir>/`, moving it silently if not.
-- **Method summary (on request only)** — `mthds-design`, `mthds-check`, `mthds-edit`, `mthds-fix`: after a successful design/edit/fix/validation the agent must not auto-emit a method walkthrough or change recap (pipeline-flow diagram + step/change breakdown) — the platform renders the method visually. It confirms in one line and surfaces any errors/warnings, producing the full summary only when the user explicitly asks. (`mthds-explain` is intentionally excluded — summarizing is its whole job.)
-
-The mechanism is implemented in `render_templates()` (`scripts/gen_skill_docs.py`, `target_name` parameter) and verified by `tests/unit/test_sandbox_overlay.py`.
 
 ## Commands
 

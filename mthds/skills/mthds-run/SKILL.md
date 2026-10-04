@@ -1,7 +1,7 @@
 ---
 name: mthds-run
 description: Run MTHDS methods and interpret results. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", or wants to execute any MTHDS method bundle and see its output.
-min_mthds_version: 0.29.0
+min_mthds_version: 0.30.0
 allowed-tools:
   - Bash
   - Read
@@ -37,7 +37,7 @@ for f in "$HOME/.claude/plugins/cache/"*/mthds*/*/bin/mthds-env-check; do
   for _p in "${_parts[@]}"; do _p=${_p%%[!0-9]*}; _k="${_k}$(printf %06d "${_p:-0}")"; done
   [[ "$_k" > "$_best_k" ]] && { _best_f="$f"; _best_k="$_k"; }
 done
-[ -n "$_best_f" ] && exec "$_best_f" "0.29.0"
+[ -n "$_best_f" ] && exec "$_best_f" "0.30.0"
 echo "MTHDS_ENV_CHECK_MISSING"
 '
 ```
@@ -131,18 +131,18 @@ If `/mthds-run` is invoked without prior input preparation in this session, perf
 Get the input schema for the target:
 
 ```bash
-mthds-agent inputs bundle bundle.mthds
+mthds-agent inputs bundle bundle.mthds --explicit
 ```
 
 **Output:**
 ```json
 {
   "success": true,
-  "pipe_code": "process_document",
+  "pipe_ref": "doc_processing.process_document",
   "inputs": {
     "document": {
       "concept": "native.Document",
-      "content": {"url": "url_value"}
+      "content": {"url": "https://mock.invalid/url"}
     },
     "context": {
       "concept": "native.Text",
@@ -164,7 +164,7 @@ Before running, assess whether inputs are ready. This prevents runtime failures 
 
 1. Does `inputs.json` exist in the bundle directory?
 2. If it exists, scan all `content` values for placeholder signals:
-   - **Template defaults**: `"url_value"`, `"text_value"`, `"number_value"`, `"integer_value"`, `"boolean_value"`, or any value matching the pattern `*_value`
+   - **Template defaults**: `"text_value"` or any value matching the pattern `*_value`, and any URL under `https://mock.invalid/`
    - **Angle-bracket placeholders**: values containing `<...>` (e.g. `<path-to-cv.pdf>`, `<your-text-here>`)
    - **Non-existent file paths**: `url` fields pointing to local files that don't exist on disk
 
