@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Plain input names and the binding step**: the MTHDS language reference teaches that a pipe's input names, and a PipeBatch's `input_list_name`, are plain `snake_case` names, each naming one whole value, so a dotted key such as `"invoice.total" = "Number"` is refused as `invalid_input_name`, and that a PipeSequence hands a pipe one field of a value, or a value under another name, with a binding step, `{ from = "invoice.total", result = "total_amount" }`, whose concept its path derives. It teaches the binding's absence rule, under which a binding over a field that is not `required` may be absent and the step reading it accepts an absent value or the author handles the absence, the dotted `batch_over` as a binding followed by a batch, that only a sequence's steps bind, and the reserved `_bound_` prefix; `mthds-design`, `mthds-edit`, `mthds-explain`, `mthds-fix` and the error handling reference carry the binding step and its errors where they show sequence syntax or fixes. Writing a binding step needs a `pipelex` release that carries it.
+
+### Fixed
+
+- **`mthds-explain` on a PipeBatch, and the `@?` shorthand**: `mthds-explain` reads a PipeBatch by its `input_list_name`, `input_item_name` and `branch_pipe_code`, rather than by the `batch_over` and `batch_as` a PipeBatch does not have, and the language reference says that a `@?variable` conditional block stands on its own line, which validation requires.
+
 ## [v0.17.0] - 2026-10-04
 
 ### Changed
