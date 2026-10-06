@@ -108,8 +108,8 @@ List all components found in the bundle:
 ### Step 3: Trace Execution Flow
 
 Starting from the main pipe, trace the execution path:
-1. For **PipeSequence**: follow the `steps` array in order
-2. For **PipeBatch**: identify `batch_over` and `batch_as`, then the inner pipe
+1. For **PipeSequence**: follow the `steps` array in order. A step carrying `pipe` runs that pipe, once per item when it carries `batch_over` and `batch_as`, and a step carrying `from` is a binding step, which runs no pipe: it hands the steps after it one field of a value (`from = "invoice.total"`), or the whole value under another name, stored under its `result`
+2. For **PipeBatch**: identify the list (`input_list_name`) and the item name (`input_item_name`), then the branch pipe (`branch_pipe_code`) applied to each item
 3. For **PipeParallel**: list all branches
 4. For **PipeCondition**: map condition → pipe for each branch
 5. For **PipeLLM / PipeExtract / PipeImgGen / PipeSearch / PipeFunc**: these are leaf operations
