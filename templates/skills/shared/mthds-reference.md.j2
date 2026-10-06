@@ -303,6 +303,8 @@ steps = [
 
 A binding step hands one part of a bigger value to the steps after it, under a name of its own. An input name is always a plain name (section 5), so a pipe never declares `"invoice.total" = "Number"`: the calling sequence binds the field, and the pipe reads the bound name.
 
+Binding steps need `pipelex` 0.75.0 or later: an older runtime refuses one as an extra forbidden field (`steps.0.from`), which means the runtime is too old, not that the step is wrong.
+
 ```toml
 [concept.Invoice]
 description = "An invoice received from a supplier"

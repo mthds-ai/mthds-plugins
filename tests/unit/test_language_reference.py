@@ -49,6 +49,7 @@ class TestLanguageReference:
     def test_binding_step_is_taught(self) -> None:
         body = self.reference
         assert "\n#### Binding steps\n" in body
+        assert "Binding steps need `pipelex` 0.75.0 or later" in body
         assert '    { from = "invoice.total", result = "total_amount" },\n    { pipe = "write_receipt", result = "receipt" },' in body
         assert 'inputs      = { total_amount = "Number" }' in body
         assert "A binding step has exactly two fields, both required" in body
