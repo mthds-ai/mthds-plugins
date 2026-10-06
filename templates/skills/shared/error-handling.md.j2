@@ -32,6 +32,10 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `invalid_pipe_code_syntax` | Pipe code doesn't follow snake_case | Rename the pipe to valid snake_case |
 | `unknown_concept` | Referenced concept not defined in bundle | Add the concept definition, or fix the typo |
 | `batch_item_name_collision` | `input_item_name` collides with `input_list_name` or an `inputs` key | Rename `input_item_name` to a distinct singular form (e.g., list `"reports"` → item `"report"`) |
+| `invalid_input_name` | An input name that is not a plain `snake_case` name, such as a dotted `"invoice.total"` or a dotted `input_list_name`, or a name starting with the reserved prefix `_bound_` | Declare the root with its whole concept and read the field through it in the template, or bind the field to a plain name with a binding step in the calling sequence and declare that name; rename a `_bound_` name |
+| `binding_step_invalid` | A malformed sequence step: `pipe` beside `from`, a binding step without `result` or carrying a pipe step's field, a `from` or `result` outside its grammar, or a binding step or dotted `batch_over` in a `PipeParallel` branch | Give a binding step `from` and a plain `result` only; bind in a sequence step before the `PipeParallel` |
+| `binding_path_unresolved` | A binding path, or a dotted `batch_over`, that the declared structures cannot walk | Fix the segment the message names, using the fields it lists, or bind the value itself |
+| `optional_not_handled` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
 | `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
 
 ## Onboarding Errors

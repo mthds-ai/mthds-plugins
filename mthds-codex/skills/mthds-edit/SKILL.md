@@ -184,7 +184,8 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 - **Add a pipe**: Define concept if needed, add pipe in correct order
 - **Modify a prompt**: Update prompt text, check variable references
 - **Change inputs/outputs**: Update type, regenerate inputs
-- **Add batch processing**: Add `batch_over` (plural list name or dotted path like `"result.sources"`) and `batch_as` (singular item name) to step — they must be different
+- **Add batch processing**: Add `batch_over` (plural list name, or a dotted path to a list held in a field like `"search_result.sources"`) and `batch_as` (singular item name) to a sequence step — they must be different
+- **Hand a pipe one field of a value, or a value under another name**: Add a binding step before it in the sequence, `{ from = "invoice.total", result = "total_amount" }`, and declare the bound name in the pipe's `inputs`. Never declare a dotted input name such as `"invoice.total" = "Number"`. See the language reference's [binding steps](../shared/mthds-reference.md#binding-steps), including what to do when the field may be missing
 - **Refactor to sequence**: Wrap multiple pipes in PipeSequence
 
 ## Reference

@@ -4,6 +4,7 @@ Each native concept maps to a content class with specific attributes. Understand
 
 - Writing `$var.field` references in prompts or PipeCompose templates
 - Building `construct` blocks with `from = "input.field"`
+- Writing a sequence's binding step, `{ from = "input.field", result = "name" }`, or a dotted `batch_over`, whose concept is the one the path reaches
 - Interpreting pipeline outputs (e.g., what comes out of PipeExtract)
 - Preparing input JSON for `mthds-agent run`
 
@@ -177,7 +178,7 @@ Each source is a `DocumentContent` with:
 
 **Access**: `$result.answer` for the answer text, `$result.sources` for the source list. When used with `@result` in a prompt, the answer and sources are auto-rendered.
 
-**Pattern — fetch source content**: Since sources are `DocumentContent`, you can feed them into PipeExtract with `@default-extract-web-page` to extract the full page into `Page[]` content (pages can contain images and text, most often formatted as markdown). Use `batch_over` with dot notation to iterate over all sources in a PipeSequence:
+**Pattern — fetch source content**: Since sources are `DocumentContent`, you can feed them into PipeExtract with `@default-extract-web-page` to extract the full page into `Page[]` content (pages can contain images and text, most often formatted as markdown). Use a dotted `batch_over` to iterate over all sources in a PipeSequence:
 
 ```toml
 # Step 1: Search the web
@@ -222,7 +223,7 @@ steps = [
 ]
 ```
 
-The key insight: `batch_over = "search_result.sources"` uses dot notation to iterate over the `sources` list inside the SearchResult. Each source is a `DocumentContent` with a `url` field, so it can be passed directly to PipeExtract as a web page URL. Batching does not propagate automatically — each step that should iterate needs its own `batch_over`.
+The key insight: `batch_over = "search_result.sources"` binds the `sources` list inside the SearchResult, a `Document[]`, then iterates over it, as the language reference's [dotted `batch_over`](mthds-reference.md#dotted-batch_over) says. Each source is a `DocumentContent` with a `url` field, so it can be passed directly to PipeExtract as a web page URL. Batching does not propagate automatically — each step that should iterate needs its own `batch_over`.
 
 ---
 

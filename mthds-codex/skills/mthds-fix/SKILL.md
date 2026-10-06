@@ -122,6 +122,10 @@ Use the `error_type` field from each validation error to determine the fix:
 | `invalid_pipe_code_syntax` | Rename the pipe to valid snake_case |
 | `unknown_concept` | Add the concept definition to the bundle, or fix the typo |
 | `batch_item_name_collision` | Rename `input_item_name` (or `batch_as`) to a distinct singular form of the list name. Also update the branch pipe's `inputs` to use the new item name. |
+| `invalid_input_name` | For a dotted input name, declare the root with its whole concept and read the field in the template, or add a binding step to the calling sequence (`{ from = "invoice.total", result = "total_amount" }`) and declare the bound name. Rename a name starting with `_bound_`. |
+| `binding_step_invalid` | Give the binding step `from` and a plain `result` only, or move a binding out of a `PipeParallel`'s `branches` into a sequence step before it |
+| `binding_path_unresolved` | Fix the path's segment the message names, using the fields it lists |
+| `optional_not_handled` | Read the maybe-absent value through an optional input with a guard, or declare the sequence's output `?` |
 
 For error type descriptions, see [Error Handling — Validation Error Types](../shared/error-handling.md#validation-error-types).
 
