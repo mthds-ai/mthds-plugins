@@ -38,11 +38,9 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `optional_not_handled` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
 | `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
 
-## Onboarding Errors
+## Inference Setup Errors
 
-| Error Type | Meaning | Recovery |
-|------------|---------|----------|
-| `InferenceSetupRequiredError` | First-run: inference has never been configured | Use `/mthds-runner-setup` for guided setup, or run `mthds-agent init -g` with backend configuration |
+A live run on a machine where inference was never set up fails on the missing key. On the pipelex runner, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`. On the API runner, the hosted API refuses the call because no Pipelex API key is configured. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
 
 ## Model & Config Errors
 

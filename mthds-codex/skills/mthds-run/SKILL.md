@@ -292,7 +292,7 @@ main_stuff is always the primary output for a completed run:
 
 ### Step 6: Handle Errors
 
-**If the run returns `InferenceSetupRequiredError` (error_domain: `onboarding`)**: This means inference has never been configured. This is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to guide them through Gateway or BYOK setup, then re-run the method.
+**If a live run fails because inference is not set up**: on the pipelex runner, the error says it could not get credentials for an inference backend and names the missing variable, such as `OPENAI_API_KEY`; on the API runner, the hosted API refuses the call because no Pipelex API key is configured. On a machine where inference was never set up, this is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to set up their own provider keys or the hosted Pipelex API, then re-run the method.
 
 For all other error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 

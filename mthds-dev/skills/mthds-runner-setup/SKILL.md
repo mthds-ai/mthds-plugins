@@ -1,6 +1,6 @@
 ---
 name: mthds-runner-setup
-description: Set up or reconfigure inference backends and API keys. Use when user gets InferenceSetupRequiredError, wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", or gets a config/credential error when running. Guides through Pipelex Gateway (recommended) or Bring Your Own Key setup.
+description: Set up or reconfigure how methods reach AI models, with the user's own provider API keys or with a Pipelex API key on the hosted Pipelex API. Use when a live run fails because a provider API key is missing (the error says it could not get credentials for an inference backend), when the runner has no API key, when the user wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", "use the hosted API", or gets a config/credential error when running. Guides through bringing your own provider keys (OpenAI recommended) or running on the hosted Pipelex API.
 min_mthds_version: 0.30.0
 allowed-tools:
   - Bash
@@ -12,9 +12,14 @@ allowed-tools:
 
 ---
 
-# First-Run Inference Setup
+# Inference Setup
 
-You've built a method — now let's run it. Before your first live inference run, you need to configure how Pipelex connects to AI models. This is a one-time setup.
+You've built a method — now let's run it. Before a live inference run, the method needs a way to reach AI models, and there are two:
+
+- **Your own provider keys**: the method runs on this machine with the local Pipelex runner, which calls each AI provider with the user's own API key.
+- **The hosted Pipelex API**: the method runs on the hosted Pipelex API with a Pipelex API key, and this machine holds no provider key at all.
+
+Building, validating, editing, explaining and dry-running need neither. This is a one-time setup, and running this skill again switches from one to the other.
 
 ## Process
 
@@ -89,122 +94,111 @@ echo "MTHDS_ENV_CHECK_MISSING"
 
 Use AskUserQuestion to present the inference setup choice:
 
-- **Question**: "How would you like to connect to AI models?"
+- **Question**: "How would you like your methods to reach AI models?"
 - **Header**: "Setup"
 - **Options**:
-  1. **Pipelex Gateway (Recommended)** — "One API key for all AI models — LLMs, OCR, document extraction, image generation. Free credits to get started."
-  2. **Bring Your Own Key (BYOK)** — "Use your own API keys from providers like OpenAI or Anthropic."
+  1. **Your own provider keys** — "Run methods on this machine with your own API keys from providers such as OpenAI. One OpenAI key runs the default models."
+  2. **Hosted Pipelex API** — "Run methods on the hosted Pipelex API with a Pipelex API key. No provider keys needed."
 
 Wait for the user's choice before proceeding.
 
-### Step 2A — Pipelex Gateway Path
+### Step 2A — Your Own Provider Keys
 
-#### 1. Terms acceptance
+#### 1. Make the local runner the default
 
-Tell the user about the terms, then use AskUserQuestion to get their decision:
-
-> To use the Pipelex Gateway, you need to accept the Terms of Service and Privacy Policy.
-> Review the terms here: https://www.pipelex.com/privacy-policy
->
-> By using Pipelex Gateway, anonymous telemetry is enabled to monitor service quality. We only collect technical data (model names, token counts, latency) — never your prompts, completions, or business data.
-
-- **Question**: "Do you accept the Pipelex Gateway Terms of Service and Privacy Policy?"
-- **Header**: "Terms"
-- **Options**:
-  1. **Accept** — "I accept the Terms of Service and Privacy Policy."
-  2. **Decline** — "I'd rather use my own API keys (BYOK) instead."
-
-- **If they accept**: proceed to the next step.
-- **If they decline**: switch to Step 2B (BYOK) instead.
-
-#### 2. Record acceptance
-
-Run:
+Methods that use the user's own keys run on the pipelex runner, and `mthds-agent init` is a command of that runner only:
 
 ```bash
-mthds-agent accept-gateway-terms
+mthds-agent config set runner pipelex
 ```
 
-This records the acceptance and marks inference setup as complete.
+#### 2. Choose the backends
 
-#### 3. Get API key
+Recommend **OpenAI** as the one key to start with: the default models of Pipelex's model deck are OpenAI models, so an OpenAI key alone runs the default language and image models. Among the backends below, only `openai` serves those defaults, so keep it in the list.
 
-Tell the user:
+Other backends the user may enable beside it, each with its own key:
 
-> Now you need a Pipelex Gateway API key. Run this command in the prompt below:
->
-> ```
-> ! mthds login
-> ```
->
-> This will open your browser to create an account (or log in) and automatically save the API key.
+| Backend | Key variable | Notes |
+|---------|--------------|-------|
+| `openai` | `OPENAI_API_KEY` | Recommended: serves the default language and image models |
+| `anthropic` | `ANTHROPIC_API_KEY` | |
+| `mistral` | `MISTRAL_API_KEY` | Also serves the default OCR, which a method extracting text from images or scanned documents needs |
+| `google` | `GOOGLE_API_KEY` | |
+| `openrouter` | `OPENROUTER_API_KEY` | One key for models from many providers |
 
-Wait for the user to confirm login is complete.
+Ask which backends they want to enable, offering OpenAI alone as the default answer.
 
-#### 4. Configure backends
-
-Run:
+#### 3. Run init
 
 ```bash
-mthds-agent init -g --config '{"backends": ["pipelex_gateway"]}'
+# OpenAI alone (recommended):
+mthds-agent init -g --config '{"backends": ["openai"]}'
+
+# Several backends, OpenAI tried first:
+mthds-agent init -g --config '{"backends": ["openai", "anthropic", "mistral"], "primary_backend": "openai"}'
 ```
 
-Note: `accept_gateway_terms` is not needed here — it was already recorded by `accept-gateway-terms` in the previous step.
+With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. `-g` writes the global `~/.pipelex/` configuration, used in every project; without it, `init` targets a project-level `.pipelex/`.
+
+#### 4. Add the keys
+
+`init` does not write the keys. Ask the user to add each enabled backend's key themselves, so the key stays out of this conversation, in one of these ways:
+
+- Add a line per key to `~/.pipelex/.env`, such as `OPENAI_API_KEY=sk-...`
+- Export the variables in their shell profile (`~/.zshrc`, `~/.bashrc`)
+- Run `pipelex init credentials` in their own terminal (not through Claude Code): it prompts for the missing key of each enabled backend and saves it to `~/.pipelex/.env`
+
+Wait for the user to confirm the keys are in place.
 
 #### 5. Verify
-
-Run:
 
 ```bash
 mthds-agent doctor
 ```
 
-If healthy, proceed to Step 3. If the API key is missing, remind the user to run `! mthds login` again.
+The doctor checks the toolchain and that the runner is `pipelex`, but it does not read provider keys. To check the keys, the user can run `pipelex doctor` in their own terminal, which reports the credentials of each enabled backend. Otherwise the first live run checks them: a missing key fails with an error saying it could not get credentials for an inference backend, naming the variable to set.
 
-### Step 2B — BYOK Path
+### Step 2B — Hosted Pipelex API
 
-#### 1. Guide API key setup
+#### 1. Get a Pipelex API key
 
-Tell the user to set up their API keys. Common providers:
+The user needs a Pipelex API key. If they do not have one yet, they create one in their console at [app.pipelex.com](https://app.pipelex.com).
 
-- **OpenAI**: Add `OPENAI_API_KEY=sk-...` to `~/.pipelex/.env`
-- **Anthropic**: Add `ANTHROPIC_API_KEY=sk-ant-...` to `~/.pipelex/.env`
+#### 2. Save the key
 
-They can also export them in their shell profile (`~/.zshrc`, `~/.bashrc`).
+Ask the user to run this in their own terminal (not through Claude Code), so the key stays out of this conversation:
 
-#### 2. Ask which providers they've configured
-
-Ask which backends to enable.
-
-#### 3. Run init
-
-```bash
-# Single backend example:
-mthds-agent init -g --config '{"backends": ["openai"]}'
-
-# Multiple backends example:
-mthds-agent init -g --config '{"backends": ["openai", "anthropic"], "primary_backend": "anthropic"}'
+```
+mthds runner setup api
 ```
 
-When `pipelex_gateway` is not among the backends, `accept_gateway_terms` is not needed.
-When 2+ backends are selected without `pipelex_gateway`, `primary_backend` is required.
+It asks for the API base URL — leaving it empty keeps the hosted default, `https://api.pipelex.com` — then for the API key with masked input, saves both to `~/.mthds/config`, and offers to make `api` the default runner.
 
-#### 4. Configure credentials
+If the user would rather hand the key to you, save it with:
 
-Guide the user to add their API keys to `~/.pipelex/.env`:
+```bash
+mthds-agent runner setup api --api-key <their-api-key>
+```
 
-- **OpenAI**: `OPENAI_API_KEY=sk-...`
-- **Anthropic**: `ANTHROPIC_API_KEY=sk-ant-...`
+Wait for the user to confirm the key is saved.
 
-If the user prefers an interactive setup, tell them to run `pipelex init inference` in their own terminal (not through Claude Code).
+#### 3. Make the API runner the default
 
-#### 5. Verify
+```bash
+mthds-agent config set runner api
+```
 
-Run `mthds-agent doctor` to confirm keys are valid and configuration is healthy.
+#### 4. Verify
+
+```bash
+mthds-agent doctor
+```
+
+The configuration should show `runner` set to `api` and `api-key` configured; the doctor warns when the runner is `api` and no API key is configured.
 
 ### Step 3 — Success
 
-Once the doctor reports healthy:
+Once the setup is verified:
 
 > Your inference setup is complete! You can now run your methods with live AI inference.
 
