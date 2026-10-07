@@ -26,9 +26,11 @@ and up to date. This step checks Pipelex-specific configuration health.
 mthds-agent doctor  # outputs markdown
 ```
 
-- **If the doctor reports config issues (missing backends, missing API keys)** AND the user is requesting a **live run** (not `--dry-run`): STOP. Tell the user:
+- **If the doctor warns that the runner is `api` and no Pipelex API key is configured** AND the user is requesting a **live run** (not `--dry-run`): STOP. Tell the user:
 
-> Pipelex needs to be configured with inference backends before running methods. Use `/mthds-runner-setup` for guided configuration.
+> Methods need a way to reach AI models before they can run. Use `/mthds-runner-setup` for guided configuration.
+
+The doctor does not read provider API keys, so on the pipelex runner a missing one surfaces at the first live run instead, which Step 6 handles. Any other issue the doctor reports, such as a missing or outdated binary, names its own fix: apply that fix rather than sending the user to `/mthds-runner-setup`.
 
 - **If the user is requesting a dry run** (`--dry-run`): config issues are OK — dry runs work without backend configuration. Proceed.
 
@@ -217,7 +219,7 @@ main_stuff is always the primary output for a completed run:
 
 ### Step 6: Handle Errors
 
-**If the run returns `InferenceSetupRequiredError` (error_domain: `onboarding`)**: This means inference has never been configured. This is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to guide them through Gateway or BYOK setup, then re-run the method.
+**If a live run fails because inference is not set up**: on the pipelex runner, either the runtime was never initialised and the error says config files are missing and suggests `pipelex init config`, or the error says it could not get credentials for an inference backend and names the missing variable, such as `OPENAI_API_KEY`; on the API runner, the hosted API refuses the call because no Pipelex API key is configured. On a machine where inference was never set up, this is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to set up their own provider keys or the hosted Pipelex API, then re-run the method.
 
 For all other error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 

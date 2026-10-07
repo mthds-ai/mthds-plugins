@@ -29,7 +29,7 @@ FROM NOW ON, ASSUME THE CLIs ARE INSTALLED AND WORKING, and ONLY USE `mthds-agen
 
 Backend configuration (API keys, model routing) is **only** needed to run methods with live inference. It is **not** needed for: building, validating, editing, explaining, fixing, preparing inputs, or dry-running methods.
 
-When a user needs to run methods with live inference, direct them to `/mthds-runner-setup` for guided configuration.
+When a user needs to run methods with live inference, direct them to `/mthds-runner-setup` for guided configuration: it sets up either their own provider keys on the local pipelex runner, or a Pipelex API key on the hosted Pipelex API.
 
 ## Agent CLI
 
@@ -309,14 +309,13 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 
 | Command | Purpose | Example |
 |---------|---------|---------|
-| `mthds-agent init` | Initialize pipelex configuration (non-interactive) | `mthds-agent init -g --config '{"backends": ["openai"]}'` |
+| `mthds-agent init` | Initialize pipelex configuration with the backends to enable (non-interactive; pipelex runner only; writes no keys) | `mthds-agent init -g --config '{"backends": ["openai"]}'` |
 | `mthds-agent run bundle` | Execute a pipeline (compact output by default; use `--with-memory` for full envelope) | `mthds-agent run bundle <bundle-dir>/` |
 | `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle bundle.mthds --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON (`--explicit` wraps each input in its `{concept, content}` envelope) | `mthds-agent inputs bundle bundle.mthds --explicit` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON; pipelex runner only) | `mthds-agent check-model '$writing-creative' --type llm` |
-| `mthds-agent accept-gateway-terms` | Accept Pipelex Gateway terms and mark inference setup complete | `mthds-agent accept-gateway-terms` |
-| `mthds-agent doctor` | Check config health and auto-fix (outputs markdown) | `mthds-agent doctor` |
+| `mthds-agent doctor` | Check the toolchain and the mthds configuration; never writes (outputs markdown) | `mthds-agent doctor` |
 | `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
 | `mthds-agent package list` | Display package manifest | `mthds-agent package list -C <pkg-dir>` |

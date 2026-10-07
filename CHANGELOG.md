@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **`mthds-runner-setup` offers your own provider keys or the hosted Pipelex API (Breaking)**: the skill sets up either your own provider keys on the local pipelex runner, recommending one OpenAI key, which runs the default language and image models, or a Pipelex API key on the hosted Pipelex API. The Pipelex Gateway path is gone, with its terms question, its `pipelex_gateway` backend and `mthds-agent accept-gateway-terms`, since pipelex 0.73.0 removed the gateway. `mthds-run` and the error handling reference now send a live run that fails on a missing provider key or Pipelex API key to the setup, in place of the `InferenceSetupRequiredError` pipelex no longer raises. The skills now assume pipelex 0.73.0 or later, and the hosted setup names `https://api.pipelex.com` as the base URL explicitly, so a base URL configured earlier for a self-hosted runner does not receive the hosted key.
+
 ## [v0.17.1] - 2026-10-06
 
 ### Added

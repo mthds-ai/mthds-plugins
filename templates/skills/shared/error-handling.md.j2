@@ -38,11 +38,9 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `optional_not_handled` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
 | `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
 
-## Onboarding Errors
+## Inference Setup Errors
 
-| Error Type | Meaning | Recovery |
-|------------|---------|----------|
-| `InferenceSetupRequiredError` | First-run: inference has never been configured | Use `/mthds-runner-setup` for guided setup, or run `mthds-agent init -g` with backend configuration |
+A live run on a machine where inference was never set up fails on the missing configuration or the missing key. On the pipelex runner, a runtime that was never initialised fails at boot with a `PipelexSetupError` saying config files are missing and suggesting `pipelex init config`; once it is initialised, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`. On the API runner, the hosted API refuses the call because no Pipelex API key is configured. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
 
 ## Model & Config Errors
 
@@ -50,8 +48,8 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 
 | Error Type | Meaning | Recovery |
 |------------|---------|----------|
-| `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent doctor` — check routing configuration |
-| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Run `mthds-agent doctor` — verify API keys and model availability |
+| `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent models` to list the presets and aliases available, and use one of them |
+| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Check that the backend's API key is set: `pipelex doctor`, run by the user in their own terminal, reports the credentials of each enabled backend, and `/mthds-runner-setup` adds a missing one |
 
 ## Runtime Errors
 
