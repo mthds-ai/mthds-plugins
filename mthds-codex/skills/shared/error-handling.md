@@ -48,8 +48,8 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 
 | Error Type | Meaning | Recovery |
 |------------|---------|----------|
-| `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent doctor` — check routing configuration |
-| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Run `mthds-agent doctor` — verify API keys and model availability |
+| `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent models` to list the presets and aliases available, and use one of them |
+| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Check that the backend's API key is set: `pipelex doctor`, run by the user in their own terminal, reports the credentials of each enabled backend, and `/mthds-runner-setup` adds a missing one |
 
 ## Runtime Errors
 

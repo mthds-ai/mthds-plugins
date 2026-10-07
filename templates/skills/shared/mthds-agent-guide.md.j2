@@ -315,7 +315,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent inputs bundle` | Generate example input JSON (`--explicit` wraps each input in its `{concept, content}` envelope) | `mthds-agent inputs bundle bundle.mthds --explicit` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON; pipelex runner only) | `mthds-agent check-model '$writing-creative' --type llm` |
-| `mthds-agent doctor` | Check config health and auto-fix (outputs markdown) | `mthds-agent doctor` |
+| `mthds-agent doctor` | Check the toolchain and the mthds configuration; never writes (outputs markdown) | `mthds-agent doctor` |
 | `mthds-agent install` | Install a method package from GitHub or local directory | `mthds-agent install org/repo --location local` |
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
 | `mthds-agent package list` | Display package manifest | `mthds-agent package list -C <pkg-dir>` |
