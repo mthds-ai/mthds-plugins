@@ -104,11 +104,12 @@ Wait for the user's choice before proceeding.
 
 ### Step 2A — Your Own Provider Keys
 
-#### 1. Make the local runner the default
+#### 1. Install the local runner and make it the default
 
-Methods that use the user's own keys run on the pipelex runner, and `mthds-agent init` is a command of that runner only:
+Methods that use the user's own keys run on the pipelex runner, and `mthds-agent init` is a command of that runner only. Install it (this does nothing when it is already installed) and make it the default:
 
 ```bash
+mthds-agent runner setup pipelex
 mthds-agent config set runner pipelex
 ```
 
@@ -172,12 +173,12 @@ Ask the user to run this in their own terminal (not through Claude Code), so the
 mthds runner setup api
 ```
 
-It asks for the API base URL — leaving it empty keeps the hosted default, `https://api.pipelex.com` — then for the API key with masked input, saves both to `~/.mthds/config`, and offers to make `api` the default runner.
+It asks for the API base URL, then for the API key with masked input, saves both to `~/.mthds/config`, and offers to make `api` the default runner. Tell the user the base URL for the hosted API is `https://api.pipelex.com`: when a custom URL was configured before, such as a self-hosted runner, the prompt is pre-filled with that one and keeping it would send the hosted key there.
 
-If the user would rather hand the key to you, save it with:
+If the user would rather hand the key to you, save it with the hosted base URL named explicitly, since without `--base-url` the command keeps whatever base URL is already configured:
 
 ```bash
-mthds-agent runner setup api --api-key <their-api-key>
+mthds-agent runner setup api --base-url https://api.pipelex.com --api-key <their-api-key>
 ```
 
 Wait for the user to confirm the key is saved.
@@ -194,7 +195,7 @@ mthds-agent config set runner api
 mthds-agent doctor
 ```
 
-The configuration should show `runner` set to `api` and `api-key` configured; the doctor warns when the runner is `api` and no API key is configured.
+The configuration should show `runner` set to `api`, `base-url` set to `https://api.pipelex.com` and `api-key` configured; the doctor warns when the runner is `api` and no API key is configured, but it does not check which base URL is set. If `base-url` names another host, set it with `mthds-agent config set base-url https://api.pipelex.com`.
 
 ### Step 3 — Success
 

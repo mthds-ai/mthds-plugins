@@ -101,11 +101,11 @@ and up to date. This step checks Pipelex-specific configuration health.
 mthds-agent doctor  # outputs markdown
 ```
 
-- **If the doctor reports a config issue** AND the user is requesting a **live run** (not `--dry-run`): STOP. The doctor checks the toolchain and the mthds configuration, and warns when the runner is `api` and no Pipelex API key is configured. Tell the user:
+- **If the doctor warns that the runner is `api` and no Pipelex API key is configured** AND the user is requesting a **live run** (not `--dry-run`): STOP. Tell the user:
 
 > Methods need a way to reach AI models before they can run. Use `/mthds-runner-setup` for guided configuration.
 
-The doctor does not read provider API keys, so on the pipelex runner a missing one surfaces at the first live run instead, which Step 6 handles.
+The doctor does not read provider API keys, so on the pipelex runner a missing one surfaces at the first live run instead, which Step 6 handles. Any other issue the doctor reports, such as a missing or outdated binary, names its own fix: apply that fix rather than sending the user to `/mthds-runner-setup`.
 
 - **If the user is requesting a dry run** (`--dry-run`): config issues are OK — dry runs work without backend configuration. Proceed.
 
