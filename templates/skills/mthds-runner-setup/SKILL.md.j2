@@ -60,6 +60,14 @@ Ask which backends they want to enable, offering OpenAI alone as the default ans
 
 #### 3. Run init
 
+`init` resets the configuration files it writes, the backends, the routing profiles and the model deck, to Pipelex's templates, discarding any edits made to them. So first check whether a configuration already exists:
+
+```bash
+ls ~/.pipelex/inference/backends.toml .pipelex/inference/backends.toml 2>/dev/null
+```
+
+If one does and the run failed only because a key is missing, skip `init` and go to step 4: the backends are already enabled, and only the key needs adding. Run `init` on an existing configuration only when the user wants to change which backends are enabled, and only after telling them that it resets those files and getting their yes.
+
 ```bash
 # OpenAI alone (recommended):
 mthds-agent init -g --config '{"backends": ["openai"]}'
