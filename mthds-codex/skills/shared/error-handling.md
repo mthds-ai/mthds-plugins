@@ -40,7 +40,7 @@ When `mthds-agent validate bundle` reports a list of errors.
 
 ## Inference Setup Errors
 
-A live run on a machine where inference was never set up fails on the missing key. On the pipelex runner, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`. On the API runner, the hosted API refuses the call because no Pipelex API key is configured. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
+A live run on a machine where inference was never set up fails on the missing configuration or the missing key. On the pipelex runner, a runtime that was never initialised fails at boot with a `PipelexSetupError` saying config files are missing and suggesting `pipelex init config`; once it is initialised, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`. On the API runner, the hosted API refuses the call because no Pipelex API key is configured. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
 
 ## Model & Config Errors
 

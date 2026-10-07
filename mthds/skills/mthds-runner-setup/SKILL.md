@@ -1,6 +1,6 @@
 ---
 name: mthds-runner-setup
-description: Set up or reconfigure how methods reach AI models, with the user's own provider API keys or with a Pipelex API key on the hosted Pipelex API. Use when a live run fails because a provider API key is missing (the error says it could not get credentials for an inference backend), when the runner has no API key, when the user wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", "use the hosted API", or gets a config/credential error when running. Guides through bringing your own provider keys (OpenAI recommended) or running on the hosted Pipelex API.
+description: Set up or reconfigure how methods reach AI models, with the user's own provider API keys or with a Pipelex API key on the hosted Pipelex API. Use when a live run fails because Pipelex was never initialised (the error says config files are missing) or because a provider API key is missing (the error says it could not get credentials for an inference backend), when the runner has no API key, when the user wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", "use the hosted API", or gets a config/credential error when running. Guides through bringing your own provider keys (OpenAI recommended) or running on the hosted Pipelex API.
 min_mthds_version: 0.30.0
 allowed-tools:
   - Bash
