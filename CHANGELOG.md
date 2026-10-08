@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- **The model reference example names an alias every deck carries**: the MTHDS language reference's note on a name that exists under another sigil gives `best-gpt` exists as `@best-gpt`, an alias of the shipped deck and the hosted one, where it gave `@best-claude`, which neither carries any longer.
+- **The model reference example names an alias every deck carries**: the MTHDS language reference's example of a name that exists under another sigil is now `@best-gpt` (`best-gpt` exists as `@best-gpt`), an alias of the shipped deck and the hosted one, where it was `@best-claude`, which neither carries any longer.
 
 ## [v0.17.1] - 2026-10-06
 
