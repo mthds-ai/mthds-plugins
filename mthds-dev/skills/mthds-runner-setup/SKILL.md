@@ -230,6 +230,14 @@ When it reports the line, never read or print that file's value: ask the user to
 
 #### 3. Send runs to the hosted API
 
+Like the own-keys route, `init` resets the configuration files it writes to Pipelex's templates. So first check whether the home configuration directory already holds one:
+
+```bash
+ls "${PIPELEX_HOME:-$HOME/.pipelex}/pipelex.toml" 2>/dev/null
+```
+
+When it finds one, tell the user and run `init` only after their yes. If they would rather keep their files, for instance to keep a working own-keys setup for `--local` runs, set `execution = "hosted"` in the `[run]` table of the file `ls` listed, at the path it printed, with your file tools instead, adding the table when it is missing: that changes nothing else.
+
 Make the hosted API where runs execute by default:
 
 ```bash
@@ -237,14 +245,6 @@ mthds-agent init -g --config '{"execution": "hosted"}'
 ```
 
 This writes `execution = "hosted"` in the `[run]` table of `pipelex.toml` in the home configuration directory, which is the directory `PIPELEX_HOME` names when that variable is set and not empty, else `~/.pipelex`, so every run goes to the hosted API unless it passes `--local`, and its report says whether a Pipelex API key is set. A hosted setup configures no backend, so `init` refuses `backends` and `primary_backend` beside `"execution": "hosted"`.
-
-Like the own-keys route, `init` resets the configuration files it writes to Pipelex's templates. So first check whether that home already holds one:
-
-```bash
-ls "${PIPELEX_HOME:-$HOME/.pipelex}/pipelex.toml" 2>/dev/null
-```
-
-When it finds one, tell the user and run `init` only after their yes. If they would rather keep their files, for instance to keep a working own-keys setup for `--local` runs, set `execution = "hosted"` in the `[run]` table of the file `ls` listed, at the path it printed, with your file tools instead, adding the table when it is missing: that changes nothing else.
 
 Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedence over the global one, and the one a project-level `init` writes says `execution = "local"`: set it to `hosted` there too when the user works in such a project.
 
