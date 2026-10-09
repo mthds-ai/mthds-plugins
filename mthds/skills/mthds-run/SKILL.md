@@ -178,6 +178,13 @@ Before running, assess whether inputs are ready. This prevents runtime failures 
 - **Ready**: `inputs.json` exists AND all content values are real (no placeholders, referenced files exist) → proceed to Step 4 with normal run
 - **Not ready**: `inputs.json` is missing, OR contains any placeholder values → proceed to Step 4 with dry-run fallback
 
+#### A method named by its address or its catalog id
+
+Such a method has no bundle directory here and no `inputs.json` beside it, so the check above changes:
+
+- **A published address**: get the input schema with `mthds-agent inputs method github.com/owner/repo[/name][@tag] --explicit`, which fetches the method and answers in the same envelope as `inputs bundle`. Fill in the values with the user, keep them inline or in a file outside the fetched package, and apply the placeholder checks above to them. When they are not ready, the dry-run fallback of Step 4 is `mthds-agent run method <address> --dry-run --mock-inputs`, a run on this machine (add `--local` where runs execute on the hosted API by default).
+- **A catalog id (`mt_…`)**: nothing on this machine describes the method. `inputs method` does not take a catalog id, and a dry run, which executes on this machine, cannot load it. Ask the user for the inputs the method takes and their values, pass them inline or as an absolute path, and tell the user that the run goes straight to the hosted Pipelex API as a live run that spends inference credit: start it only once they confirm.
+
 ### Step 4: Choose Run Mode
 
 #### If inputs are not ready
@@ -304,7 +311,13 @@ main_stuff is always the primary output for a completed run:
 
 **If a live run fails because inference is not set up**: on a run that executes on this machine, either the runtime was never initialised and the error says config files are missing and suggests `pipelex init config`, or the error says it could not get credentials for an inference backend and names the missing variable, such as `OPENAI_API_KEY`. On a machine where inference was never set up, this is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to set up their own provider keys or the hosted Pipelex API, then re-run the method.
 
-**If a hosted run is refused for its Pipelex API key**: the hosted API answers a missing or rejected `PIPELEX_API_KEY` with a 401 (`http_status` 401 in the error), whose hint says to run `pipelex login`. Ask the user to run `pipelex login` in their own terminal (not through Claude Code), or `pipelex login --paste` on a machine with no browser, which saves a new key to `~/.pipelex/.env`, then re-run the method. Never ask for the key in this conversation. A key exported in the shell does not replace one saved in `~/.pipelex/.env` or in a `.env` in the current directory, which pipelex reads over the shell.
+**If a hosted run is refused for its Pipelex API key**: the hosted API answers a missing or rejected `PIPELEX_API_KEY` with a 401 (`http_status` 401 in the error), whose hint says to run `pipelex login`. Ask the user to run `pipelex login` in their own terminal (not through Claude Code), or `pipelex login --paste` on a machine with no browser, which saves a new key to `~/.pipelex/.env`. Never ask for the key in this conversation. Before re-running the method, check that no `.env` in the directory you run methods from shadows the new key: pipelex loads that file after `~/.pipelex/.env`, so its `PIPELEX_API_KEY`, the rejected key included, would still be sent and refused again. This check prints a fixed message, never the value:
+
+```bash
+grep -qE '^[[:space:]]*(export[[:space:]]+)?PIPELEX_API_KEY[[:space:]]*=' .env 2>/dev/null && echo ".env sets PIPELEX_API_KEY"
+```
+
+When it reports the line, never read or print that file's value: ask the user to remove the line, or to replace its value with their new key themselves, then re-run the method. A key exported in the shell does not replace one saved in `~/.pipelex/.env` or in that `.env`, which pipelex reads over the shell.
 
 For all other error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 

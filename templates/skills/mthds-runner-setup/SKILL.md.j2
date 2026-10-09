@@ -89,6 +89,8 @@ mthds-agent init -g --config '{"backends": ["openai", "anthropic", "mistral"], "
 
 With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. Without an `execution` field, `init` sets runs to execute on this machine. `-g` writes the global `~/.pipelex/` configuration, used in every project; without it, `init` targets a project-level `.pipelex/`.
 
+Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedence over the global one. When it sets `execution = "hosted"` in its `[run]` table, a global `init` leaves runs in that project going to the hosted API, and `pipelex-agent doctor` still reports `Execution` as `hosted`. Tell the user, then set it to `local` in the project file with your file tools, which changes nothing else in it; a user who wants the project to stay hosted can instead pass `--local` on each run they want on this machine.
+
 #### 4. Add the keys
 
 `init` does not write the keys. Ask the user to add each enabled backend's key themselves, so the key stays out of this conversation, in one of these ways:
@@ -138,7 +140,13 @@ It opens the Pipelex app in their browser, where they sign in or create an accou
 
 A user who already exports a Pipelex API key as `PIPELEX_API_KEY` in their shell can skip this step, provided no `.env` file sets another one: pipelex reads `~/.pipelex/.env`, then a `.env` in the current directory, over the shell.
 
-Wait for the user to confirm the key is saved.
+Wait for the user to confirm the key is saved. Then check that no `.env` in the directory you run methods from shadows it: pipelex loads that file after `~/.pipelex/.env`, so a `PIPELEX_API_KEY` line there, an empty or old key included, is what every run sends. This check prints a fixed message, never the value:
+
+```bash
+grep -qE '^[[:space:]]*(export[[:space:]]+)?PIPELEX_API_KEY[[:space:]]*=' .env 2>/dev/null && echo ".env sets PIPELEX_API_KEY"
+```
+
+When it reports the line, never read or print that file's value: ask the user to look at it themselves and, unless it already holds their new key, to remove the line or replace its value. `pipelex login` gives the same warning when the user runs it from that directory.
 
 #### 3. Send runs to the hosted API
 
