@@ -63,7 +63,7 @@ Ask which backends they want to enable, offering OpenAI alone as the default ans
 `init` resets the configuration files it writes, the backends, the routing profiles and the model deck, to Pipelex's templates, discarding any edits made to them. So first check whether a configuration already exists:
 
 ```bash
-ls ~/.pipelex/inference/backends.toml .pipelex/inference/backends.toml 2>/dev/null
+ls "${PIPELEX_HOME:-$HOME/.pipelex}/inference/backends.toml" .pipelex/inference/backends.toml 2>/dev/null
 ```
 
 When one does, read what it sets up before deciding anything. `mthds-agent doctor` does not read the Pipelex configuration, so this is a direct call to `pipelex-agent`, a read-only report that never prints a key:
@@ -87,7 +87,7 @@ mthds-agent init -g --config '{"backends": ["openai"]}'
 mthds-agent init -g --config '{"backends": ["openai", "anthropic", "mistral"], "primary_backend": "openai"}'
 ```
 
-With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. Without an `execution` field, `init` sets runs to execute on this machine. `-g` writes the global `~/.pipelex/` configuration, used in every project; without it, `init` targets a project-level `.pipelex/`.
+With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. Without an `execution` field, `init` sets runs to execute on this machine. `-g` writes the global configuration, used in every project, in the home configuration directory: the directory `PIPELEX_HOME` names when that variable is set and not empty, else `~/.pipelex/`. Without it, `init` targets a project-level `.pipelex/`.
 
 Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedence over the global one. When it sets `execution = "hosted"` in its `[run]` table, a global `init` leaves runs in that project going to the hosted API, and `pipelex-agent doctor` still reports `Execution` as `hosted`. Tell the user, then set it to `local` in the project file with your file tools, which changes nothing else in it; a user who wants the project to stay hosted can instead pass `--local` on each run they want on this machine.
 
@@ -95,7 +95,7 @@ Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedenc
 
 `init` does not write the keys. Ask the user to add each enabled backend's key themselves, so the key stays out of this conversation, in one of these ways:
 
-- Add a line per key to `~/.pipelex/.env`, such as `OPENAI_API_KEY=sk-...`
+- Add a line per key to the home `.env`, `~/.pipelex/.env` (or the `.env` in `PIPELEX_HOME` when that variable is set), such as `OPENAI_API_KEY=sk-...`
 - Export the variables in their shell profile (`~/.zshrc`, `~/.bashrc`)
 - Run `pipelex init credentials` in their own terminal (not through {{ harness_name }}): it prompts for the missing key of each enabled backend and saves it to `~/.pipelex/.env`
 
@@ -130,7 +130,16 @@ Read the `pipelex` version in the doctor's `Dependencies` table. Its `ok` status
 
 #### 2. Get a Pipelex API key
 
-Ask the user to run this in their own terminal (not through {{ harness_name }}), so the key stays out of this conversation:
+First check which hosted API the key would go to. `pipelex login` checks the key with the API at the origin `PIPELEX_BASE_URL` names, else `https://api.pipelex.com`, and every hosted run goes to that same origin. A `.env` that pipelex loads, the home one or the one in the directory you run methods from, sets it over the shell. A base URL is not a secret, so the first command prints it; the second prints a fixed message for each `.env` that sets it, never a line of the file:
+
+```bash
+printenv PIPELEX_BASE_URL
+for env_file in "${PIPELEX_HOME:-$HOME/.pipelex}/.env" .env; do grep -qE '^[[:space:]]*(export[[:space:]]+)?PIPELEX_BASE_URL[[:space:]]*=' "$env_file" 2>/dev/null && echo "$env_file sets PIPELEX_BASE_URL"; done
+```
+
+When `printenv` prints a URL other than `https://api.pipelex.com`, or a `.env` sets the variable, which a former self-hosted or staging setup may have left, tell the user that the login's key check and every hosted run would go to that origin, and ask them to unset it in their shell and its profile, or to remove the line from that `.env`, before they log in. A `.env` line they confirm says `https://api.pipelex.com` can stay.
+
+Then ask the user to run this in their own terminal (not through {{ harness_name }}), so the key stays out of this conversation:
 
 ```
 pipelex login
@@ -156,9 +165,15 @@ Make the hosted API where runs execute by default:
 mthds-agent init -g --config '{"execution": "hosted"}'
 ```
 
-This writes `execution = "hosted"` in the `[run]` table of `~/.pipelex/pipelex.toml`, so every run goes to the hosted API unless it passes `--local`, and its report says whether a Pipelex API key is set. A hosted setup configures no backend, so `init` refuses `backends` and `primary_backend` beside `"execution": "hosted"`.
+This writes `execution = "hosted"` in the `[run]` table of `pipelex.toml` in the home configuration directory, which is the directory `PIPELEX_HOME` names when that variable is set and not empty, else `~/.pipelex`, so every run goes to the hosted API unless it passes `--local`, and its report says whether a Pipelex API key is set. A hosted setup configures no backend, so `init` refuses `backends` and `primary_backend` beside `"execution": "hosted"`.
 
-Like the own-keys route, `init` resets the configuration files it writes to Pipelex's templates. When `ls ~/.pipelex/pipelex.toml` finds one, tell the user and run `init` only after their yes. If they would rather keep their files, for instance to keep a working own-keys setup for `--local` runs, set `execution = "hosted"` in the `[run]` table of `~/.pipelex/pipelex.toml` with your file tools instead, adding the table when it is missing: that changes nothing else.
+Like the own-keys route, `init` resets the configuration files it writes to Pipelex's templates. So first check whether that home already holds one:
+
+```bash
+ls "${PIPELEX_HOME:-$HOME/.pipelex}/pipelex.toml" 2>/dev/null
+```
+
+When it finds one, tell the user and run `init` only after their yes. If they would rather keep their files, for instance to keep a working own-keys setup for `--local` runs, set `execution = "hosted"` in the `[run]` table of the file `ls` listed, at the path it printed, with your file tools instead, adding the table when it is missing: that changes nothing else.
 
 Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedence over the global one, and the one a project-level `init` writes says `execution = "local"`: set it to `hosted` there too when the user works in such a project.
 
@@ -172,7 +187,7 @@ To keep runs on this machine by default and send only some of them to the hosted
 pipelex-agent doctor
 ```
 
-The report should show `Execution` set to `hosted` and a healthy `Pipelex API Key` section; the user can run `pipelex doctor` in their own terminal for the same report. When it says no Pipelex API key is set, the user has not finished `pipelex login`: ask them to run it. The doctor checks only that a key is set and looks like a Pipelex API key (`plx_sk_…`); the hosted API checks the key itself at the first run, and refuses a rejected one with a 401 whose hint says to run `pipelex login`. When runs stay local by default and `--hosted` is passed per run, the report shows `local` and no key section, and the first hosted run is the check.
+The report should show `Execution` set to `hosted` and a healthy `Pipelex API Key` section; the user can run `pipelex doctor` in their own terminal for the same report. When it says no Pipelex API key is set, the user has not finished `pipelex login`: ask them to run it. The doctor checks only that a key is set and looks like a Pipelex API key (`plx_sk_…`); the hosted API checks the key itself at the first run, and refuses a rejected one with a 401 or a 403 whose hint says to run `pipelex login`. A 403 whose message names something the request may not do, rather than the key, is not a key problem, and a new key does not fix it. When runs stay local by default and `--hosted` is passed per run, the report shows `local` and no key section, and the first hosted run is the check.
 
 ### Step 3 — Success
 
