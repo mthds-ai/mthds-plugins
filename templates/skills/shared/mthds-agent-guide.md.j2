@@ -23,20 +23,20 @@ mthds-agent bootstrap
 
 > **Note**: `pipelex-agent` is needed for validation and building; `plxt` is needed for linting and formatting. Neither requires API keys or backend configuration.
 
-FROM NOW ON, ASSUME THE CLIs ARE INSTALLED AND WORKING, and ONLY USE `mthds-agent` commands (including `mthds-agent plxt lint` / `mthds-agent plxt fmt` for linting and formatting).
+FROM NOW ON, ASSUME THE CLIs ARE INSTALLED AND WORKING, and ONLY USE `mthds-agent` commands (including `mthds-agent plxt lint` / `mthds-agent plxt fmt` for linting and formatting). The exceptions are two `pipelex-agent` commands that `mthds-agent` does not forward: `pipelex-agent doctor`, a read-only report of the Pipelex configuration (where runs execute, the Pipelex API key, each enabled backend's credentials) that `mthds-agent doctor` does not read, and `pipelex-agent migrate`, which the error handling reference calls for.
 
 ### Tier 2 — Required only for running methods with live inference
 
-Backend configuration (API keys, model routing) is **only** needed to run methods with live inference. It is **not** needed for: building, validating, editing, explaining, fixing, preparing inputs, or dry-running methods.
+Inference setup (provider API keys and model routing, or a Pipelex API key) is **only** needed to run methods with live inference. It is **not** needed for: building, validating, editing, explaining, fixing, preparing inputs, or dry-running methods.
 
-When a user needs to run methods with live inference, direct them to `/mthds-runner-setup` for guided configuration: it sets up either their own provider keys on the local pipelex runner, or a Pipelex API key on the hosted Pipelex API.
+When a user needs to run methods with live inference, direct them to `/mthds-runner-setup` for guided configuration: it sets up the pipelex runner either with their own provider keys, for runs on this machine, or with a Pipelex API key, for runs on the hosted Pipelex API.
 
 ## Agent CLI
 
-Agents must use `mthds-agent` exclusively. Output format varies by command:
-- **JSON on stdout**: `run`, `inputs`, `init`, `install`, `package` commands
-- **Markdown on stdout**: `validate` (success report — `# Validation passed`, with a `## Pending signatures` section when signatures remain), `models`, `check-model`, `doctor` commands (human/LLM-readable by default)
-- **Errors**: JSON on stderr with exit code 1 for the JSON-output commands above. **`validate` emits markdown errors on stderr by default** — it has independent `--format` (success/stdout) and `--error-format` (errors/stderr) controls; see "Lenient Validation" below. `plxt` passthrough commands emit raw text on stderr (see command table).
+Agents must use `mthds-agent` exclusively, with the two `pipelex-agent` exceptions above. Output format varies by command:
+- **JSON on stdout**: `inputs`, `install`, `package` commands
+- **Markdown on stdout**: `run` (`# Pipeline run complete`, then the result under `## Result`; see "Understanding Run Output" below), `init`, `validate` (success report — `# Validation passed`, with a `## Pending signatures` section when signatures remain), `models`, `check-model`, `doctor` commands (human/LLM-readable by default; `--format json` gives JSON)
+- **Errors**: on stderr with exit code 1. The JSON-output commands above report errors in JSON. **The commands that print markdown by default also report errors in markdown** — `run`, `init` and `validate` have independent `--format` (success/stdout) and `--error-format` (errors/stderr) controls, and `--error-format` follows `--format` when omitted; see "Lenient Validation" below. `plxt` passthrough commands emit raw text on stderr (see command table).
 
 ## Global Options
 
@@ -44,29 +44,36 @@ These options apply to **all** `mthds-agent` commands and must appear **before**
 
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
-| `--runner` | `pipelex`, `api` | default runner | Selects which runner to use for the command |
+| `--runner` | `pipelex`, `api` | the configured runner, `pipelex` unless set | Selects `mthds-agent`'s runner for the command. `mthds-agent` reads this option wherever it appears and refuses any other value, so it never reaches pipelex: to choose where a pipelex run executes, use `--hosted` or `--local` (see below) |
 | `--version` | — | — | Print version and exit |
 
 ### Runner Setup
 
 After installing `mthds-agent`, set up the runner you need:
 
-- **Local runner** (Pipelex — runs pipelines locally, requires backend API keys):
+- **Pipelex runner** (the default, which runs methods):
   ```bash
   mthds-agent runner setup pipelex
   ```
-  This installs the Pipelex runner binary (managed by mthds-agent, not installed via uv/pip). To configure backends and API keys for local execution, run `mthds-agent init` afterwards (see `/mthds-runner-setup`).
+  This installs pipelex with `uv tool` when it is missing, or upgrades it when it is older than the minimum `mthds-agent` requires, and configures nothing. `mthds-agent init` then writes the Pipelex configuration, and keys are added by the user, never by `init`: see `/mthds-runner-setup`.
 
-- **API runner** (remote execution via the Pipelex API):
+  A run on the pipelex runner executes in one of two places:
+  - **On this machine** (the default), where pipelex calls each AI provider with the user's own keys.
+  - **On the hosted Pipelex API**, where pipelex sends the method and its inputs with the Pipelex API key in `PIPELEX_API_KEY`, which the user gets by running `pipelex login` in their own terminal. This needs pipelex 0.79.0 or later.
+
+  The `[run] execution` setting of the Pipelex configuration picks the default, `local` or `hosted` (`mthds-agent init -g --config '{"execution": "hosted"}'` sets it), and `--hosted` or `--local` on a run overrides it. Pass those two flags, never `--runner hosted` or `--runner local`: `mthds-agent` consumes `--runner` as its own option and refuses those values.
+
+- **API runner** (calls a Pipelex API server directly):
   ```bash
   mthds-agent runner setup api --api-key <your-api-key>
   # Optional: specify a custom API base URL (defaults to https://api.pipelex.com)
   mthds-agent runner setup api --api-key <your-api-key> --base-url <url>
   ```
+  It validates bundles, projects inputs and lists models on that server, but it cannot run a bundle: `mthds-agent run bundle` fails on it as an unknown command, and `run method` is not supported. To run methods on the hosted Pipelex API, use the pipelex runner with hosted execution.
 
 Set which runner is used by default:
 ```bash
-mthds-agent config set runner api       # or: pipelex
+mthds-agent config set runner pipelex       # or: api
 ```
 
 Use `--runner` to override the default per-command:
@@ -86,13 +93,13 @@ Use the /mthds-design skill: it captures the method's contract, writes the bundl
 3. **Run** with `mthds-agent run bundle <bundle-dir>/`
 4. **Inspect output** and refine if needed — loop back to step 1
 
-## Understanding JSON Output
+## Understanding Run Output
 
 ### Success Format
 
-The `mthds-agent run bundle` command has two output modes:
+`mthds-agent run bundle` prints Markdown by default: a `# Pipeline run complete` heading, then the result under `## Result`. Pass `--format json` for JSON on stdout, which `jq`, other JSON tools and a piped method need. The command has two output modes:
 
-**Compact (default)**: The concept's structured JSON is emitted directly — no envelope, no metadata:
+**Compact (default)**: The concept's structured JSON — no envelope, no metadata. In Markdown it sits in a fenced `json` block under `## Result`; with `--format json` it is emitted directly:
 
 ```json
 {
@@ -104,9 +111,7 @@ The `mthds-agent run bundle` command has two output modes:
 }
 ```
 
-This works directly with `jq` and other JSON tools.
-
-**With memory (`--with-memory`)**: The full working memory envelope for piping to another method:
+**With memory (`--with-memory`)**: The full working memory envelope for piping to another method; with `--format json` it is emitted as is, and in Markdown `## Result` shows its `main_stuff.markdown`:
 
 ```json
 {
@@ -122,7 +127,9 @@ This works directly with `jq` and other JSON tools.
 }
 ```
 
-Other `mthds-agent` commands (`inputs`, etc.) output their JSON envelope with `"success": true`. `validate bundle` is the exception — it defaults to **markdown**; pass `--format json` to get its `"success": true` envelope (see "Lenient Validation" below).
+On a run on this machine, the envelope also carries `output_file` and `graph_files`, the files the run wrote next to the bundle. **A run on the hosted Pipelex API writes nothing to disk**: its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON, and its envelope carries `pipeline_run_id`, the run's id on the hosted API, in place of the file paths. The Markdown output never shows that id, even with `--with-memory`, so pass `--with-memory --format json` on a hosted run whose id is to be reported, the first time, rather than running it again to get the id; the error report of a hosted run that failed after the hosted API accepted it carries the id in either format.
+
+`inputs` outputs its JSON envelope with `"success": true`. `validate bundle` defaults to **markdown**; pass `--format json` to get its `"success": true` envelope (see "Lenient Validation" below).
 
 ### Error Handling
 
@@ -158,23 +165,23 @@ When stdin contains a `working_memory` key (from upstream `--with-memory` output
 
 ## Piping Methods
 
-Methods can be chained via Unix pipes using `--with-memory` to pass the full working memory between steps:
+Methods can be chained via Unix pipes using `--with-memory --format json` to pass the full working memory between steps:
 
 ```bash
-mthds-agent run method extract-terms --inputs data.json --with-memory \
-  | mthds-agent run method assess-risk --with-memory \
+mthds-agent run method extract-terms --inputs data.json --with-memory --format json \
+  | mthds-agent run method assess-risk --with-memory --format json \
   | mthds-agent run method generate-report
 ```
 
 When methods are installed as CLI shims, the same chain is:
 
 ```bash
-extract-terms --inputs data.json --with-memory \
-  | assess-risk --with-memory \
+extract-terms --inputs data.json --with-memory --format json \
+  | assess-risk --with-memory --format json \
   | generate-report
 ```
 
-- **`--with-memory`** on intermediate steps emits the full envelope (`main_stuff` + `working_memory`).
+- **`--with-memory --format json`** on intermediate steps emits the full envelope (`main_stuff` + `working_memory`) as JSON, which is what stdin reads; the default Markdown output cannot be piped.
 - The **final step** omits `--with-memory` to produce compact output (concept JSON only).
 - **Name matching**: upstream stuff names are matched against downstream input names. Method authors should name their outputs to match downstream expectations.
 
@@ -192,12 +199,14 @@ mthds-wip/
     test-files/             # Generated test files (images, PDFs)
       photo.jpg
     dry_run.html            # Graph HTML (generated by `validate --graph` or `run --dry-run`)
-    live_run.html           # Execution graph from full run
-    live_run_graph.json     # Graph spec JSON from full run
+    live_run.html           # Execution graph from a full run on this machine
+    live_run_graph.json     # Graph spec JSON from a full run on this machine
   pipeline_02/
     bundle.mthds
     ...
 ```
+
+A run on the hosted Pipelex API writes none of the run files.
 
 ## Library Isolation
 
@@ -297,20 +306,20 @@ The path to the generated graph appears in the stderr logs; when `--format json`
 
 ### Execution Graphs
 
-Execution graph visualizations are generated by default with every `mthds-agent run bundle` command. Use `--no-graph` to disable.
+Execution graph visualizations are generated by default with every `mthds-agent run bundle` command that runs on this machine. Use `--no-graph` to disable.
 
 ```bash
 mthds-agent run bundle <bundle-dir>/
 ```
 
-Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the bundle. Live runs additionally produce `live_run_graph.json` (the graph spec). Their paths appear in runtime logs on stderr, not in compact stdout. When using `--with-memory`, `graph_files` is included in the returned JSON envelope.
+Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the bundle. Live runs additionally produce `live_run_graph.json` (the graph spec). Their paths are not in compact output: when using `--with-memory`, `graph_files` is included in the returned envelope. A run on the hosted Pipelex API writes no graph.
 
 ## Agent CLI Command Reference
 
 | Command | Purpose | Example |
 |---------|---------|---------|
-| `mthds-agent init` | Initialize pipelex configuration with the backends to enable (non-interactive; pipelex runner only; writes no keys) | `mthds-agent init -g --config '{"backends": ["openai"]}'` |
-| `mthds-agent run bundle` | Execute a pipeline (compact output by default; use `--with-memory` for full envelope) | `mthds-agent run bundle <bundle-dir>/` |
+| `mthds-agent init` | Initialize the Pipelex configuration (non-interactive; pipelex runner only; writes no keys). `--config` takes `execution` (`"local"`, the default, or `"hosted"`, which needs pipelex 0.79.0 or later and refuses `backends`), `backends` and `primary_backend`; it resets the configuration files it writes | `mthds-agent init -g --config '{"backends": ["openai"]}'` / `mthds-agent init -g --config '{"execution": "hosted"}'` |
+| `mthds-agent run bundle` | Execute a pipeline (markdown by default, `--format json` for JSON; compact output unless `--with-memory`; `--hosted` or `--local` for where it runs) | `mthds-agent run bundle <bundle-dir>/` |
 | `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle bundle.mthds --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON (`--explicit` wraps each input in its `{concept, content}` envelope) | `mthds-agent inputs bundle bundle.mthds --explicit` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
@@ -320,8 +329,8 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the b
 | `mthds-agent package init` | Initialize METHODS.toml | `mthds-agent package init --address github.com/org/repo --version 1.0.0 --description "desc" -C <pkg-dir>` |
 | `mthds-agent package list` | Display package manifest | `mthds-agent package list -C <pkg-dir>` |
 | `mthds-agent package validate` | Validate METHODS.toml package manifest | `mthds-agent package validate -C <pkg-dir>` |
-| `mthds-agent runner setup pipelex` | Install the local Pipelex runner (managed by mthds-agent) | `mthds-agent runner setup pipelex` |
-| `mthds-agent runner setup api` | Set up the API runner for remote execution (defaults to https://api.pipelex.com) | `mthds-agent runner setup api --api-key <key> [--base-url <url>]` |
+| `mthds-agent runner setup pipelex` | Install pipelex with `uv tool`, or upgrade it when it is older than the minimum `mthds-agent` requires | `mthds-agent runner setup pipelex` |
+| `mthds-agent runner setup api` | Set up the API runner, which validates, projects inputs and lists models on a Pipelex API server but cannot run a bundle (defaults to https://api.pipelex.com) | `mthds-agent runner setup api --api-key <key> [--base-url <url>]` |
 | `mthds-agent config set` | Set a config value (runner, base-url, api-key, telemetry, auto-upgrade, update-check) | `mthds-agent config set runner pipelex` |
 | `mthds-agent config list` | List all config values | `mthds-agent config list` |
 | `mthds-agent plxt lint` | Lint `.mthds`/`.toml` files for TOML syntax and schema errors (passthrough to plxt — raw text output on stderr, not JSON) | `mthds-agent plxt lint <file>.mthds` |

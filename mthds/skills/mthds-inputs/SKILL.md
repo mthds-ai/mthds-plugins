@@ -828,6 +828,8 @@ mthds-agent run bundle <bundle-dir>/ --dry-run
 mthds-agent run bundle <bundle-dir>/
 ```
 
+A dry run executes on this machine: where runs execute on the hosted Pipelex API by default, it is refused with an error saying `--dry-run` only applies to a run on this machine, and adding `--local` fixes it.
+
 ---
 
 ## Native Concept Content Structures

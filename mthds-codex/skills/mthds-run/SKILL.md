@@ -1,13 +1,13 @@
 ---
 name: mthds-run
-description: Run MTHDS methods and interpret results. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", or wants to execute any MTHDS method bundle and see its output.
+description: Run MTHDS methods and interpret results, on this machine or on the hosted Pipelex API. Use when user says "run this pipeline", "execute the workflow", "execute the method", "test this .mthds file", "try it out", "see the output", "dry run", "run it on the hosted API", or wants to execute any MTHDS method bundle and see its output.
 min_mthds_version: 0.30.0
 
 ---
 
 # Run MTHDS methods
 
-Execute MTHDS method bundles and interpret their JSON output.
+Execute MTHDS method bundles, on this machine or on the hosted Pipelex API, and interpret their output.
 
 ## Process
 
@@ -95,19 +95,19 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 
 Running methods requires the Pipelex runtime to be installed and configured.
 The preamble (Step 0) already verifies mthds-agent and its managed binaries are present
-and up to date. This step checks Pipelex-specific configuration health.
+and up to date. This step checks the runner.
 
 ```bash
 mthds-agent doctor  # outputs markdown
 ```
 
-- **If the doctor warns that the runner is `api` and no Pipelex API key is configured** AND the user is requesting a **live run** (not `--dry-run`): STOP. Tell the user:
+- **If the doctor shows the runner set to `api`**: STOP, for a live run and a dry run alike. The API runner cannot run a bundle: `mthds-agent run bundle` fails on it as an unknown command. Tell the user:
 
-> Methods need a way to reach AI models before they can run. Use `/mthds-runner-setup` for guided configuration.
+> Methods run through the pipelex runner, on this machine or on the hosted Pipelex API, and this machine is set to the API runner. Use `/mthds-runner-setup` to switch.
 
-The doctor does not read provider API keys, so on the pipelex runner a missing one surfaces at the first live run instead, which Step 6 handles. Any other issue the doctor reports, such as a missing or outdated binary, names its own fix: apply that fix rather than sending the user to `/mthds-runner-setup`.
+- **On the pipelex runner**, the doctor reads neither the provider keys nor where runs execute, so a missing key surfaces at the first live run instead, which Step 6 handles: a provider key on a run that executes on this machine, a Pipelex API key on a run that executes on the hosted Pipelex API. Any other issue the doctor reports, such as a missing or outdated binary, names its own fix: apply that fix rather than sending the user to `/mthds-runner-setup`.
 
-- **If the user is requesting a dry run** (`--dry-run`): config issues are OK — dry runs work without backend configuration. Proceed.
+- **If the user is requesting a dry run** (`--dry-run`): config issues are OK — a dry run executes on this machine and needs no backend configuration. Proceed. On a machine whose runs execute on the hosted Pipelex API by default, the dry run is refused with an error saying that `--dry-run` only applies to a run on this machine: add `--local` and run it again. Never write `--runner local`, which `mthds-agent` reads as its own option and refuses.
 
 - **If healthy**: proceed to Step 2.
 
@@ -118,9 +118,13 @@ The doctor does not read provider API keys, so on the pipelex runner a missing o
 | Pipeline directory (recommended) | `mthds-agent run bundle <bundle-dir>/` |
 | Specific pipe in a directory | `mthds-agent run bundle <bundle-dir>/ --pipe my_pipe` |
 | Bundle file directly | `mthds-agent run bundle bundle.mthds -L <bundle-dir>/` |
-| Pipe by code from library | `mthds-agent run bundle my_pipe` |
+| Pipe by code from library | `mthds-agent run pipe my_pipe -L <library-dir>/` |
+| Published method, by its address | `mthds-agent run method github.com/owner/repo[/name][@tag]` |
+| Method saved on the Pipelex platform, by its catalog id (hosted API only) | `mthds-agent run method mt_abc123 --hosted --with-memory --format json` |
 
 > **Directory mode** (recommended): Pass the pipeline directory as target. The CLI auto-detects `bundle.mthds`, `inputs.json`, and sets `-L` automatically — no need to specify them explicitly. This also avoids namespace collisions with other bundles.
+
+> **Methods named by address or catalog id**: a run on the hosted Pipelex API resolves a published address or a catalog id there, and the catalog id works only there; it needs pipelex 0.79.0 or later. A run on this machine fetches a published method and reads a relative `--inputs` path from the fetched package's directory rather than from the working directory, so pass the inputs inline or as an absolute path.
 
 ### Step 3: Prepare Inputs and Check Readiness
 
@@ -178,6 +182,13 @@ Before running, assess whether inputs are ready. This prevents runtime failures 
 - **Ready**: `inputs.json` exists AND all content values are real (no placeholders, referenced files exist) → proceed to Step 4 with normal run
 - **Not ready**: `inputs.json` is missing, OR contains any placeholder values → proceed to Step 4 with dry-run fallback
 
+#### A method named by its address or its catalog id
+
+Such a method has no bundle directory here and no `inputs.json` beside it, so the check above changes:
+
+- **A published address**: get the input schema with `mthds-agent inputs method github.com/owner/repo[/name][@tag] --explicit`, which fetches the method and answers in the same envelope as `inputs bundle`. Fill in the values with the user, keep them inline or in a file outside the fetched package, and apply the placeholder checks above to them. When they are not ready, the dry-run fallback of Step 4 is `mthds-agent run method <address> --dry-run --mock-inputs`, a run on this machine (add `--local` where runs execute on the hosted API by default).
+- **A catalog id (`mt_…`)**: nothing on this machine describes the method. `inputs method` does not take a catalog id, and a dry run, which executes on this machine, cannot load it. Ask the user for the inputs the method takes and their values, pass them inline or as an absolute path, and tell the user that the run goes straight to the hosted Pipelex API as a live run that spends inference credit: start it only once they confirm.
+
 ### Step 4: Choose Run Mode
 
 #### If inputs are not ready
@@ -205,8 +216,14 @@ After the dry run, use AskUserQuestion to present next steps:
 | **Full run inline** | `mthds-agent run bundle <bundle-dir>/ --inputs '{"theme": ...}'` | Quick execution with inline JSON inputs |
 | **Full run without graph** | `mthds-agent run bundle <bundle-dir>/ --no-graph` | Execute without generating graph visualization |
 | **Full run with memory** | `mthds-agent run bundle <bundle-dir>/ --with-memory` | When piping output to another method |
+| **Hosted run** | `mthds-agent run bundle <bundle-dir>/ --hosted --with-memory --format json` | Run on the hosted Pipelex API when runs execute on this machine by default (pipelex 0.79.0 or later, with a Pipelex API key) |
+| **Run on this machine** | `mthds-agent run bundle <bundle-dir>/ --local` | Run here when runs execute on the hosted Pipelex API by default, as every dry run must |
 
-> **Graph by default**: Execution graphs (`live_run.html` / `dry_run.html`) are now generated automatically. Use `--no-graph` to disable.
+> **A live run on the hosted Pipelex API takes `--with-memory --format json`**, whether `--hosted` or the `[run] execution` setting sends it there: only that JSON envelope carries the run's `pipeline_run_id`, which Step 5 reports, and running again only to get the id would spend inference credit twice.
+
+> **Graph by default**: Execution graphs (`live_run.html` / `dry_run.html`) are generated automatically on a run on this machine. Use `--no-graph` to disable.
+
+> **Where a run executes**: the `[run] execution` setting of the Pipelex configuration decides, `local` unless `/mthds-runner-setup` set it to `hosted`, and `--hosted` or `--local` on a run overrides it. Write those two flags, never `--runner hosted` or `--runner local`: `mthds-agent` reads `--runner` as its own option and refuses those values. A pipelex older than 0.79.0 has no hosted runs and refuses both flags as unknown options: a hosted run then needs pipelex upgraded with `uv tool install --upgrade pipelex`, while a run on this machine needs neither flag. A hosted run sends the bundle's `.mthds` files, with those of its `-L` library directories, and uploads the local files named at document and image inputs. It sends no Python and no package manifest, so a method whose `PipeFunc` functions or structures live in Python files, or whose `METHODS.toml` declares dependencies, must run on this machine.
 
 ### Inline JSON for Inputs
 
@@ -226,12 +243,14 @@ After a successful run, **always show the actual output to the user** — never 
 
 #### Output format modes
 
-The CLI has two output modes:
+`mthds-agent run` prints Markdown by default: a `# Pipeline run complete` heading, then a `## Result` section. Pass `--format json` to get JSON on stdout instead, which a program or a piped method needs. Either way, the run has two output modes:
 
-- **Compact (default)**: stdout is the concept's structured JSON directly — no envelope, no `success` wrapper. This is the primary output of the method's main concept. Parse the JSON directly for field access.
-- **With memory (`--with-memory`)**: stdout has `main_stuff` (with `json`, `markdown`, `html` renderings) + `working_memory` (all named stuffs and aliases). Use this when piping output to another method.
+- **Compact (default)**: the concept's structured JSON — no envelope, no `success` wrapper. This is the primary output of the method's main concept. In Markdown it sits in a fenced `json` block under `## Result`; with `--format json` it is the whole of stdout, ready to parse.
+- **With memory (`--with-memory`)**: `main_stuff` (with `json`, `markdown`, `html` renderings) + `working_memory` (all named stuffs and aliases). In Markdown, `## Result` shows the `main_stuff.markdown` rendering, followed by the output file and graph paths; with `--format json`, stdout is the whole envelope. Use this, with `--format json`, when piping output to another method.
 
-The `output_file` and `graph_files` are written to disk as side effects (paths appear in logs/stderr), not in compact stdout.
+A run on this machine writes the `output_file` and `graph_files` to disk as side effects; their paths are in the `--with-memory` output, not in compact output.
+
+**A run on the hosted Pipelex API writes nothing to disk**: no output file and no graph. Its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON: show `main_stuff.json`. Report the run's id on the hosted API, `pipeline_run_id`, to the user, since it names the run on the Pipelex platform. Only the `--with-memory` envelope in JSON carries it: neither the Markdown output nor compact output shows it, which is why a hosted run takes `--with-memory --format json` the first time, and why it is never run again only for its id. The error report of a run that failed after the hosted API accepted it carries the id in either format.
 
 #### 5a. Determine what to show
 
@@ -265,7 +284,7 @@ main_stuff is always the primary output for a completed run:
 
 **In `--with-memory` mode**:
 
-- Show `main_stuff.markdown` directly — this is the human-readable rendering. Display it as-is so the user sees the full output.
+- Show `main_stuff.markdown` directly — this is the human-readable rendering. Display it as-is so the user sees the full output. On a hosted run it is empty: show `main_stuff.json` instead.
 - For structured concepts with fields, also show `main_stuff.json` formatted for readability.
 - If `main_stuff` is an absence document (`absent: true`), show the absence reason and provenance instead of treating it as missing output.
 
@@ -273,14 +292,16 @@ main_stuff is always the primary output for a completed run:
 
 #### 5c. Output file
 
-- The CLI automatically saves the full JSON output next to the bundle (`live_run.json` or `dry_run.json`).
-- The output file path appears in runtime logs (stderr), not in compact stdout.
+- A run on this machine saves the full JSON output next to the bundle (`live_run.json` or `dry_run.json`).
+- The output file path is in the `--with-memory` output, not in compact output.
+- A hosted run saves no output file.
 
 #### 5d. Present graph files
 
-- Graph visualizations are generated by default (`live_run.html` / `dry_run.html`). Use `--no-graph` to disable.
-- Live runs also write `live_run_graph.json` (the graph spec) next to the bundle.
-- The graph file paths appear in runtime logs (stderr), not in compact stdout.
+- A run on this machine generates graph visualizations by default (`live_run.html` / `dry_run.html`). Use `--no-graph` to disable.
+- Live runs on this machine also write `live_run_graph.json` (the graph spec) next to the bundle.
+- The graph file paths are in the `--with-memory` output, not in compact output.
+- A hosted run writes no graph.
 
 #### 5e. Mention intermediate results
 
@@ -294,39 +315,47 @@ main_stuff is always the primary output for a completed run:
 
 ### Step 6: Handle Errors
 
-**If a live run fails because inference is not set up**: on the pipelex runner, either the runtime was never initialised and the error says config files are missing and suggests `pipelex init config`, or the error says it could not get credentials for an inference backend and names the missing variable, such as `OPENAI_API_KEY`; on the API runner, the hosted API refuses the call because no Pipelex API key is configured. On a machine where inference was never set up, this is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to set up their own provider keys or the hosted Pipelex API, then re-run the method.
+**If a live run fails because inference is not set up**: on a run that executes on this machine, either the runtime was never initialised and the error says config files are missing and suggests `pipelex init config`, or the error says it could not get credentials for an inference backend and names the missing variable, such as `OPENAI_API_KEY`. On a machine where inference was never set up, this is the user's first live inference run — congratulate them on reaching this milestone, then **immediately begin the `/mthds-runner-setup` flow inline** (do not ask the user to type it separately). Follow the full process from that skill to set up their own provider keys or the hosted Pipelex API, then re-run the method.
+
+**If a hosted run is refused for its Pipelex API key**: the hosted API refuses a missing or rejected `PIPELEX_API_KEY` with a 401 or a 403 (`http_status` 401 or 403 in the error), whose hint says to run `pipelex login`. A 403 can also refuse something a valid key may not do: when its message names what this request may not do rather than the key, it is not a key problem, so tell the user what the message says instead of sending them to `pipelex login`. For a refused key, ask the user to run `pipelex login` in their own terminal (not through Codex), or `pipelex login --paste` on a machine with no browser, which saves a new key to `~/.pipelex/.env`. Never ask for the key in this conversation. Before re-running the method, check that no `.env` in the directory you run methods from shadows the new key: pipelex loads that file after `~/.pipelex/.env`, so its `PIPELEX_API_KEY`, the rejected key included, would still be sent and refused again. This check prints a fixed message, never the value:
+
+```bash
+grep -qE '^[[:space:]]*(export[[:space:]]+)?PIPELEX_API_KEY[[:space:]]*=' .env 2>/dev/null && echo ".env sets PIPELEX_API_KEY"
+```
+
+When it reports the line, never read or print that file's value: ask the user to remove the line, or to replace its value with their new key themselves, then re-run the method. A key exported in the shell does not replace one saved in `~/.pipelex/.env` or in that `.env`, which pipelex reads over the shell.
 
 For all other error types and recovery strategies, see [Error Handling Reference](../shared/error-handling.md).
 
 ### Execution Graphs
 
-Execution graph visualizations are generated by default alongside the run output. Use `--no-graph` to disable.
+Execution graph visualizations are generated by default alongside the output of a run on this machine. Use `--no-graph` to disable.
 
 ```bash
 mthds-agent run bundle <bundle-dir>/
 ```
 
-Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the bundle. Live runs additionally produce `live_run_graph.json` (the graph spec). Their paths appear in runtime logs on stderr, not in compact stdout. When using `--with-memory`, `graph_files` is included in the returned JSON envelope.
+Graph files (`live_run.html` / `dry_run.html`) are written to disk next to the bundle. Live runs additionally produce `live_run_graph.json` (the graph spec). Their paths are not in compact output: when using `--with-memory`, `graph_files` is included in the returned envelope. A run on the hosted Pipelex API writes no graph.
 
 ### Piping Methods
 
 The run command accepts piped JSON on stdin when `--inputs` is not provided. This enables chaining methods:
 
 ```bash
-mthds-agent run method extract-terms --inputs data.json --with-memory \
-  | mthds-agent run method assess-risk --with-memory \
+mthds-agent run method extract-terms --inputs data.json --with-memory --format json \
+  | mthds-agent run method assess-risk --with-memory --format json \
   | mthds-agent run method generate-report
 ```
 
 When methods are installed as CLI shims, the same chain is:
 
 ```bash
-extract-terms --inputs data.json --with-memory \
-  | assess-risk --with-memory \
+extract-terms --inputs data.json --with-memory --format json \
+  | assess-risk --with-memory --format json \
   | generate-report
 ```
 
-- Use `--with-memory` on intermediate steps to pass the full working memory envelope.
+- Use `--with-memory --format json` on intermediate steps to pass the full working memory envelope: stdin is read as JSON, and the default Markdown output is not.
 - The final step omits `--with-memory` to produce compact output.
 - `--inputs` always overrides stdin when both are present.
 - Upstream stuff names are matched against downstream input names. Method authors should name their outputs to match the downstream's expected input names.
