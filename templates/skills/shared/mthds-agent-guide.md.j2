@@ -127,7 +127,7 @@ Use the /mthds-design skill: it captures the method's contract, writes the bundl
 }
 ```
 
-On a run on this machine, the envelope also carries `output_file` and `graph_files`, the files the run wrote next to the bundle. **A run on the hosted Pipelex API writes nothing to disk**: its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON, and its envelope carries `pipeline_run_id`, the run's id on the hosted API, in place of the file paths.
+On a run on this machine, the envelope also carries `output_file` and `graph_files`, the files the run wrote next to the bundle. **A run on the hosted Pipelex API writes nothing to disk**: its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON, and its envelope carries `pipeline_run_id`, the run's id on the hosted API, in place of the file paths. The Markdown output never shows that id, even with `--with-memory`, so pass `--with-memory --format json` on a hosted run whose id is to be reported, the first time, rather than running it again to get the id; the error report of a hosted run that failed after the hosted API accepted it carries the id in either format.
 
 `inputs` outputs its JSON envelope with `"success": true`. `validate bundle` defaults to **markdown**; pass `--format json` to get its `"success": true` envelope (see "Lenient Validation" below).
 

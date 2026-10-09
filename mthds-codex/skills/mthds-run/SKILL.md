@@ -120,7 +120,7 @@ mthds-agent doctor  # outputs markdown
 | Bundle file directly | `mthds-agent run bundle bundle.mthds -L <bundle-dir>/` |
 | Pipe by code from library | `mthds-agent run pipe my_pipe -L <library-dir>/` |
 | Published method, by its address | `mthds-agent run method github.com/owner/repo[/name][@tag]` |
-| Method saved on the Pipelex platform, by its catalog id (hosted API only) | `mthds-agent run method mt_abc123 --hosted` |
+| Method saved on the Pipelex platform, by its catalog id (hosted API only) | `mthds-agent run method mt_abc123 --hosted --with-memory --format json` |
 
 > **Directory mode** (recommended): Pass the pipeline directory as target. The CLI auto-detects `bundle.mthds`, `inputs.json`, and sets `-L` automatically — no need to specify them explicitly. This also avoids namespace collisions with other bundles.
 
@@ -216,8 +216,10 @@ After the dry run, use AskUserQuestion to present next steps:
 | **Full run inline** | `mthds-agent run bundle <bundle-dir>/ --inputs '{"theme": ...}'` | Quick execution with inline JSON inputs |
 | **Full run without graph** | `mthds-agent run bundle <bundle-dir>/ --no-graph` | Execute without generating graph visualization |
 | **Full run with memory** | `mthds-agent run bundle <bundle-dir>/ --with-memory` | When piping output to another method |
-| **Hosted run** | `mthds-agent run bundle <bundle-dir>/ --hosted` | Run on the hosted Pipelex API when runs execute on this machine by default (pipelex 0.79.0 or later, with a Pipelex API key) |
+| **Hosted run** | `mthds-agent run bundle <bundle-dir>/ --hosted --with-memory --format json` | Run on the hosted Pipelex API when runs execute on this machine by default (pipelex 0.79.0 or later, with a Pipelex API key) |
 | **Run on this machine** | `mthds-agent run bundle <bundle-dir>/ --local` | Run here when runs execute on the hosted Pipelex API by default, as every dry run must |
+
+> **A live run on the hosted Pipelex API takes `--with-memory --format json`**, whether `--hosted` or the `[run] execution` setting sends it there: only that JSON envelope carries the run's `pipeline_run_id`, which Step 5 reports, and running again only to get the id would spend inference credit twice.
 
 > **Graph by default**: Execution graphs (`live_run.html` / `dry_run.html`) are generated automatically on a run on this machine. Use `--no-graph` to disable.
 
@@ -248,7 +250,7 @@ After a successful run, **always show the actual output to the user** — never 
 
 A run on this machine writes the `output_file` and `graph_files` to disk as side effects; their paths are in the `--with-memory` output, not in compact output.
 
-**A run on the hosted Pipelex API writes nothing to disk**: no output file and no graph. Its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON: show `main_stuff.json`. The id of the run on the hosted API, `pipeline_run_id`, is in the `--with-memory` envelope, and in the error report of a run that failed after the hosted API accepted it; report it to the user, since it names the run on the Pipelex platform.
+**A run on the hosted Pipelex API writes nothing to disk**: no output file and no graph. Its `main_stuff` carries the result in `json` alone, with `markdown` and `html` left empty, so the Markdown output falls back to that JSON: show `main_stuff.json`. Report the run's id on the hosted API, `pipeline_run_id`, to the user, since it names the run on the Pipelex platform. Only the `--with-memory` envelope in JSON carries it: neither the Markdown output nor compact output shows it, which is why a hosted run takes `--with-memory --format json` the first time, and why it is never run again only for its id. The error report of a run that failed after the hosted API accepted it carries the id in either format.
 
 #### 5a. Determine what to show
 
