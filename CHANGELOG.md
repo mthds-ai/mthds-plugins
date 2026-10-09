@@ -2,13 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Runs on the hosted Pipelex API in `mthds-run`**: the skill and the agent guide describe where a pipelex run executes, on this machine or on the hosted Pipelex API, chosen by the `[run] execution` setting or by `--hosted` and `--local` on a run (never `--runner`, which `mthds-agent` consumes), and run a published method by its address or a saved one by its catalog id (`mt_…`). They say what a hosted run sends and leaves out, that it writes no output file or graph and reports its `pipeline_run_id`, and that a dry run on a machine set to hosted needs `--local`; `mthds-design`, `mthds-edit`, `mthds-inputs` and `mthds-explain` say so where they suggest one.
+
 ### Changed
 
-- **`mthds-runner-setup` offers your own provider keys or the hosted Pipelex API (Breaking)**: the skill sets up either your own provider keys on the local pipelex runner, recommending one OpenAI key, which runs the default language and image models, or a Pipelex API key on the hosted Pipelex API. The Pipelex Gateway path is gone, with its terms question, its `pipelex_gateway` backend and `mthds-agent accept-gateway-terms`, since pipelex 0.73.0 removed the gateway. `mthds-run` and the error handling reference now send a live run that fails on a missing provider key or Pipelex API key to the setup, in place of the `InferenceSetupRequiredError` pipelex no longer raises. The skills now assume pipelex 0.73.0 or later, and the hosted setup names `https://api.pipelex.com` as the base URL explicitly, so a base URL configured earlier for a self-hosted runner does not receive the hosted key.
+- **`mthds-runner-setup` offers your own provider keys or the hosted Pipelex API (Breaking)**: the skill sets up the pipelex runner either with your own provider keys, for runs on this machine, recommending one OpenAI key, which runs the default language and image models, or with a Pipelex API key, for runs on the hosted Pipelex API, which the user gets with `pipelex login` and which needs pipelex 0.79.0 or later; it no longer offers the API runner, which cannot run a bundle. The own-keys setup skips `init` only when `pipelex-agent doctor` shows runs executing on this machine with the backends the user chose, and the Pipelex Gateway path is gone, with its terms question, its `pipelex_gateway` backend and `mthds-agent accept-gateway-terms`, since pipelex 0.73.0 removed the gateway. `mthds-run` and the error handling reference send a live run that fails on a missing provider key or Pipelex API key to the setup, in place of the `InferenceSetupRequiredError` pipelex no longer raises, and the skills assume pipelex 0.73.0 or later.
 
 ### Fixed
 
 - **The model reference example names an alias every deck carries**: the MTHDS language reference's example of a name that exists under another sigil is now `@best-gpt` (`best-gpt` exists as `@best-gpt`), an alias of the shipped deck and the hosted one, where it was `@best-claude`, which neither carries any longer.
+- **Run output and piping**: `mthds-run` and the agent guide say that `mthds-agent run` prints Markdown by default, with `--format json` for JSON, and their piping examples pass `--with-memory --format json` on each upstream step, since a downstream method reads its stdin as JSON. A pipe is run by its code with `mthds-agent run pipe`, which `run bundle` refuses.
+- **The API runner, the error reference and the README**: `mthds-run` stops on the API runner, which cannot run a bundle, and the agent guide says so. The error handling reference adds a hosted run's refused Pipelex API key and `FormerReleaseConfigError`, recovered with `pipelex-agent migrate`, and lists the unknown-model refusal among the validation errors as `unknown_model`, which editing the bundle fixes. The guide says that `mthds-agent runner setup pipelex` installs pipelex with `uv tool` and configures nothing, and the README no longer says that methods run on a `pipelex-api` server you host.
 
 ## [v0.17.1] - 2026-10-06
 

@@ -139,6 +139,7 @@ For a completed method, validation **without** `--allow-signatures` must pass an
    mthds-agent run bundle <bundle_home>/ --dry-run --mock-inputs
    mthds-agent run bundle <bundle_home>/
    ```
+   A dry run executes on this machine: where runs execute on the hosted Pipelex API by default, it is refused with an error saying `--dry-run` only applies to a run on this machine, and adding `--local` fixes it.
 
 ## Stops
 

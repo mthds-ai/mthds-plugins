@@ -1,16 +1,16 @@
 ---
 name: mthds-runner-setup
-description: Set up or reconfigure how methods reach AI models, with the user's own provider API keys or with a Pipelex API key on the hosted Pipelex API. Use when a live run fails because Pipelex was never initialised (the error says config files are missing) or because a provider API key is missing (the error says it could not get credentials for an inference backend), when the runner has no API key, when the user wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", "use the hosted API", or gets a config/credential error when running. Guides through bringing your own provider keys (OpenAI recommended) or running on the hosted Pipelex API.
+description: Set up or reconfigure how methods reach AI models, with the user's own provider API keys or with a Pipelex API key on the hosted Pipelex API. Use when a live run fails because Pipelex was never initialised (the error says config files are missing) or because a provider API key is missing (the error says it could not get credentials for an inference backend), when the hosted Pipelex API refuses a run's Pipelex API key, when the runner is set to `api`, which cannot run a bundle, when the user wants to set up inference for the first time, says "set up pipelex", "configure backends", "configure inference", "set up API keys", "pipelex setup", "pipelex init", "pipelex login", "use the hosted API", or gets a config/credential error when running. Guides through bringing your own provider keys (OpenAI recommended) or running on the hosted Pipelex API.
 min_mthds_version: 0.30.0
 
 ---
 
 # Inference Setup
 
-You've built a method — now let's run it. Before a live inference run, the method needs a way to reach AI models, and there are two:
+You've built a method — now let's run it. Before a live inference run, the method needs a way to reach AI models, and there are two. Both go through the pipelex runner, which executes a run either on this machine or on the hosted Pipelex API:
 
-- **Your own provider keys**: the method runs on this machine with the local Pipelex runner, which calls each AI provider with the user's own API key.
-- **The hosted Pipelex API**: the method runs on the hosted Pipelex API with a Pipelex API key, and this machine holds no provider key at all.
+- **Your own provider keys**: the method runs on this machine, and pipelex calls each AI provider with the user's own API key.
+- **The hosted Pipelex API**: pipelex sends the method and its inputs to the hosted Pipelex API with a Pipelex API key, and this machine holds no provider key at all.
 
 Building, validating, editing, explaining and dry-running need neither. This is a one-time setup, and running this skill again switches from one to the other.
 
@@ -108,7 +108,7 @@ Wait for the user's choice before proceeding.
 
 ### Step 2A — Your Own Provider Keys
 
-#### 1. Install the local runner and make it the default
+#### 1. Install the pipelex runner and make it the default
 
 Methods that use the user's own keys run on the pipelex runner, and `mthds-agent init` is a command of that runner only. Install it (this does nothing when it is already installed) and make it the default:
 
@@ -119,7 +119,7 @@ mthds-agent config set runner pipelex
 
 #### 2. Choose the backends
 
-Recommend **OpenAI** as the one key to start with: the default models of Pipelex's model deck are OpenAI models, so an OpenAI key alone runs the default language and image models. Among the backends below, only `openai` serves those defaults, so keep it in the list.
+Recommend **OpenAI** as the one key to start with: the default models of Pipelex's model deck are OpenAI models, so an OpenAI key alone runs the default language and image models. Among the backends below, only `openai` serves those defaults, so keep it in the list whenever the method's language or image pipes use the default models.
 
 Other backends the user may enable beside it, each with its own key:
 
@@ -131,7 +131,7 @@ Other backends the user may enable beside it, each with its own key:
 | `google` | `GOOGLE_API_KEY` | |
 | `openrouter` | `OPENROUTER_API_KEY` | One key for models from many providers |
 
-Ask which backends they want to enable, offering OpenAI alone as the default answer.
+Ask which backends they want to enable, offering OpenAI alone as the default answer. When this skill started from a failed run whose error names a key variable, such as `MISTRAL_API_KEY`, propose the backend that reads that variable instead, adding `openai` only when the method also uses the default language or image models.
 
 #### 3. Run init
 
@@ -141,7 +141,18 @@ Ask which backends they want to enable, offering OpenAI alone as the default ans
 ls ~/.pipelex/inference/backends.toml .pipelex/inference/backends.toml 2>/dev/null
 ```
 
-If one does and the run failed only because a key is missing, skip `init` and go to step 4: the backends are already enabled, and only the key needs adding. Run `init` on an existing configuration only when the user wants to change which backends are enabled, and only after telling them that it resets those files and getting their yes.
+When one does, read what it sets up before deciding anything. `mthds-agent doctor` does not read the Pipelex configuration, so this is a direct call to `pipelex-agent`, a read-only report that never prints a key:
+
+```bash
+pipelex-agent doctor
+```
+
+Its `Execution` line says where runs execute, and its `Backend Credentials` section lists each enabled backend with the key variables it is missing. Skip `init` and go to step 4 only when both of these hold:
+
+- Runs execute on this machine: the `Execution` line says `local`, or is absent, as it is on a pipelex release older than 0.79.0, which runs everything on this machine.
+- The enabled backends are the ones the user chose.
+
+Then only the keys need adding. Otherwise `init` is needed: for a configuration whose `Execution` is `hosted`, which would keep sending runs to the hosted API, and for one that enables other backends, such as the configuration `pipelex init config` writes, which enables nearly every backend and would need a key for each. Tell the user that `init` resets those files, and run it only after their yes. If they decline, leave the configuration as it is and say what that means: runs keep executing where the `Execution` line says, and a run on this machine needs the key of every backend listed.
 
 ```bash
 # OpenAI alone (recommended):
@@ -151,7 +162,7 @@ mthds-agent init -g --config '{"backends": ["openai"]}'
 mthds-agent init -g --config '{"backends": ["openai", "anthropic", "mistral"], "primary_backend": "openai"}'
 ```
 
-With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. `-g` writes the global `~/.pipelex/` configuration, used in every project; without it, `init` targets a project-level `.pipelex/`.
+With one backend named, `init` routes to that backend every model it supports. With two or more, `primary_backend` names the one tried first and is required. Without an `execution` field, `init` sets runs to execute on this machine. `-g` writes the global `~/.pipelex/` configuration, used in every project; without it, `init` targets a project-level `.pipelex/`.
 
 #### 4. Add the keys
 
@@ -167,47 +178,68 @@ Wait for the user to confirm the keys are in place.
 
 ```bash
 mthds-agent doctor
+pipelex-agent doctor
 ```
 
-The doctor checks the toolchain and that the runner is `pipelex`, but it does not read provider keys. To check the keys, the user can run `pipelex doctor` in their own terminal, which reports the credentials of each enabled backend. Otherwise the first live run checks them: a missing key fails with an error saying it could not get credentials for an inference backend, naming the variable to set.
+`mthds-agent doctor` checks the toolchain and that the runner is `pipelex`. `pipelex-agent doctor` should show `Execution` set to `local` (on pipelex 0.79.0 or later) and every enabled backend under `Backend Credentials` with its credentials valid; the user can run `pipelex doctor` in their own terminal for the same report. It checks that each key variable is set, without printing the key or testing it with the provider, so the first live run is what proves a key works.
 
 ### Step 2B — Hosted Pipelex API
 
-#### 1. Get a Pipelex API key
+The hosted route runs on the same pipelex runner as the own-keys route: pipelex sends each run to the hosted Pipelex API instead of executing it here. It needs pipelex 0.79.0 or later, the first release with hosted runs and `pipelex login`. The API runner that `mthds-agent runner setup api` configures is not this route: it cannot run a bundle, and `mthds-agent run bundle` fails on it as an unknown command.
 
-The user needs a Pipelex API key. If they do not have one yet, they create one in their console at [app.pipelex.com](https://app.pipelex.com).
+#### 1. Install pipelex 0.79.0 or later and make the pipelex runner the default
 
-#### 2. Save the key
+```bash
+mthds-agent runner setup pipelex
+mthds-agent config set runner pipelex
+mthds-agent doctor
+```
+
+Read the `pipelex` version in the doctor's `Dependencies` table. Its `ok` status only says that pipelex meets `mthds-agent`'s own minimum, which may be older than 0.79.0, and neither `mthds-agent runner setup pipelex` nor `mthds-agent upgrade` moves a release that meets that minimum. If the version is below 0.79.0, upgrade pipelex, then run `mthds-agent doctor` again and check that the version is now 0.79.0 or later:
+
+```bash
+uv tool install --upgrade pipelex
+```
+
+#### 2. Get a Pipelex API key
 
 Ask the user to run this in their own terminal (not through Codex), so the key stays out of this conversation:
 
 ```
-mthds runner setup api
+pipelex login
 ```
 
-It asks for the API base URL, then for the API key with masked input, saves both to `~/.mthds/config`, and offers to make `api` the default runner. Tell the user the base URL for the hosted API is `https://api.pipelex.com`: when a custom URL was configured before, such as a self-hosted runner, the prompt is pre-filled with that one and keeping it would send the hosted key there.
+It opens the Pipelex app in their browser, where they sign in or create an account, and the app hands a new key back to the command. On a machine with no browser, `pipelex login --paste` asks instead for a key the user creates in the Pipelex app at [app.pipelex.com](https://app.pipelex.com). Either way the command checks the key with the hosted API, saves it as `PIPELEX_API_KEY` in `~/.pipelex/.env` (in the `.env` of `PIPELEX_HOME` when that variable is set), and never prints it. Never ask for the key in this conversation.
 
-If the user would rather hand the key to you, save it with the hosted base URL named explicitly, since without `--base-url` the command keeps whatever base URL is already configured:
-
-```bash
-mthds-agent runner setup api --base-url https://api.pipelex.com --api-key <their-api-key>
-```
+A user who already exports a Pipelex API key as `PIPELEX_API_KEY` in their shell can skip this step, provided no `.env` file sets another one: pipelex reads `~/.pipelex/.env`, then a `.env` in the current directory, over the shell.
 
 Wait for the user to confirm the key is saved.
 
-#### 3. Make the API runner the default
+#### 3. Send runs to the hosted API
+
+Make the hosted API where runs execute by default:
 
 ```bash
-mthds-agent config set runner api
+mthds-agent init -g --config '{"execution": "hosted"}'
 ```
+
+This writes `execution = "hosted"` in the `[run]` table of `~/.pipelex/pipelex.toml`, so every run goes to the hosted API unless it passes `--local`, and its report says whether a Pipelex API key is set. A hosted setup configures no backend, so `init` refuses `backends` and `primary_backend` beside `"execution": "hosted"`.
+
+Like the own-keys route, `init` resets the configuration files it writes to Pipelex's templates. When `ls ~/.pipelex/pipelex.toml` finds one, tell the user and run `init` only after their yes. If they would rather keep their files, for instance to keep a working own-keys setup for `--local` runs, set `execution = "hosted"` in the `[run]` table of `~/.pipelex/pipelex.toml` with your file tools instead, adding the table when it is missing: that changes nothing else.
+
+Inside a project with its own `.pipelex/pipelex.toml`, that file takes precedence over the global one, and the one a project-level `init` writes says `execution = "local"`: set it to `hosted` there too when the user works in such a project.
+
+To keep runs on this machine by default and send only some of them to the hosted API, skip this step and pass `--hosted` on those runs, such as `mthds-agent run bundle <bundle-dir>/ --hosted`. Write `--hosted` and `--local`, never `--runner hosted` or `--runner local`: `mthds-agent` reads `--runner` as its own option, which names its runner, `pipelex` or `api`, and refuses any other value.
 
 #### 4. Verify
 
+`mthds-agent doctor` does not read the Pipelex configuration, so this is a direct call to `pipelex-agent`, a read-only report that never prints a key:
+
 ```bash
-mthds-agent doctor
+pipelex-agent doctor
 ```
 
-The configuration should show `runner` set to `api`, `base-url` set to `https://api.pipelex.com` and `api-key` configured; the doctor warns when the runner is `api` and no API key is configured, but it does not check which base URL is set. If `base-url` names another host, set it with `mthds-agent config set base-url https://api.pipelex.com`.
+The report should show `Execution` set to `hosted` and a healthy `Pipelex API Key` section; the user can run `pipelex doctor` in their own terminal for the same report. When it says no Pipelex API key is set, the user has not finished `pipelex login`: ask them to run it. The doctor checks only that a key is set and looks like a Pipelex API key (`plx_sk_…`); the hosted API checks the key itself at the first run, and refuses a rejected one with a 401 whose hint says to run `pipelex login`. When runs stay local by default and `--hosted` is passed per run, the report shows `local` and no key section, and the first hosted run is the check.
 
 ### Step 3 — Success
 

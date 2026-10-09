@@ -36,11 +36,16 @@ When `mthds-agent validate bundle` reports a list of errors.
 | `binding_step_invalid` | A malformed sequence step: `pipe` beside `from`, a binding step without `result` or carrying a pipe step's field, a `from` or `result` outside its grammar, or a binding step or dotted `batch_over` in a `PipeParallel` branch | Give a binding step `from` and a plain `result` only; bind in a sequence step before the `PipeParallel` |
 | `binding_path_unresolved` | A binding path, or a dotted `batch_over`, that the declared structures cannot walk | Fix the segment the message names, using the fields it lists, or bind the value itself |
 | `optional_not_handled` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
+| `unknown_model` | A pipe's `model` (or a `PipeLLM`'s `model_to_structure`) names a model the model deck does not define, or a bare name the deck serves only as another model type; a run refuses the bundle with the same item, raised as `PipeOperatorModelChoiceError` | Write a reference the deck defines: the item carries the deck's close matches, and `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves |
 | `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
 
 ## Inference Setup Errors
 
-A live run on a machine where inference was never set up fails on the missing configuration or the missing key. On the pipelex runner, a runtime that was never initialised fails at boot with a `PipelexSetupError` saying config files are missing and suggesting `pipelex init config`; once it is initialised, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`. On the API runner, the hosted API refuses the call because no Pipelex API key is configured. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
+A live run on a machine where inference was never set up fails on the missing configuration or the missing key, and what fails depends on where the run executes. Editing the `.mthds` file fixes neither: use `/mthds-runner-setup`, which sets up the user's own provider keys or the hosted Pipelex API.
+
+- **A run on this machine** (the default): a runtime that was never initialised fails at boot with a `PipelexSetupError` saying config files are missing and suggesting `pipelex init config`; once it is initialised, the error, whatever its type, says it could not get credentials for an inference backend and names the variable that is missing, such as `OPENAI_API_KEY`.
+- **A run on the hosted Pipelex API** (`--hosted`, or `[run] execution` set to `hosted`): the hosted API answers a missing or rejected `PIPELEX_API_KEY` with a 401 (`http_status` 401), whose hint says to run `pipelex login`. Ask the user to run `pipelex login` in their own terminal, or `pipelex login --paste` on a machine with no browser: it saves a new key to `~/.pipelex/.env`, and the run can be repeated. A key exported in the shell does not replace one saved in `~/.pipelex/.env` or in a `.env` in the current directory, which pipelex reads over the shell. Never ask for the key in this conversation.
+- **The API runner** (`mthds-agent config get runner` says `api`) cannot run a bundle at all: `mthds-agent run bundle` fails there as an unknown command. Runs go through the pipelex runner, on this machine or on the hosted Pipelex API, which `/mthds-runner-setup` sets up.
 
 ## Model & Config Errors
 
@@ -48,8 +53,8 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 
 | Error Type | Meaning | Recovery |
 |------------|---------|----------|
-| `PipeOperatorModelChoiceError` | Model preset doesn't resolve to an available model | Run `mthds-agent models` to list the presets and aliases available, and use one of them |
-| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) | Check that the backend's API key is set: `pipelex doctor`, run by the user in their own terminal, reports the credentials of each enabled backend, and `/mthds-runner-setup` adds a missing one |
+| `PipeOperatorModelAvailabilityError` | Model is configured but not reachable (missing API key, service down) on a run on this machine | Check that the backend's API key is set: `pipelex-agent doctor` lists each enabled backend with the key variables it is missing, without printing a key (the user can run `pipelex doctor` in their own terminal for the same report), and `/mthds-runner-setup` adds a missing one |
+| `FormerReleaseConfigError` | The Pipelex configuration still carries what a former release wrote for the retired Pipelex Gateway: an enabled retired backend, a backend naming `model_specs_section`, or a routing profile sending models to a retired backend. Raised at boot, it names each file | Run `pipelex-agent migrate`, which writes nothing and reports the plan, and show it to the user. With their yes, `pipelex-agent migrate --yes` removes what that release left and keeps a copy of each file it changes; the user can instead run `pipelex migrate` in their own terminal. `mthds-agent` has no `migrate` command |
 
 ## Runtime Errors
 
@@ -59,8 +64,8 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 | `BuildPipeError` | Automated build failed | Check `failure_memory_path` in error JSON for debugging details |
 | `FileNotFoundError` | Bundle file or input file not found | Check file paths are correct |
 | `JSONDecodeError` | Invalid JSON in inputs | Fix JSON syntax |
-| `ArgumentError` | Invalid CLI flag combination | Check command flags (e.g., `--mock-inputs` requires `--dry-run`) |
-| `BinaryNotFoundError` | A required binary (e.g., `pipelex-agent`) is not on PATH | Install: `uv tool install /workspace/pipelex/`. Then use `/mthds-runner-setup` to configure backends. |
+| `ArgumentError` | Invalid CLI flag combination | Check command flags (e.g., `--mock-inputs` requires `--dry-run`). When it says `--dry-run` or `--mock-inputs` only apply to a run on this machine, runs execute on the hosted Pipelex API by default: add `--local` and run again. Never `--runner local`, which `mthds-agent` reads as its own option and refuses as an unknown runner |
+| `BinaryNotFoundError` | A required binary (e.g., `pipelex-agent`) is not on PATH | Install: `uv tool install /workspace/pipelex/`. Then use `/mthds-runner-setup` to set up inference. |
 
 ## Cross-Domain Validation & Library Isolation
 
