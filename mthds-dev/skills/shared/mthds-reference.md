@@ -700,7 +700,7 @@ Each referenced image is injected as an `[Image N]` token (reference image), bou
 
 Aspect-ratio support is model-dependent, and only `square` works on every model. The newest models cover nearly the full range: `gpt-image-2` supports every value but the banner shapes, and `nano-banana-2` and `nano-banana-2-lite` every value but `portrait_9_21`, so a banner shape needs one of those two. The older `gpt-image-1` and `gpt-image-1.5` accept only `square`, `landscape_3_2` and `portrait_2_3`. For a specific shape such as `landscape_16_9` or `portrait_9_16`, choose a model that supports it rather than assuming the default does.
 
-### PipeFunc — call a registered Python function
+### PipeFunc — call a Python function of the method's folder
 
 ```toml
 [pipe.capitalize_text]
@@ -708,14 +708,46 @@ type          = "PipeFunc"
 description   = "Uppercase the input text"
 inputs        = { text = "Text" }
 output        = "Text"
-function_name = "capitalize"
+function_name = "funcs.text_utils.capitalize"
 ```
 
-Only use this when the user has a registered function. Otherwise prefer PipeCompose or PipeLLM.
+The module `funcs/text_utils.py`, under the method's root, defines the function as Pipelex expects it:
 
-**`function_name` is a registry key, not an import path.** It names an entry in the runtime's flat, process-wide function registry — by default the decorated function's own name, and otherwise whatever string `@pipe_func(name=…)` was given — and resolution is a lookup with no import. So nothing in a bundle says which module defines a registered function, and a dotted name is just a key that happens to contain dots. Name the function, not a path to it.
+```python
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.stuffs.text_content import TextContent
+from pipelex.system.registries.func_registry import pipe_func
 
-The function must already be registered in the runtime that executes the method: a `function_name` naming something the runtime has not registered fails at run time, not at validation.
+
+@pipe_func()
+def capitalize(working_memory: WorkingMemory) -> TextContent:
+    text = working_memory.get_stuff_as_str("text")
+    return TextContent(text=text.upper())
+```
+
+This is how Pipelex marks a function as callable from a method and calls it, which the standard leaves to the runtime: the `@pipe_func()` decorator, `def` or `async def`, one parameter named `working_memory` of type `WorkingMemory`, which holds the step's inputs by name, and a return type that is a `StuffContent` such as `TextContent`.
+
+Only use this when a step needs the user's own Python code. Otherwise prefer PipeCompose or PipeLLM.
+
+**`function_name` is the function's Python import path from the root of the method's tree.** The root is the nearest directory holding a `METHODS.toml`, at or above the folder the runtime is handed, or that folder itself when there is none; for a bundle of a dependency, it is that dependency's own root. A `.mthds` file handed over alone, with no `METHODS.toml` at or above its directory, is a tree of that one file, which holds no module. The name splits at its last dot into a module path and the function's name: `funcs.text_utils.capitalize` names the function `capitalize` of the module `funcs.text_utils`, which is the file `funcs/text_utils.py` under the root or the package `funcs/text_utils/__init__.py`, each dot of the module path read as a `/`. The modules that module imports resolve from the same root, so a helper module can sit in a subdirectory and relative imports work. Keep the Python in the method's folder, beside its bundles, and out of what the tree leaves out, such as a directory whose name starts with a dot or a file a `.gitignore` ignores. The Python is a file of the method's tree, so it travels with the method only where the whole tree is handed over or published: a run that sends only the method's `.mthds` files, as a hosted run does, sends no Python, so a method with a `PipeFunc` runs on this machine, where its tree is.
+
+Validation refuses a `function_name` that breaks one of these rules, and checks the module without running any Python, naming the pipe whose module is missing:
+
+- The name holds at least one dot. A bare name such as `capitalize` names no module and is refused.
+- Every dot-separated segment is a Python identifier that is not a Python keyword, so `funcs.text-utils.capitalize` and `funcs.class.capitalize` are refused.
+- The module path names a module of the tree: the tree holds `<module path>.py` or `<module path>/__init__.py`. A tree holding both, such as `funcs/text_utils.py` beside `funcs/text_utils/__init__.py`, is refused as ambiguous.
+
+A pipelex that reports a function as `not found in registry` although its module defines it predates import paths, which means the runtime is too old, not that the name is wrong: upgrade pipelex rather than shorten the name.
+
+**`requirements.txt` declares the packages the method's Python imports.** A method whose functions import third-party packages lists them in a file named `requirements.txt` at the root of its tree, one requirement per line as [PEP 508](https://peps.python.org/pep-0508/) writes it, environment markers included:
+
+```
+# The packages funcs/text_utils.py imports
+pandas>=2.2,<3
+tzdata; python_version >= "3.12"
+```
+
+Each line is blank, a comment whose first character other than spaces and tabs is `#`, or exactly one requirement. A requirement naming a URL (`name @ https://…`), an option of any kind (a line starting with `-`, such as `-e`, `-r`, `-c` or `--index-url`), a comment after a requirement and a line continued with a backslash are refused, naming the line. Only the root's `requirements.txt` declares anything: a file of that name elsewhere in the tree is an ordinary file. How the requirements are satisfied is the runtime's to decide, and a runtime that cannot satisfy them should refuse the method when it loads, naming each package it cannot satisfy.
 
 ### PipeSignature — a contract-only header (forward declaration)
 
