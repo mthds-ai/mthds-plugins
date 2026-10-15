@@ -718,9 +718,25 @@ output        = "Text"
 function_name = "funcs.text_utils.capitalize"
 ```
 
+The module `funcs/text_utils.py`, under the method's root, defines the function as Pipelex expects it:
+
+```python
+from pipelex.core.memory.working_memory import WorkingMemory
+from pipelex.core.stuffs.text_content import TextContent
+from pipelex.system.registries.func_registry import pipe_func
+
+
+@pipe_func()
+def capitalize(working_memory: WorkingMemory) -> TextContent:
+    text = working_memory.get_stuff_as_str("text")
+    return TextContent(text=text.upper())
+```
+
+This is how Pipelex marks a function as callable from a method and calls it, which the standard leaves to the runtime: the `@pipe_func()` decorator, `def` or `async def`, one parameter named `working_memory` of type `WorkingMemory`, which holds the step's inputs by name, and a return type that is a `StuffContent` such as `TextContent`.
+
 Only use this when a step needs the user's own Python code. Otherwise prefer PipeCompose or PipeLLM.
 
-**`function_name` is the function's Python import path from the root of the method's tree.** The root is the nearest directory holding a `METHODS.toml`, at or above the folder the runtime is handed, or that folder itself when there is none; for a bundle of a dependency, it is that dependency's own root. A `.mthds` file handed over alone, with no `METHODS.toml` at or above its directory, is a tree of that one file, which holds no module. The name splits at its last dot into a module path and the function's name: `funcs.text_utils.capitalize` names the function `capitalize` of the module `funcs.text_utils`, which is the file `funcs/text_utils.py` under the root or the package `funcs/text_utils/__init__.py`, each dot of the module path read as a `/`. The modules that module imports resolve from the same root, so a helper module can sit in a subdirectory and relative imports work. The Python is part of the method and travels with it, so keep it in the method's folder, beside its bundles, and out of what the tree leaves out, such as a directory whose name starts with a dot or a file a `.gitignore` ignores.
+**`function_name` is the function's Python import path from the root of the method's tree.** The root is the nearest directory holding a `METHODS.toml`, at or above the folder the runtime is handed, or that folder itself when there is none; for a bundle of a dependency, it is that dependency's own root. A `.mthds` file handed over alone, with no `METHODS.toml` at or above its directory, is a tree of that one file, which holds no module. The name splits at its last dot into a module path and the function's name: `funcs.text_utils.capitalize` names the function `capitalize` of the module `funcs.text_utils`, which is the file `funcs/text_utils.py` under the root or the package `funcs/text_utils/__init__.py`, each dot of the module path read as a `/`. The modules that module imports resolve from the same root, so a helper module can sit in a subdirectory and relative imports work. Keep the Python in the method's folder, beside its bundles, and out of what the tree leaves out, such as a directory whose name starts with a dot or a file a `.gitignore` ignores. The Python is a file of the method's tree, so it travels with the method only where the whole tree is handed over or published: a run that sends only the method's `.mthds` files, as a hosted run does, sends no Python, so a method with a `PipeFunc` runs on this machine, where its tree is.
 
 Validation refuses a `function_name` that breaks one of these rules, and checks the module without running any Python, naming the pipe whose module is missing:
 
@@ -728,7 +744,7 @@ Validation refuses a `function_name` that breaks one of these rules, and checks 
 - Every dot-separated segment is a Python identifier that is not a Python keyword, so `funcs.text-utils.capitalize` and `funcs.class.capitalize` are refused.
 - The module path names a module of the tree: the tree holds `<module path>.py` or `<module path>/__init__.py`. A tree holding both, such as `funcs/text_utils.py` beside `funcs/text_utils/__init__.py`, is refused as ambiguous.
 
-How a function is marked as callable from a method, and how it is called, are the runtime's to define: Pipelex calls only a function decorated with its `@pipe_func` marker. A pipelex that reports a function as `not found in registry` although its module defines it predates import paths, which means the runtime is too old, not that the name is wrong: upgrade pipelex rather than shorten the name.
+A pipelex that reports a function as `not found in registry` although its module defines it predates import paths, which means the runtime is too old, not that the name is wrong: upgrade pipelex rather than shorten the name.
 
 **`requirements.txt` declares the packages the method's Python imports.** A method whose functions import third-party packages lists them in a file named `requirements.txt` at the root of its tree, one requirement per line as [PEP 508](https://peps.python.org/pep-0508/) writes it, environment markers included:
 
