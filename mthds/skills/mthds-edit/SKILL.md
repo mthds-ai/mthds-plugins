@@ -174,6 +174,7 @@ Until the environment check passes, write no `.mthds` file and do no other work:
      > ```
      > mthds-agent run bundle <bundle-dir>/
      > ```
+   - A dry run executes on this machine: where runs execute on the hosted Pipelex API by default, it is refused with an error saying `--dry-run` only applies to a run on this machine, and adding `--local` to the dry-run command fixes it.
 
 ## Common Edit Operations
 

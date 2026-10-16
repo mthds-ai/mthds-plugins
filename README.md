@@ -1,6 +1,6 @@
 # mthds-plugins
 
-The MTHDS plugin for Claude Code and Codex, which builds and runs AI methods entirely on software you run yourself.
+The MTHDS plugin for Claude Code and Codex, which builds and runs AI methods with a runtime you run yourself.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mthds-ai/mthds-plugins/blob/main/LICENSE)
 
@@ -8,7 +8,7 @@ The MTHDS plugin for Claude Code and Codex, which builds and runs AI methods ent
 
 ## What this repository is
 
-This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives Claude Code and Codex the `mthds-*` skills and a hook that validates every `.mthds` file your agent edits. It needs no account and no hosted service: the skills drive the [`mthds-agent`](https://www.npmjs.com/package/mthds) CLI, which runs your methods on the [Pipelex](https://github.com/Pipelex/pipelex) runtime installed on your machine, or on a [`pipelex-api`](https://github.com/Pipelex/pipelex-api) server you host, with your own AI provider keys or a local model.
+This repository is the `mthds-plugins` marketplace. Its plugin, `mthds`, gives Claude Code and Codex the `mthds-*` skills and a hook that validates every `.mthds` file your agent edits. It needs no account and no hosted service: the skills drive the [`mthds-agent`](https://www.npmjs.com/package/mthds) CLI, which runs your methods with the [Pipelex](https://github.com/Pipelex/pipelex) runtime installed on your machine, on your own AI provider keys or a local model. With a Pipelex account, that same runtime can instead send your runs to the hosted Pipelex API, so that your machine holds no provider key; `mthds-runner-setup` sets up either way.
 
 [MTHDS](https://mthds.ai/latest/) is an open standard for AI methods, and a method runs on any MTHDS-compliant runtime; Pipelex is the reference one. Methods are shared on the [MTHDS Hub](https://mthds.sh).
 
@@ -45,7 +45,7 @@ The skills work the same in both agents: `/skill-name` in Claude Code, `$skill-n
 | `mthds-run` | Run a method and interpret its output |
 | `mthds-inputs` | Prepare inputs: templates, synthetic data, files |
 | `mthds-install` | Install method packages from GitHub or a local path |
-| `mthds-runner-setup` | Set up inference backends and API keys |
+| `mthds-runner-setup` | Set up how runs reach AI models: your own provider keys, or a Pipelex API key for the hosted Pipelex API |
 | `mthds-pkg` | Manage MTHDS packages: init, dependencies, lock |
 | `mthds-publish` | Publish methods to mthds.sh |
 | `mthds-share` | Share methods on social media |
