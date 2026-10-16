@@ -217,7 +217,7 @@ mthds-wip/
 
 Each run on this machine writes its output file and graph files into a new numbered folder of its own, `results/<pipe_code>_output_<NN>/`, named after the pipe's own code without its domain and numbered from `01` up, so no run overwrites another. The `results/` directory sits beside the bundle the run started from. A directory run that names its pipe with `--pipe` puts it in that directory, a published method fetched by its address puts it in the working directory, and a run with no bundle file, such as `run pipe`, puts it under `mthds-wip/results/`. The folder's `.gitignore` keeps the run's outputs out of the method's tree, so running a method never changes the method.
 
-Take a run's paths from `output_file` and `graph_files` in its `--with-memory` output rather than building them. Compact output carries neither: the run's folder is then the highest-numbered `<pipe_code>_output_<NN>/` under that `results/` directory. These folders need pipelex 0.87.0 or later: an older pipelex writes the same files beside the bundle itself, and the two fields name the right place either way.
+Compact output names no paths. When you need a run's files, run it with `--with-memory` and read their paths from `output_file` and `graph_files`. Never build a path or infer the run's folder from its number: another run may have made a later folder. These folders need pipelex 0.87.0 or later: an older pipelex writes the same files beside the bundle itself, and the two fields name the right place either way.
 
 A run on the hosted Pipelex API writes none of the run files.
 

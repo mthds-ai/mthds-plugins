@@ -291,7 +291,7 @@ main_stuff is always the primary output for a completed run:
 - A run on this machine saves the full JSON output, `live_run.json` or `dry_run.json`, in a new numbered folder of its own, `results/<pipe_code>_output_<NN>/`. `<pipe_code>` is the pipe's own code, without its domain, and `<NN>` counts up from `01`, so a run never overwrites an earlier one.
 - The `results/` directory sits beside the bundle the run started from. A directory run that names its pipe with `--pipe` puts it in that directory, a published method fetched by its address puts it in the working directory, and a run with no bundle file, such as `run pipe`, puts it under `mthds-wip/results/`.
 - Each run folder holds a `.gitignore` that ignores everything in it, so a run's outputs never become part of the method it ran, and the next run reads that method unchanged.
-- Take the path from `output_file` in the `--with-memory` output (the **Output file:** line in Markdown) rather than building it. Compact output does not carry it: the run's folder is then the highest-numbered `<pipe_code>_output_<NN>/` under that `results/` directory.
+- Compact output names no paths. When you need the run's files, run it with `--with-memory` and read the path from `output_file` (the **Output file:** line in Markdown). Never build the path or infer the run's folder from its number: another run may have made a later folder.
 - These folders need pipelex 0.87.0 or later. An older pipelex writes the same files beside the bundle itself, and `output_file` names the right place either way.
 - A hosted run saves no output file.
 
