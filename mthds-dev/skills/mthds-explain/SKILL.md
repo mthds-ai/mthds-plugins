@@ -156,7 +156,7 @@ For a live execution graph showing actual runtime data, use `/mthds-run`:
 mthds-agent run bundle <bundle-dir>/
 ```
 
-A run on this machine produces `live_run.html` alongside the execution results; a run on the hosted Pipelex API writes no graph.
+A run on this machine writes `live_run.html` into its own results folder, `results/<pipe_code>_output_<NN>/`, whose exact path `graph_files.graph_html` gives in the `--with-memory` output; a run on the hosted Pipelex API writes no graph.
 
 ## Reference
 

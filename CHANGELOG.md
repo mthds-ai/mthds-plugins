@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Run outputs are in a results folder**: `mthds-run`, `mthds-explain` and the agent guide say that a run on this machine writes its output file (`live_run.json` or `dry_run.json`) and its graph files into a new numbered folder of its own, `results/<pipe_code>_output_<NN>/`, as pipelex 0.87.0 and later do, rather than next to the bundle, say where that `results/` directory sits for each kind of run, and send the agent to the run's `output_file` and `graph_files` for the exact paths. The flowchart `validate --graph` writes, `dry_run.html`, is still described next to the bundle.
+
 ## [v0.18.0] - 2026-10-16
 
 ### Added
