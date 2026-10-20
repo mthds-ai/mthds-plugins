@@ -130,7 +130,7 @@ Design the whole graph in memory, then write `bundle.mthds` top-down — metadat
 mthds-agent validate bundle <bundle_home>/ --graph
 ```
 
-Handed the bundle home, pipelex reads it as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whether or not a pipe of `bundle.mthds` calls them, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The tree leaves out hidden and gitignored files, and a package nested below with a `METHODS.toml` of its own loads for the bundles to call without being judged. The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at, the `main_pipe` of `bundle.mthds`, and writes `dry_run.html` next to `bundle.mthds`; a bundle home whose files declare several `main_pipe`s draws nothing and says why under `## Graph`, and a run of it is refused the same way, so keep `main_pipe` in `bundle.mthds` alone.
+Handed the bundle home, pipelex reads it as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whether or not a pipe of `bundle.mthds` calls them, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The tree leaves out hidden and gitignored files, and a package nested below with a `METHODS.toml` of its own loads for the bundles to call without being judged. The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at, the `main_pipe` of `bundle.mthds`, as a flowchart, `dry_run.html`, whose path the command reports under `## Graph files`; a bundle home whose files declare several `main_pipe`s draws nothing and says why under `## Graph`, and a run of it is refused the same way, so keep `main_pipe` in `bundle.mthds` alone.
 
 Read the Markdown verdict it prints. On errors, fix from the error list and its locators, which name the offending file, then validate again; [error handling](../shared/error-handling.md) says how to recover by error domain.
 
@@ -141,7 +141,7 @@ pipelex judges a folder whole this way from 0.89.0 on. An older pipelex reads th
 For a completed method, validation **without** `--allow-signatures` must pass and print the `✅ … this method is runnable.` line: this verdict is the runnable gate, so fix and re-validate until it passes. Then:
 
 1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --explicit` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
-2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to `bundle.mthds`.
+2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, and give the path the command reported under `## Graph files`.
 3. **Next steps**: suggest a dry run with mock inference, which needs no real inputs, then `/mthds-inputs` to prepare real ones and a run:
    ```bash
    mthds-agent run bundle <bundle_home>/ --dry-run --mock-inputs

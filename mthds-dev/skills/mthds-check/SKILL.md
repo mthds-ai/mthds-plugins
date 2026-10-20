@@ -108,7 +108,7 @@ Validate the method's folder, the directory holding its `.mthds` files. `--graph
 mthds-agent validate bundle <bundle-directory>/ --graph
 ```
 
-pipelex reads the folder as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whichever file declares `main_pipe`, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at and writes `dry_run.html` next to the bundle defining it. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, still validates, but draws nothing and says why under `## Graph`: for a method meant to run, report that as a warning, since a run of the folder is refused the same way unless `--pipe` names the pipe.
+pipelex reads the folder as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whichever file declares `main_pipe`, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at as a flowchart, `dry_run.html`, whose path the command reports under `## Graph files`. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, still validates, but draws nothing and says why under `## Graph`: for a method meant to run, report that as a warning, since a run of the folder is refused the same way unless `--pipe` names the pipe.
 
 To check one bundle file alone, as when the user names one file of a folder holding other methods, name the file with its folder as the library: `mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph` loads the folder's bundles for the file to call but dry-runs only the file's own pipes, so a pipe of another file is judged only when one of them calls it.
 
@@ -140,7 +140,7 @@ Report by severity:
 - **Errors**: Validation failures from CLI (each with the file, and the pipe where it has one, the error report locates it on) and plxt lint errors
 - **Warnings**: Issues that may cause problems (e.g., model availability)
 - **Suggestions**: Improvements for maintainability
-- **Flowchart**: If validation succeeded, mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn
+- **Flowchart**: If validation succeeded, mention the generated `dry_run.html` flowchart at the path the command reported under `## Graph files`, or the reason given under `## Graph` when none was drawn
 
 ### Step 8: Do NOT Make Changes
 

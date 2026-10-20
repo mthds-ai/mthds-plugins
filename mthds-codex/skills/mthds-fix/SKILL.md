@@ -191,14 +191,14 @@ On the **final successful** validation, re-run with `--graph` to generate a flow
 mthds-agent validate bundle <bundle-directory>/ --graph
 ```
 
-Handed a folder, `--graph` draws the pipe the method starts at and writes `dry_run.html` next to the bundle defining it. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`, the verdict standing as it is.
+Handed a folder, `--graph` draws the pipe the method starts at as a flowchart, `dry_run.html`, whose path the command reports under `## Graph files`. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`, the verdict standing as it is.
 
 ### Step 5: Report Results
 
 - List all changes made (which pipes were modified and how)
 - Show the final validation result
 - Flag any remaining warnings or suggestions
-- Mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn
+- Mention the generated `dry_run.html` flowchart at the path the command reported under `## Graph files`, or the reason given under `## Graph` when none was drawn
 
 ## Reference
 
