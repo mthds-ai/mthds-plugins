@@ -51,8 +51,8 @@ Verified against `mthds-agent 0.9.0` → editable `_recursive` pipelex (2026-06-
 mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json
 ```
 - **stdout (success):** JSON. Parses `is_valid` + `pending_signatures` via the `_jv` node helper → emits a non-blocking nudge. **JSON is correct** — software reading specific fields.
-- **stderr (failure):** JSON. Parses `error_domain` from the structured error envelope to classify (block on `input`/unknown, warn on `config`/`runtime`), and builds the block `reason` from `message` + `validation_errors[]` (read by the LLM). **JSON is correct** — a machine-readable verdict the classifier reads structurally instead of scraping prose.
-- **Verdict: ✓ CORRECT.** Both streams JSON: `is_valid`/`pending_signatures` for the success fields the script needs, `error_domain`/`message`/`validation_errors` for the failure the classifier routes and the LLM reads. Both streams pinned explicitly — robust.
+- **stderr (failure):** JSON, in either of two shapes. From pipelex 0.90.0 it is the failure's problem document, recognised by its `code`: the hook classifies on `domain` (block on `method`/`input`/unknown, warn on `account`/`operator`/`runtime`) and builds the block `reason` from `detail` + `message`, the code, location and next step, and `errors[]` (each item's `code`, `detail`, `location`). Before 0.90.0 it is the `error: true` envelope: `error_domain` (block on `input`/unknown, warn on `config`/`runtime`), `message` and `validation_errors[]`. A no-verdict failure carries no `is_valid` on 0.90.0, so the `code` is what tells it from garbage. **JSON is correct** — a machine-readable verdict the classifier reads structurally instead of scraping prose.
+- **Verdict: ✓ CORRECT.** Both streams JSON: `is_valid`/`pending_signatures` for the success fields the script needs, `domain`/`detail`/`errors` (or the older `error_domain`/`message`/`validation_errors`) for the failure the classifier routes and the LLM reads. Both streams pinned explicitly — robust.
 
 #### A2 — SessionStart hook · `session-start.sh.j2:15`
 ```
