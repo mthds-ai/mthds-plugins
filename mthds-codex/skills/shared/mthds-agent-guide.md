@@ -326,7 +326,7 @@ Additional options:
 - `--graph-format <format>` — Output format for the graph (default: `reactflow`)
 - `--direction <dir>` — Graph layout direction (e.g., `TB` for top-to-bottom, `LR` for left-to-right)
 
-The command reports the path of each file it wrote under `## Graph files` in its Markdown output, or in `graph_files` with `--format json`, where `graph_output_dir` names their folder. Open the flowchart at the path it reports and never at a guessed location: pipelex writes it into a new numbered folder of its own, `results/<pipe_code>_output_<NN>/` beside the bundle defining the pipe it draws, holding a `.gitignore` that keeps it out of the method's tree as a run's folder does, while an older pipelex writes it next to that bundle, inside the tree.
+The command reports the path of each file it wrote under `## Graph files` in its Markdown output, or in `graph_files` with `--format json`, where `graph_output_dir` names their folder. Always open the flowchart at the path it reports, never at a guessed location: depending on the pipelex version, it lies next to the bundle defining the pipe it draws, or in a new numbered folder of its own, `<pipe_code>_output_<NN>/`, under the `results/` directory a run of the same target writes to (beside the bundle file named, beside the bundle defining a folder's entry pipe, or in the folder's own `results/` when `--pipe` names the pipe), which holds a `.gitignore` keeping it out of the method's tree.
 
 ### Execution Graphs
 
