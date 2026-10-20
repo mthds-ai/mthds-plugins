@@ -80,7 +80,7 @@ For an interactive flowchart without running the method, use validate with `--gr
 mthds-agent validate bundle <bundle-dir>/ --graph
 ```
 
-This generates `dry_run.html` next to the bundle defining the pipe the method starts at — a static flowchart of the method structure. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`: to draw one pipe of it, name the pipe with `--pipe <domain>.<pipe_code>`, which also narrows the validation to that pipe.
+This generates `dry_run.html`, a static flowchart of the method structure drawn from the pipe the method starts at, and the command reports its path under `## Graph files`: open the file at that path, wherever your pipelex wrote it (see "Validation Graphs" in the [agent guide](../shared/mthds-agent-guide.md)). A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`: to draw one pipe of it, name the pipe with `--pipe <domain>.<pipe_code>`, which also narrows the validation to that pipe.
 
 For a live execution graph showing actual runtime data, use `/mthds-run`:
 ```bash
