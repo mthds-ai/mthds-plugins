@@ -7,7 +7,9 @@
 #      (--allow-signatures: in-progress PipeSignature headers don't block;
 #      blocks on method- and input-domain errors; emits agent additionalContext
 #      for account-, operator- and runtime-domain errors (config and runtime
-#      before pipelex 0.90.0) and for leftover unimplemented signatures)
+#      before pipelex 0.90.0), for mthds-agent's own set-up refusals
+#      (client.not_configured, client.tool_missing, client.tool_outdated) and
+#      for leftover unimplemented signatures)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
 # Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
@@ -103,8 +105,8 @@ fi
 # the pending_signatures list — see the nudge below), and validity (not runnability) is
 # what a post-edit hook should gate. An INVALID verdict (is_valid:false) rides the JSON
 # error report on stderr: BLOCK on method- and input-domain errors (agent fixes the bundle),
-# emit additionalContext on account-, operator- and runtime-domain errors (environment
-# issue — agent informed, do not edit the file).
+# emit additionalContext on account-, operator- and runtime-domain errors and on
+# mthds-agent's own set-up refusals (environment issue — agent informed, do not edit the file).
 #
 # The error report has two shapes. From pipelex 0.90.0 it is the failure's problem document:
 # `code`, `domain` (input | method | account | operator | runtime), `detail`, `next_step`,
@@ -169,7 +171,13 @@ fi
 # JSON) can't make the case below miss an environment domain and fall through to a wrong
 # BLOCK. Empty when the report carries neither. The `|| DOMAIN=""` fallback keeps a killed
 # `node` (OOM/SIGKILL) from aborting the hook under `set -e` — a write-gate fail-open.
-DOMAIN=$(_jv "$ERR_JSON" "String((typeof d.domain === 'string' && d.domain) || d.error_domain || '').trim()") || DOMAIN=""
+#
+# The code is read first: `mthds-agent` itself refuses with `client.not_configured`,
+# `client.tool_missing` or `client.tool_outdated` when the machine's set-up is at fault, such as
+# a `pipelex-agent` missing or too old. The core registry puts them in the `input` domain, the
+# caller's, which would block every write as the file's fault, so they read as `environment`,
+# the override the Codex hook in mthds-js keeps as `ENVIRONMENT_CODES`.
+DOMAIN=$(_jv "$ERR_JSON" "['client.not_configured', 'client.tool_missing', 'client.tool_outdated'].includes(d.code) ? 'environment' : String((typeof d.domain === 'string' && d.domain) || d.error_domain || '').trim()") || DOMAIN=""
 
 # JavaScript the two readers below share, for either shape of the report: its own sentences
 # (the problem's `detail`, then the command's `message` when it says more), the facts a problem
@@ -207,9 +215,10 @@ REPORT_JS='
 '
 
 case "$DOMAIN" in
-  account|operator|config|runtime)
+  account|operator|runtime|environment|config)
     # Environment issue, not a bundle issue: `account`, `operator` or `runtime` from pipelex
-    # 0.90.0, `config` or `runtime` before. Surface to user (stderr) AND agent
+    # 0.90.0, `environment` for the client codes of the machine's set-up read above, `config`
+    # or `runtime` before pipelex 0.90.0. Surface to user (stderr) AND agent
     # (additionalContext) — both informed, neither blocks the write. The stderr line
     # carries the validator message too so the user can debug without reading the
     # agent's additionalContext.
