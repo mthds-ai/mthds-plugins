@@ -131,6 +131,28 @@ class TestValidateTargets:
         assert "| A failed run: its root fault's code (`PipelineExecutionError` before 0.90.0) |" in body
         assert "(`pipe_code` and `pipe_stack` before 0.90.0)" in body
 
+    @pytest.mark.parametrize(
+        "body_source",
+        [("shared", "error-handling.md.j2"), ("skill", "mthds-run")],
+        ids=["error-handling", "run"],
+    )
+    def test_hosted_key_refusal_reads_the_090_auth_codes(self, body_source: tuple[str, str]) -> None:
+        """A refused hosted key is read off the 0.90.0 codes and Next step line, with `http_status` and the hint kept as the older form."""
+        kind, name = body_source
+        body = _skill(name) if kind == "skill" else _shared(name)
+        assert "`- Code:` line names `auth.missing_credential` when no key was sent or `auth.invalid_credential` when the key was refused" in body
+        assert "**Next step** line says to run `pipelex login`" in body
+        assert "that is `auth.forbidden`, whose message says what the request may not do" in body
+        assert "Before pipelex 0.90.0 the refusal carried `http_status` 401 or 403 and a hint saying to run `pipelex login`" in body
+        assert "(`http_status` 401 or 403" not in body
+        assert "whose hint says to run" not in body
+
+    def test_runner_setup_reads_a_refused_key_off_the_090_code(self) -> None:
+        body = _skill("mthds-runner-setup")
+        assert "refuses a rejected one with `auth.invalid_credential` from pipelex 0.90.0" in body
+        assert "(before 0.90.0, a 401 or a 403 whose hint said so)" in body
+        assert "whose hint says to run" not in body
+
     def test_design_stops_on_the_090_domains(self) -> None:
         body = _skill("mthds-design")
         assert "| an error in the `method` or `input` domain (`input` alone before pipelex 0.90.0) |" in body
