@@ -105,3 +105,56 @@ class TestValidateTargets:
         assert "prints JSON to **stderr**" not in body
         assert "prints its error report to **stderr**" in body
         assert "`--error-format json` gives JSON" in body
+
+    def test_error_handling_names_the_090_domains_beside_the_older_ones(self) -> None:
+        """The domain table is pipelex 0.90.0's five domains, and the older three are mapped onto them."""
+        body = _shared("error-handling.md.j2")
+        for domain in ["input", "method", "account", "operator", "runtime"]:
+            assert f"\n| `{domain}` |" in body
+        assert "\n| `config` |" not in body
+        assert "`` - Code: `method.invalid` (domain method, retry no) ``" in body
+        assert "its `code`, `domain` and `retry` members" in body
+        assert "Before pipelex 0.90.0 a report gave one of three domains in its `error_domain` field" in body
+        assert "`config`, which covered what is now `account` and `operator`" in body
+
+    def test_error_handling_reads_a_failed_run_from_the_markdown_report(self) -> None:
+        """A failed run is read off the Markdown report's Location line, with the JSON members and the older fields as fallbacks."""
+        body = _shared("error-handling.md.j2")
+        assert "the error JSON" not in body
+        assert "in error JSON" not in body
+        assert "failure_memory_path" not in body
+        assert "BuildPipeError" not in body
+        assert "`run` prints the report in Markdown by default" in body
+        assert "`- Location: pipe 'summarize', path main > summarize`" in body
+        assert "`location.pipe` and `location.path`" in body
+        assert "reported as `run.failed`" in body
+        assert "| A failed run: its root fault's code (`PipelineExecutionError` before 0.90.0) |" in body
+        assert "(`pipe_code` and `pipe_stack` before 0.90.0)" in body
+
+    @pytest.mark.parametrize(
+        "body_source",
+        [("shared", "error-handling.md.j2"), ("skill", "mthds-run")],
+        ids=["error-handling", "run"],
+    )
+    def test_hosted_key_refusal_reads_the_090_auth_codes(self, body_source: tuple[str, str]) -> None:
+        """A refused hosted key is read off the 0.90.0 codes and Next step line, with `http_status` and the hint kept as the older form."""
+        kind, name = body_source
+        body = _skill(name) if kind == "skill" else _shared(name)
+        assert "`- Code:` line names `auth.missing_credential` when no key was sent or `auth.invalid_credential` when the key was refused" in body
+        assert "**Next step** line says to run `pipelex login`" in body
+        assert "that is `auth.forbidden`, whose message says what the request may not do" in body
+        assert "Before pipelex 0.90.0 the refusal carried `http_status` 401 or 403 and a hint saying to run `pipelex login`" in body
+        assert "(`http_status` 401 or 403" not in body
+        assert "whose hint says to run" not in body
+
+    def test_runner_setup_reads_a_refused_key_off_the_090_code(self) -> None:
+        body = _skill("mthds-runner-setup")
+        assert "refuses a rejected one with `auth.invalid_credential` from pipelex 0.90.0" in body
+        assert "(before 0.90.0, a 401 or a 403 whose hint said so)" in body
+        assert "whose hint says to run" not in body
+
+    def test_design_stops_on_the_090_domains(self) -> None:
+        body = _skill("mthds-design")
+        assert "| an error in the `method` or `input` domain (`input` alone before pipelex 0.90.0) |" in body
+        assert "| an error in the `account`, `operator` or `runtime` domain (`config` or `runtime` before pipelex 0.90.0) |" in body
+        assert "| an error in the `config` or `runtime` domain |" not in body

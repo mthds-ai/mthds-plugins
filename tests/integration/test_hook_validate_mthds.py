@@ -491,6 +491,144 @@ class TestHookValidateMthds:
         # Block reason stays within the cap + header + truncation marker.
         assert len(reason) < 10000
 
+    # --- pipelex 0.90.0 problem documents ---
+    # From pipelex 0.90.0 the JSON error stream is the failure's problem document: `code`,
+    # `domain` (input | method | account | operator | runtime), `detail`, `next_step`, the
+    # command's own `message`, and the faults as `errors[]` items. It has no `error`,
+    # `error_domain` or `validation_errors`, and a no-verdict failure carries no `is_valid`.
+
+    def test_problem_invalid_verdict_blocks_with_its_items(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """An invalid verdict (`method.invalid`, domain method) → BLOCK, the reason listing each item's code, detail and location."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        problem = json.dumps(
+            {
+                "type": "https://mthds.ai/errors/method.invalid",
+                "title": "The method does not validate",
+                "status": 422,
+                "detail": "The method does not validate.",
+                "code": "method.invalid",
+                "domain": "method",
+                "retry": "no",
+                "next_step": {"kind": "change_method", "detail": "Fix each fault the problem's errors list, then validate the method again."},
+                "errors": [
+                    {
+                        "code": "method.input_undeclared",
+                        "detail": "Pipe 'summarize' reads names its inputs do not declare: tone.",
+                        "params": {"pipe": "summarize", "variables": ["tone"]},
+                        "location": {"pipe": "summarize", "file": "summaries.mthds"},
+                    }
+                ],
+                "message": "Pipe 'summarize' reads names its inputs do not declare: tone.",
+                "is_valid": False,
+                "bundle_path": str(mthds_file),
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=problem, exit_code=1)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        reason = json.loads(result.stdout.strip())["reason"]
+        assert reason.startswith(f"Validation failed for {mthds_file}:")
+        assert "The method does not validate." in reason
+        assert "Code: method.invalid (domain method)" in reason
+        assert (
+            "- method.input_undeclared: Pipe 'summarize' reads names its inputs do not declare: tone. (pipe summarize, file summaries.mthds)"
+            in reason
+        )
+        assert "Next step: Fix each fault" in reason
+        assert "no structured error envelope" not in reason
+
+    @pytest.mark.parametrize("domain", ["account", "operator", "runtime"])
+    def test_problem_environment_domain_emits_additional_context(self, hook_env: tuple[Path, Path, dict[str, str]], domain: str) -> None:
+        """A no-verdict problem in an environment domain, with no `is_valid` and exit 2 → additionalContext, never a block."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        problem = json.dumps(
+            {
+                "type": "https://docs.pipelex.com/errors/pipelex.config.variable_missing",
+                "title": "A required environment variable is missing",
+                "status": 500,
+                "detail": "The runtime's configuration needs an environment variable that is not set.",
+                "code": "pipelex.config.variable_missing",
+                "domain": domain,
+                "retry": "no",
+                "next_step": {"kind": "fix_configuration", "detail": "Set the variable the diagnostics name, then run again."},
+                "diagnostics": {"error_class": "PipelexSetupError", "message": "Missing required environment variable: OPENAI_API_KEY"},
+                "message": "Missing required environment variable: OPENAI_API_KEY",
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=problem, exit_code=2)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert "decision" not in parsed
+        ctx = parsed["hookSpecificOutput"]["additionalContext"]
+        assert f"({domain} domain — environment issue, do not edit the file)" in ctx
+        assert "The runtime's configuration needs an environment variable that is not set." in ctx
+        assert "Missing required environment variable: OPENAI_API_KEY" in ctx
+        assert f"Code: pipelex.config.variable_missing (domain {domain})" in ctx
+        assert "Next step: Set the variable the diagnostics name, then run again." in ctx
+        assert f"domain={domain}" in result.stderr
+        assert "Missing required environment variable: OPENAI_API_KEY" in result.stderr
+
+    @pytest.mark.parametrize(
+        ("code", "detail"),
+        [
+            ("client.tool_missing", "The program 'pipelex-agent', which the client needs, is missing or cannot be started."),
+            ("client.tool_outdated", "The program 'pipelex-agent' is older than the client needs."),
+            ("client.not_configured", "The client is not configured."),
+        ],
+    )
+    def test_client_setup_refusal_informs_despite_its_input_domain(self, hook_env: tuple[Path, Path, dict[str, str]], code: str, detail: str) -> None:
+        """mthds-agent's own refusal of the machine's set-up is registered in the `input` domain, yet informs and never blocks."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        problem = json.dumps(
+            {
+                "type": f"https://mthds.ai/errors/{code}",
+                "title": "A local tool the client needs is missing",
+                "detail": detail,
+                "code": code,
+                "domain": "input",
+                "retry": "no",
+                "next_step": {"kind": "fix_configuration", "detail": "Install 'pipelex-agent' and put it on the PATH, then try again."},
+                "message": "pipelex-agent is not installed. Install it to continue.",
+                "recovery": {"binary": "pipelex-agent", "package": "pipelex", "uv_package": "pipelex", "version_constraint": ">=0.90.0"},
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=problem, exit_code=1)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.strip())
+        assert "decision" not in parsed
+        ctx = parsed["hookSpecificOutput"]["additionalContext"]
+        assert "(environment domain — environment issue, do not edit the file)" in ctx
+        assert detail in ctx
+        assert f"Code: {code} (domain input)" in ctx
+        assert "Next step: Install 'pipelex-agent' and put it on the PATH, then try again." in ctx
+        assert "domain=environment" in result.stderr
+
+    def test_problem_input_domain_blocks_with_its_location(self, hook_env: tuple[Path, Path, dict[str, str]]) -> None:
+        """A one-fault problem in the input domain carries its location on the problem itself, no `errors` → BLOCK naming it."""
+        bin_dir, mthds_file, env = hook_env
+        _make_stub(bin_dir / "plxt", "#!/bin/bash\nexit 0\n")
+        problem = json.dumps(
+            {
+                "detail": "The input 'tone' is not valid.",
+                "code": "input.invalid",
+                "domain": "input",
+                "retry": "no",
+                "location": {"input": "tone", "field": "text"},
+            }
+        )
+        _stub_mthds_agent_validate(bin_dir, stderr_content=problem, exit_code=2)
+        result = _run_hook(_post_tool_use_json(str(mthds_file)), env)
+        assert result.returncode == 0
+        reason = json.loads(result.stdout.strip())["reason"]
+        assert "The input 'tone' is not valid." in reason
+        assert "Code: input.invalid (domain input)" in reason
+        assert "Location: input tone, field text" in reason
+
     # --- Stage 3 lenient validation (--allow-signatures) ---
     # The hook validates leniently so stepwise designs aren't blocked
     # mid-construction, and on a valid verdict reads pending_signatures from the

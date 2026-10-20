@@ -5,8 +5,11 @@
 #   2. plxt fmt                   — auto-format the file (only if lint passes)
 #   3. mthds-agent validate bundle — semantic validation, lenient
 #      (--allow-signatures: in-progress PipeSignature headers don't block;
-#      blocks on input-domain errors; emits agent additionalContext for
-#      config/runtime errors and for leftover unimplemented signatures)
+#      blocks on method- and input-domain errors; emits agent additionalContext
+#      for account-, operator- and runtime-domain errors (config and runtime
+#      before pipelex 0.90.0), for mthds-agent's own set-up refusals
+#      (client.not_configured, client.tool_missing, client.tool_outdated) and
+#      for leftover unimplemented signatures)
 # Blocks if plxt or mthds-agent is not installed. Passes silently if file is not .mthds.
 # Uses Node.js for JSON encoding of the PostToolUse hook output (decision/additionalContext).
 
@@ -101,9 +104,16 @@ fi
 # PipeSignature placeholders ride the success envelope on stdout with is_valid:true (plus
 # the pending_signatures list — see the nudge below), and validity (not runnability) is
 # what a post-edit hook should gate. An INVALID verdict (is_valid:false) rides the JSON
-# error envelope on stderr: BLOCK on input-domain errors (agent fixes the bundle), emit
-# additionalContext on config/runtime errors (environment issue — agent informed, do not
-# edit the file).
+# error report on stderr: BLOCK on method- and input-domain errors (agent fixes the bundle),
+# emit additionalContext on account-, operator- and runtime-domain errors and on
+# mthds-agent's own set-up refusals (environment issue — agent informed, do not edit the file).
+#
+# The error report has two shapes. From pipelex 0.90.0 it is the failure's problem document:
+# `code`, `domain` (input | method | account | operator | runtime), `detail`, `next_step`,
+# the command's own `message`, `is_valid:false` on an invalid verdict, and the faults as
+# `errors[]` items, each with its `code`, `detail` and `location`. Before 0.90.0 it is the
+# `error:true` envelope, with `error_domain` (input | config | runtime), `message` and
+# `validation_errors[]`. The hook reads both, so it holds on either side of the upgrade.
 # =====================================================================
 PARENT_DIR=$(dirname "$FILE_PATH")
 
@@ -145,44 +155,88 @@ if [[ "$EXIT_CODE" -eq 0 ]]; then
   exit 0
 fi
 
-# Invalid / no-verdict → the JSON error envelope is on stderr.
+# Invalid / no-verdict → the JSON error report is on stderr.
 ERR_JSON=$(cat "$TMPERR")
 
-# Unparseable / non-error stderr → block (no actionable structured content).
-if [[ -z "$(_jv "$ERR_JSON" "(d.error === true || d.is_valid === false) ? 'y' : ''")" ]]; then
+# Unparseable / non-error stderr → block (no actionable structured content). A problem
+# document (pipelex 0.90.0 and later) is recognised by its `code`, an older envelope by
+# `error:true`, and an invalid verdict of either by `is_valid:false`.
+if [[ -z "$(_jv "$ERR_JSON" "(d.error === true || d.is_valid === false || typeof d.code === 'string') ? 'y' : ''")" ]]; then
   _block "Validation failed for $FILE_PATH (mthds-agent exited $EXIT_CODE with no structured error envelope)"
   exit 0
 fi
 
-# error_domain straight from the structured envelope (no markdown grep). Trimmed so
-# stray whitespace/\r (e.g. Windows-origin JSON) can't make the case below miss
-# config|runtime and fall through to a wrong BLOCK. Empty when the surfaced error
-# class has no error_domain set. The `|| DOMAIN=""` fallback keeps a killed `node`
-# (OOM/SIGKILL) from aborting the hook under `set -e` — a write-gate fail-open.
-DOMAIN=$(_jv "$ERR_JSON" "(d.error_domain ?? '').trim()") || DOMAIN=""
+# The domain straight from the structured report (no markdown grep): `domain` from pipelex
+# 0.90.0, else the older `error_domain`. Trimmed so stray whitespace/\r (e.g. Windows-origin
+# JSON) can't make the case below miss an environment domain and fall through to a wrong
+# BLOCK. Empty when the report carries neither. The `|| DOMAIN=""` fallback keeps a killed
+# `node` (OOM/SIGKILL) from aborting the hook under `set -e` — a write-gate fail-open.
+#
+# The code is read first: `mthds-agent` itself refuses with `client.not_configured`,
+# `client.tool_missing` or `client.tool_outdated` when the machine's set-up is at fault, such as
+# a `pipelex-agent` missing or too old. The core registry puts them in the `input` domain, the
+# caller's, which would block every write as the file's fault, so they read as `environment`,
+# the override the Codex hook in mthds-js keeps as `ENVIRONMENT_CODES`.
+DOMAIN=$(_jv "$ERR_JSON" "['client.not_configured', 'client.tool_missing', 'client.tool_outdated'].includes(d.code) ? 'environment' : String((typeof d.domain === 'string' && d.domain) || d.error_domain || '').trim()") || DOMAIN=""
+
+# JavaScript the two readers below share, for either shape of the report: its own sentences
+# (the problem's `detail`, then the command's `message` when it says more), the facts a problem
+# document adds (its code and domain, where the fault is, its next step), where a fault is in
+# the words the agent CLI's Markdown uses, and the cap on what reaches the agent.
+REPORT_JS='
+  const sentences = (env) => [...new Set([env.detail, env.message].filter((text) => typeof text === "string" && text))];
+  const place = (loc) => {
+    if (!loc || typeof loc !== "object") return "";
+    return [
+      loc.pipe && ("pipe " + loc.pipe),
+      Array.isArray(loc.path) && loc.path.length && ("path " + loc.path.join(" > ")),
+      loc.input && ("input " + loc.input),
+      loc.field && ("field " + loc.field),
+      loc.item != null && ("item " + loc.item),
+      loc.attempt != null && ("attempt " + loc.attempt),
+      loc.file && ("file " + loc.file),
+      loc.line != null && ("line " + loc.line),
+      loc.column != null && ("column " + loc.column),
+    ].filter(Boolean).join(", ");
+  };
+  const facts = (env) => {
+    const lines = [];
+    if (typeof env.code === "string" && env.code) {
+      lines.push("Code: " + env.code + (typeof env.domain === "string" && env.domain ? " (domain " + env.domain + ")" : ""));
+    }
+    const where = place(env.location);
+    if (where) lines.push("Location: " + where);
+    const step = env.next_step && typeof env.next_step === "object" ? env.next_step.detail : undefined;
+    if (typeof step === "string" && step) lines.push("Next step: " + step);
+    return lines;
+  };
+  const MAX = 9500;
+  const capped = (text) => (text.length > MAX ? text.slice(0, MAX) + "\n\n[truncated, " + (text.length - MAX) + " chars omitted]" : text);
+'
 
 case "$DOMAIN" in
-  config|runtime)
-    # Environment issue, not a bundle issue. Surface to user (stderr) AND agent
+  account|operator|runtime|environment|config)
+    # Environment issue, not a bundle issue: `account`, `operator` or `runtime` from pipelex
+    # 0.90.0, `environment` for the client codes of the machine's set-up read above, `config`
+    # or `runtime` before pipelex 0.90.0. Surface to user (stderr) AND agent
     # (additionalContext) — both informed, neither blocks the write. The stderr line
     # carries the validator message too so the user can debug without reading the
     # agent's additionalContext.
-    MSG=$(_jv "$ERR_JSON" "d.message || '(no message)'") || MSG="(no message)"
+    MSG=$(_jv "$ERR_JSON" "d.message || d.detail || '(no message)'") || MSG="(no message)"
     printf '[mthds-hook] Validation warning (domain=%s) for %s: %s\n' "$DOMAIN" "$FILE_PATH" "$MSG" >&2
-    node -e '
+    node -e "$REPORT_JS"'
       let env; try { env = JSON.parse(process.argv[1]); } catch { env = {}; }
       const file = process.argv[2];
       const domain = process.argv[3];
-      const MAX = 9500;
-      const body = String(env.message || "(no message)");
-      const trimmed = body.length > MAX
-        ? body.slice(0, MAX) + "\n\n[truncated, " + (body.length - MAX) + " chars omitted]"
-        : body;
+      const said = sentences(env);
+      const parts = [said.length ? said.join("\n\n") : "(no message)"];
+      const known = facts(env);
+      if (known.length) parts.push(known.join("\n"));
       const header = "Validation warning for " + file + " (" + domain + " domain — environment issue, do not edit the file):\n\n";
       process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
           hookEventName: "PostToolUse",
-          additionalContext: header + trimmed
+          additionalContext: header + capped(parts.join("\n\n"))
         }
       }) + "\n");
     ' "$ERR_JSON" "$FILE_PATH" "$DOMAIN" || {
@@ -191,17 +245,28 @@ case "$DOMAIN" in
     exit 0
     ;;
   *)
-    # input-domain (or unknown/empty — default to BLOCK for safety). Build the
-    # agent-actionable reason from the structured envelope: the message plus each
-    # validation_errors item with its locators.
-    REASON=$(node -e '
+    # method- or input-domain (input alone before pipelex 0.90.0), or unknown/empty — default
+    # to BLOCK for safety. Build the agent-actionable reason from the structured report: its
+    # sentences and facts, then each fault with its locators, from `errors[]` (pipelex 0.90.0
+    # and later: code, detail, location) or `validation_errors[]` (before: category, message,
+    # pipe_code, concept_code, field_name, source).
+    REASON=$(node -e "$REPORT_JS"'
       let env; try { env = JSON.parse(process.argv[1]); } catch { env = {}; }
       const file = process.argv[2];
-      const lines = ["Validation failed for " + file + ":", "", String(env.message || "Bundle is invalid.")];
-      const errs = Array.isArray(env.validation_errors) ? env.validation_errors : [];
+      const said = sentences(env);
+      const lines = ["Validation failed for " + file + ":", "", said.length ? said.join("\n\n") : "Bundle is invalid."];
+      const known = facts(env);
+      if (known.length) lines.push("", ...known);
+      const errs = Array.isArray(env.errors) ? env.errors : Array.isArray(env.validation_errors) ? env.validation_errors : [];
       if (errs.length) {
         lines.push("");
         for (const e of errs) {
+          if (!e || typeof e !== "object") continue;
+          if (typeof e.code === "string") {
+            const where = place(e.location);
+            lines.push("- " + e.code + ": " + String(e.detail || "") + (where ? " (" + where + ")" : ""));
+            continue;
+          }
           const loc = [
             e.pipe_code && ("pipe " + e.pipe_code),
             e.concept_code && ("concept " + e.concept_code),
@@ -211,9 +276,7 @@ case "$DOMAIN" in
           lines.push("- [" + (e.category || "error") + "] " + String(e.message || "") + (loc ? " (" + loc + ")" : ""));
         }
       }
-      const MAX = 9500;
-      const out = lines.join("\n");
-      process.stdout.write(out.length > MAX ? out.slice(0, MAX) + "\n\n[truncated, " + (out.length - MAX) + " chars omitted]" : out);
+      process.stdout.write(capped(lines.join("\n")));
     ' "$ERR_JSON" "$FILE_PATH" 2>/dev/null) || REASON=""
     [[ -z "$REASON" ]] && REASON="Validation failed for $FILE_PATH"
     _block "$REASON"

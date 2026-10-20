@@ -149,8 +149,8 @@ For a completed method, validation **without** `--allow-signatures` must pass an
 
 | Condition | Do this |
 |---|---|
-| an error in the `input` domain | the bundle is wrong: fix it and validate again |
-| an error in the `config` or `runtime` domain | report it, and retry once before stopping: the environment is at fault, not the bundle |
+| an error in the `method` or `input` domain (`input` alone before pipelex 0.90.0) | the bundle or the command is wrong: fix it and validate again |
+| an error in the `account`, `operator` or `runtime` domain (`config` or `runtime` before pipelex 0.90.0) | report it, and retry once before stopping: the environment is at fault, not the bundle |
 | validation fails twice on the same construct, or the contract itself looks wrong | pause and show the user |
 
 ## References

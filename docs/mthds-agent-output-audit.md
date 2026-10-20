@@ -46,13 +46,13 @@ Verified against `mthds-agent 0.9.0` → editable `_recursive` pipelex (2026-06-
 
 ### A. Software consumers (parse output programmatically)
 
-#### A1 — Claude PostToolUse hook · `validate-mthds.sh.j2:111`
+#### A1 — Claude PostToolUse hook · `validate-mthds.sh.j2:121`
 ```
 mthds-agent validate bundle "$FILE_PATH" -L "$PARENT_DIR/" --allow-signatures --format json --error-format json
 ```
 - **stdout (success):** JSON. Parses `is_valid` + `pending_signatures` via the `_jv` node helper → emits a non-blocking nudge. **JSON is correct** — software reading specific fields.
-- **stderr (failure):** JSON. Parses `error_domain` from the structured error envelope to classify (block on `input`/unknown, warn on `config`/`runtime`), and builds the block `reason` from `message` + `validation_errors[]` (read by the LLM). **JSON is correct** — a machine-readable verdict the classifier reads structurally instead of scraping prose.
-- **Verdict: ✓ CORRECT.** Both streams JSON: `is_valid`/`pending_signatures` for the success fields the script needs, `error_domain`/`message`/`validation_errors` for the failure the classifier routes and the LLM reads. Both streams pinned explicitly — robust.
+- **stderr (failure):** JSON, in either of two shapes. From pipelex 0.90.0 it is the failure's problem document, recognised by its `code`: the hook classifies on `domain` (block on `method`/`input`/unknown, warn on `account`/`operator`/`runtime`), except that `mthds-agent`'s own set-up refusals, `client.not_configured`, `client.tool_missing` and `client.tool_outdated`, warn by their code although the core registry puts them in `input`, and builds the block `reason` from `detail` + `message`, the code, location and next step, and `errors[]` (each item's `code`, `detail`, `location`). Before 0.90.0 it is the `error: true` envelope: `error_domain` (block on `input`/unknown, warn on `config`/`runtime`), `message` and `validation_errors[]`. A no-verdict failure carries no `is_valid` on 0.90.0, so the `code` is what tells it from garbage. **JSON is correct** — a machine-readable verdict the classifier reads structurally instead of scraping prose.
+- **Verdict: ✓ CORRECT.** Both streams JSON: `is_valid`/`pending_signatures` for the success fields the script needs, `domain`/`detail`/`errors` (or the older `error_domain`/`message`/`validation_errors`) for the failure the classifier routes and the LLM reads. Both streams pinned explicitly — robust.
 
 #### A2 — SessionStart hook · `session-start.sh.j2:15`
 ```
@@ -65,7 +65,7 @@ mthds-agent doctor --format json
 ```
 pipelex-agent validate bundle <file> -L <libraryDir> --allow-signatures --format json --error-format json
 ```
-- **stderr (failure):** JSON. Parses `error_domain` / `message` / `validation_errors` from the structured error envelope (`parseAgentErrorEnvelope`) to classify — block on `input`/unknown, warn on `config`/`runtime` — same default-to-block model as the Claude hook. **JSON is correct** — read structurally, pinned explicitly (no reliance on a default).
+- **stderr (failure):** JSON, in either shape (`parseAgentErrorEnvelope`): from pipelex 0.90.0 the problem document, `code` / `detail` / `domain` / `errors`, before it the envelope's `error_domain` / `message` / `validation_errors`. It classifies on the domain — block on `method`/`input`/unknown, warn on `account`/`operator`/`runtime` (`config`/`runtime` before 0.90.0) and on the set-up client codes read by code first (`ENVIRONMENT_CODES`) — and reads a problem whose domain it does not know by its code's family, blocking when the family is unknown too: the same default-to-block model as the Claude hook. **JSON is correct** — read structurally, pinned explicitly (no reliance on a default).
 - **stdout (success):** not parsed for a nudge (the Codex hook inspects validate output only on failure; the `pending_signatures` nudge is deferred for v1 — the orchestrator skill tracks pending signatures itself).
 - **Verdict: ✓ CORRECT.** Parity with the Claude hook on the load-bearing parts: `--allow-signatures` so signature-containing saves ride the success envelope instead of being blocked, and `--format json --error-format json` so the failure classifier reads a machine-readable verdict. → **Finding F2 resolved** (both hooks now pin the flags and classify from JSON); the success nudge is the only remaining Codex-vs-Claude difference (deferred, not a correctness gap).
 
