@@ -107,10 +107,10 @@ To fix one bundle file alone, as when the user names one file of a folder holdin
 
 pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, as the one-file form does, and refuses a folder holding several `.mthds` files and no `bundle.mthds`. On such a pipelex, validate the bundle file declaring the method's `main_pipe` in the one-file form, and say in the report that a pipe none of its pipes calls was not dry-run.
 
-Parse the JSON output:
-- If `success: true` — nothing to fix, report clean status
-- If `error_type: "ValidateBundleError"` — iterate through `validation_errors` array and fix each (Step 2)
-- If model/config error — see [Error Handling Reference](../shared/error-handling.md#model--config-errors) (cannot be fixed by editing the .mthds file)
+Read the verdict it prints in Markdown, as it is; pass no `--format`:
+- **Valid**: stdout opens with `# Validation passed` — nothing to fix, report clean status. Pipes listed under `## Pending signatures (N)` are `PipeSignature` placeholders still to implement, which `/mthds-design` does, not errors to fix here; on the pipelex runner such a method also exits with code 1, so go by the verdict, not the exit code.
+- **Invalid**: the command exits with code 1 and prints its error report on stderr, in Markdown, with the error domain and each validation error, located on its file and, where it has one, its pipe — fix each one (Step 2)
+- **An error in the `config` or `runtime` domain**, such as a model or configuration error — see [Error Handling Reference](../shared/error-handling.md#model--config-errors) (cannot be fixed by editing the .mthds file)
 
 ### Step 2: Fix .mthds Validation Errors
 
@@ -183,7 +183,7 @@ After applying fixes, re-validate the target of Step 1, the method's folder unle
 mthds-agent validate bundle <bundle-directory>/
 ```
 
-Continue the fix-validate loop until `success: true` is returned. Some fixes reveal new issues — for example, fixing a `missing_input_variable` may expose an `input_stuff_spec_mismatch` on the newly added input.
+Continue the fix-validate loop until the verdict reads `# Validation passed`. Some fixes reveal new issues — for example, fixing a `missing_input_variable` may expose an `input_stuff_spec_mismatch` on the newly added input.
 
 On the **final successful** validation, re-run with `--graph` to generate a flowchart:
 

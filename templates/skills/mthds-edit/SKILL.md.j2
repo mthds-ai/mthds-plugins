@@ -81,10 +81,11 @@ Until the environment check passes, write no `.mthds` file and do no other work:
    - Maintain POSIX standard (empty line at end, no trailing whitespace)
 
 4. **Validate after editing**:
-   If you suspect TOML syntax issues after editing, run `mthds-agent plxt lint <file>.mthds` for a quick check before the heavier semantic validation. Then validate:
+   If you suspect TOML syntax issues after editing, run `mthds-agent plxt lint <file>.mthds` for a quick check before the heavier semantic validation. Then validate the method's folder, the directory holding its `.mthds` files:
    ```bash
-   mthds-agent validate bundle <file>.mthds -L <bundle-dir>/
+   mthds-agent validate bundle <bundle-dir>/
    ```
+   pipelex reads the folder as its method tree and judges every bundle of that tree, so an edit that breaks a pipe of another file calling the one you changed is caught too (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). It judges a folder whole from pipelex 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, and refuses a folder holding several `.mthds` files and no `bundle.mthds`: on such a pipelex, run `mthds-agent validate bundle <file>.mthds -L <bundle-dir>/` on the file declaring the method's `main_pipe`, which loads the folder's bundles but dry-runs only that file's pipes.
    If errors, see [Error Handling Reference](../shared/error-handling.md) for recovery strategies by error domain. Use /mthds-fix skill for automatic error resolution.
 
 5. **Regenerate inputs if needed**:

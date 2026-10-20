@@ -812,7 +812,7 @@ Both forms are valid wherever a concept or a pipe is referenced: a bare referenc
 
 When the bundle stays in one domain (the common case), use bare names everywhere.
 
-A reference to another domain resolves only when the file that defines it is loaded too, so validate with the library directory: `mthds-agent validate bundle <root>.mthds -L <bundle dir>/` loads every `.mthds` file beneath it.
+A reference to another domain resolves only when the file that defines it is loaded too, so validate the method's folder: `mthds-agent validate bundle <bundle dir>/` loads every bundle of the folder's method tree, which leaves out hidden and gitignored files, and judges them all. pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, and refuses a folder holding several and no `bundle.mthds`; there, name the root file, `mthds-agent validate bundle <root>.mthds -L <bundle dir>/`, which loads the folder's bundles but dry-runs only the root file's pipes. A file outside the method's folder is loaded with `-L <its directory>/` beside the folder.
 
 ## 9. Formatting Rules
 

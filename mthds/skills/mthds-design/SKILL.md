@@ -105,7 +105,7 @@ Fix the **input concept(s)**, the **output concept** and the **description**, pr
 
 ### 2. The bundle home
 
-A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore. That directory is `<bundle_home>` in every command below, and its root file is `bundle.mthds`. Do not ask the user for the location.
+A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore. That directory is `<bundle_home>` in every command below, and its root file is `bundle.mthds`. Do not ask the user for the location, with one exception. A folder's method tree is rooted at the nearest `METHODS.toml` at or above it, looking no higher than the root of its git repository, so a bundle home inside a project that has its own `METHODS.toml` is validated, and run, as part of that project's tree: validation judges every bundle of the project, a run of the bundle home starts at the `main_pipe` that `METHODS.toml` names, and a bundle home the project's `.gitignore` ignores, as many projects ignore `mthds-wip/`, is not in that tree at all, so validation never reads its files. Before writing, look for a `METHODS.toml` in the bundle home's parent folders up to the repository's root. When one is there and the method is meant to join that package, use a bundle home the project does not ignore, run the method with `--pipe <domain>.<main_pipe>`, and leave exporting it from the package to `/mthds-pkg`; otherwise ask the user for a bundle home outside that repository.
 
 ### 3. Infer the construction mode
 

@@ -70,19 +70,21 @@ These indicate environment issues, not .mthds file problems. **Cannot be fixed b
 
 ## Cross-Domain Validation & Library Isolation
 
-Pipelex loads `.mthds` files into a flat namespace. **Always use directory mode or `-L` pointing to the bundle's own directory** to avoid namespace collisions with other bundles in the project:
+Pipelex loads `.mthds` files into a flat namespace. **Always hand the command the method's folder, or name a bundle file with `-L` pointing to its own directory**, to avoid namespace collisions with other bundles in the project:
 
 ```bash
-# ALWAYS use -L for validation (isolates from other bundles)
-mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
+# Validate the method's folder: every bundle of it is judged, isolated from other bundles
+mthds-agent validate bundle mthds-wip/pipeline_01/
 
-# ALWAYS use directory mode or -L for running
+# Run the method's folder (directory mode)
 mthds-agent run bundle mthds-wip/pipeline_01/ --dry-run --mock-inputs
 ```
 
-When a bundle references pipes/concepts from other domains, add multiple `-L` flags:
+`validate bundle` judges every bundle of a folder from pipelex 0.89.0 on (see "A Method's Folder as the Target" in the [agent guide](mthds-agent-guide.md)). An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, and refuses a folder holding several `.mthds` files and no `bundle.mthds`: on such a pipelex, name the file declaring the method's `main_pipe` with `-L` pointing to its folder, as in `mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/`, which loads the folder's bundles but dry-runs only that file's pipes.
+
+When a bundle references pipes/concepts from a directory outside the method's folder, add a `-L` flag for it:
 
 ```bash
-# Load the bundle's directory AND shared pipes
-mthds-agent validate bundle my_bundle.mthds -L ./my_bundle_dir/ -L ./shared_pipes/
+# Judge the method's folder, loading the shared pipes beside it for its bundles to call (their own pipes are not judged)
+mthds-agent validate bundle ./my_bundle_dir/ -L ./shared_pipes/
 ```

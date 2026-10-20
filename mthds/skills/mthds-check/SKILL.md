@@ -114,10 +114,12 @@ To check one bundle file alone, as when the user names one file of a folder hold
 
 pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, as the one-file form does, and refuses a folder holding several `.mthds` files and no `bundle.mthds`. On such a pipelex, validate the bundle file declaring the method's `main_pipe` in the one-file form, and say in the report that a pipe none of its pipes calls was not dry-run.
 
-### Step 4: Parse the JSON Output
+### Step 4: Read the Verdict
 
-- If `success: true` — all pipes validated, report clean status
-- If error — see [Error Handling Reference](../shared/error-handling.md) for error types and recovery
+The command prints Markdown, which you read as it is; pass no `--format`.
+
+- **Valid**: stdout opens with `# Validation passed` and ends with the runnability verdict, `✅ … this method is runnable.`, or `⚠️ This method is NOT yet runnable …` followed by `## Pending signatures (N)`, which lists the pipes still declared as `PipeSignature` placeholders. Report a clean status, with any pending signature as a warning, not an error. On the pipelex runner a valid method that is not yet runnable also exits with code 1, so go by the verdict, not the exit code (see "Reading runnability and `pending_signatures`" in the [agent guide](../shared/mthds-agent-guide.md)).
+- **Invalid**: the command exits with code 1 and prints its error report on stderr, in Markdown: the error domain and each validation error, located on its file and, where it has one, its pipe. See [Error Handling Reference](../shared/error-handling.md) for error types and recovery.
 
 ### Step 5: Cross-Domain Validation
 
@@ -135,7 +137,7 @@ Manual review beyond CLI validation:
 ### Step 7: Report Findings
 
 Report by severity:
-- **Errors**: Validation failures from CLI (with `error_type` and `pipe_code`) and plxt lint errors
+- **Errors**: Validation failures from CLI (each with the file, and the pipe where it has one, the error report locates it on) and plxt lint errors
 - **Warnings**: Issues that may cause problems (e.g., model availability)
 - **Suggestions**: Improvements for maintainability
 - **Flowchart**: If validation succeeded, mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn

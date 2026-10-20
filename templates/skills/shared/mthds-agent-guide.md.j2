@@ -78,7 +78,7 @@ mthds-agent config set runner pipelex       # or: api
 
 Use `--runner` to override the default per-command:
 ```bash
-mthds-agent --runner pipelex validate bundle bundle.mthds -L dir/
+mthds-agent --runner pipelex validate bundle <bundle-dir>/
 ```
 
 ## Building Methods
@@ -88,7 +88,7 @@ Use the /mthds-design skill: it captures the method's contract, writes the bundl
 ## The Iterative Development Loop
 
 1. **Design or Edit** the `.mthds` file (using /mthds-design or /mthds-edit)
-2. **Validate** with `mthds-agent validate bundle file.mthds -L dir/`
+2. **Validate** the method's folder with `mthds-agent validate bundle <bundle-dir>/`, which judges every bundle of it (see "A Method's Folder as the Target" below)
    - If errors: fix them with /mthds-fix, then re-validate (repeat until clean)
 3. **Run** with `mthds-agent run bundle <bundle-dir>/`
 4. **Inspect output** and refine if needed — loop back to step 1
@@ -223,11 +223,11 @@ A run on the hosted Pipelex API writes none of the run files.
 
 ## Library Isolation
 
-Pipelex loads `.mthds` files into a flat namespace. When multiple bundles exist in the project, pipe codes can collide. Use **directory mode** for `run`, which loads the method's folder as the run's library (see "A Method's Folder as the Target" below), or pass `-L` explicitly for other commands:
+Pipelex loads `.mthds` files into a flat namespace. When multiple bundles exist in the project, pipe codes can collide. Hand `run`, `inputs` and `validate` the method's folder, which loads it as the command's library (see "A Method's Folder as the Target" below), or name a bundle file and pass `-L` pointing to its folder:
 
 ```bash
-# Validate (isolated)
-mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
+# Validate (isolated: every bundle of the folder is judged)
+mthds-agent validate bundle mthds-wip/pipeline_01/
 
 # Run (directory mode: loads the folder as -L, starts at the method's entry pipe, reads the folder's inputs.json)
 mthds-agent run bundle mthds-wip/pipeline_01/
@@ -237,18 +237,20 @@ mthds-agent run bundle mthds-wip/pipeline_01/
 
 `run bundle`, `inputs bundle` and `validate bundle` take a `.mthds` file or a method's folder. pipelex reads a folder as its method tree: the method rooted at the nearest `METHODS.toml` at or above the folder, else at the folder itself, with every bundle of it, whatever its file is called. No file name chooses anything, `bundle.mthds` included.
 
+The search for a `METHODS.toml` stops at the root of the folder's git repository. Within the repository, a folder inside a project that has its own `METHODS.toml` is validated, and run, as part of that project's tree: `validate bundle` judges every bundle of the project, `run bundle` starts at the `main_pipe` that `METHODS.toml` names, and a folder the project's `.gitignore` ignores, such as an ignored `mthds-wip/`, is not in that tree at all, so a command handed that folder never reads its files. For a method meant to join that package, keep it in a folder the project does not ignore and name its pipe with `--pipe`; for any other method, use a folder outside that repository.
+
 - **`run bundle` and `inputs bundle` act on one pipe**: the one `--pipe` names, else the method's entry pipe, which the MTHDS protocol's entry rule selects: the `main_pipe` of the `METHODS.toml` at the root of the tree, whatever its bundles declare, or, with no manifest, the one `main_pipe` the folder's bundles declare. A folder that decides no single pipe, because its `METHODS.toml` declares no `main_pipe` or, with no manifest, because its bundles declare none or several, is refused with the problem `request.pipe_unspecified`, raised as `MethodEntryError`: its message names the bundles by their paths in the tree, and its `params.candidates` lists the pipes it could start at. Name the pipe with `--pipe`, or keep one `main_pipe`: a method split across several files and meant to run, with no `METHODS.toml` naming its `main_pipe`, declares it in one file only. A folder holding no `.mthds` bundle at all is refused with the problem `method.invalid` instead, which `--pipe` cannot fix: point the command at the method's own folder. `run bundle` also reads the folder's `inputs.json` when neither `--inputs` nor piped stdin gives the inputs.
 - **`validate bundle` judges the whole tree**, every bundle of it, and needs no pipe to start at, so a folder whose bundles declare several `main_pipe`s, or none, is validated like any other. With `--graph`, it draws the pipe `--pipe` names, else the entry pipe, and when the folder decides none it draws nothing and says why, under `## Graph` in Markdown and in `graph_unavailable` in JSON, the verdict standing as it is.
-- **A `.mthds` file named alone** acts on its own `main_pipe` unless `--pipe` names another pipe.
+- **A `.mthds` file named alone** acts on its own `main_pipe` unless `--pipe` names another pipe. `validate bundle` given a file with `-L` pointing to its folder loads the folder's bundles for the file to call but dry-runs only the file's own pipes, so a pipe of another file is judged only when one of them calls it: name a file when one file is meant, and the folder when the whole method is.
 
-pipelex reads a folder this way from 0.89.0 on, and `run bundle` from 0.87.0. An older pipelex took the folder's `bundle.mthds`, else its only `.mthds` file, and refused a folder holding several `.mthds` files and no `bundle.mthds`. The codes above are those of pipelex 0.90.0 and later: before it, `run bundle` refuses a folder with no single pipe to start at as an invalid bundle, `ValidateBundleError`, and `inputs bundle` 0.89.0 raises a `MethodEntryError` with no code.
+pipelex reads a folder this way from 0.89.0 on, and `run bundle` from 0.87.0. An older pipelex took the folder's `bundle.mthds`, else its only `.mthds` file, and refused a folder holding several `.mthds` files and no `bundle.mthds`: on such a pipelex, validate the file declaring the method's `main_pipe` with `-L` pointing to its folder. The codes above are those of pipelex 0.90.0 and later: before it, `run bundle` refuses a folder with no single pipe to start at as an invalid bundle, `ValidateBundleError`, and `inputs bundle` 0.89.0 raises a `MethodEntryError` with no code.
 
 ## Lenient Validation — `--allow-signatures`
 
 A bundle that contains `PipeSignature` pipes (contract-only headers, used by stepwise design) still validates: a signature is never a validation error, and the verdict lists the pending ones. Pass `--allow-signatures` to validate **leniently**, which changes only how validation runs — each signature is dry-run too, minting a mock of its declared output:
 
 ```bash
-mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures
+mthds-agent validate bundle <bundle-dir>/ --allow-signatures
 ```
 
 `mthds-agent` forwards the flag verbatim to the pipelex CLI (`.allowUnknownOption()`), so no `mthds-agent`-side option is required.
@@ -283,7 +285,7 @@ A successful `validate bundle` states, in plain English, whether the method is *
 **JSON — for a *program* that extracts a field.** Pin **both** format streams: `validate bundle` has two independent controls — `--format` governs the **success** envelope on stdout, `--error-format` governs the **error** report on stderr — and `--error-format` *inherits* `--format` when omitted, so `--format json` alone flips errors to JSON too. Pin them explicitly for the read you want: `--error-format json` to parse structured errors too (this is what the PostToolUse hook does), or `--error-format markdown` to keep a machine-parseable success envelope while leaving errors as human-readable markdown on stderr:
 
 ```bash
-mthds-agent validate bundle bundle.mthds -L dir/ --allow-signatures --format json --error-format markdown
+mthds-agent validate bundle <bundle-dir>/ --allow-signatures --format json --error-format markdown
 ```
 
 The success JSON on stdout then carries:
@@ -315,10 +317,10 @@ Agents can generate execution graph visualizations for human review.
 
 ### Validation Graphs
 
-The `--graph` flag on `mthds-agent validate bundle` generates an interactive HTML flowchart (`dry_run.html`) next to the bundle — the fastest way to visualize method structure (no API keys or backends needed).
+The `--graph` flag on `mthds-agent validate bundle` generates an interactive HTML flowchart (`dry_run.html`) next to the bundle defining the pipe it draws — the fastest way to visualize method structure (no API keys or backends needed). Handed a method's folder, it draws the pipe `--pipe` names, else the method's entry pipe, and draws nothing when the folder settles no single pipe, saying why under `## Graph` (see "A Method's Folder as the Target" above).
 
 ```bash
-mthds-agent validate bundle bundle.mthds -L dir/ --graph
+mthds-agent validate bundle <bundle-dir>/ --graph
 ```
 
 Additional options:
@@ -343,7 +345,7 @@ Graph files (`live_run.html` / `dry_run.html`) are written to disk in the run's 
 |---------|---------|---------|
 | `mthds-agent init` | Initialize the Pipelex configuration (non-interactive; pipelex runner only; writes no keys). `--config` takes `execution` (`"local"`, the default, or `"hosted"`, which needs pipelex 0.79.0 or later and refuses `backends`), `backends` and `primary_backend`; it resets the configuration files it writes | `mthds-agent init -g --config '{"backends": ["openai"]}'` / `mthds-agent init -g --config '{"execution": "hosted"}'` |
 | `mthds-agent run bundle` | Execute a pipeline (markdown by default, `--format json` for JSON; compact output unless `--with-memory`; `--hosted` or `--local` for where it runs) | `mthds-agent run bundle <bundle-dir>/` |
-| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle bundle.mthds --graph` |
+| `mthds-agent validate bundle` | Validate a bundle (`--graph` for flowchart HTML; `--allow-signatures` for lenient validation of a stepwise design) | `mthds-agent validate bundle <bundle-dir>/ --graph` |
 | `mthds-agent inputs bundle` | Generate example input JSON (`--explicit` wraps each input in its `{concept, content}` envelope) | `mthds-agent inputs bundle bundle.mthds --explicit` |
 | `mthds-agent models` | List available model presets, aliases (outputs markdown) | `mthds-agent models` / `mthds-agent models --type llm` / `mthds-agent models --type search` |
 | `mthds-agent check-model` | Validate a model reference with fuzzy suggestions (outputs markdown or JSON; pipelex runner only) | `mthds-agent check-model '$writing-creative' --type llm` |

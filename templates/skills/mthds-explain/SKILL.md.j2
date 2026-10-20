@@ -66,19 +66,21 @@ Adapt the format to the method structure (linear, branching, batched).
 
 ### Step 6: Optional — Validate
 
-If the user wants to confirm the method is valid:
+If the user wants to confirm the method is valid, validate its folder, the directory holding its `.mthds` files:
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-dir>/
+mthds-agent validate bundle <bundle-dir>/
 ```
+
+pipelex reads the folder as its method tree and judges every bundle of that tree (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). It judges a folder whole from pipelex 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, and refuses a folder holding several `.mthds` files and no `bundle.mthds`: on such a pipelex, run `mthds-agent validate bundle <file>.mthds -L <bundle-dir>/` on the file declaring the method's `main_pipe`, which loads the folder's bundles but dry-runs only that file's pipes.
 
 ### Step 7: Optional — Visual Graph
 
 For an interactive flowchart without running the method, use validate with `--graph`:
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-dir>/ --graph
+mthds-agent validate bundle <bundle-dir>/ --graph
 ```
 
-This generates `dry_run.html` next to the bundle — a static flowchart of the method structure.
+This generates `dry_run.html` next to the bundle defining the pipe the method starts at — a static flowchart of the method structure. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`: to draw one pipe of it, name the pipe with `--pipe <domain>.<pipe_code>`, which also narrows the validation to that pipe.
 
 For a live execution graph showing actual runtime data, use `/mthds-run`:
 ```bash
