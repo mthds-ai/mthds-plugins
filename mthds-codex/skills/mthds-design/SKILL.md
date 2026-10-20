@@ -93,7 +93,7 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 
 ## Guards
 
-- **Every claimed checkpoint or completion state comes from `mthds-agent validate bundle` over the whole bundle directory**, never from reading the files.
+- **Every claimed checkpoint or completion state comes from `mthds-agent validate bundle <bundle_home>/`**, which judges every bundle of the bundle home (step 5), never from reading the files.
 - **Never write `inputs.json`.** When the user provides files or paths, or wants to run with real data, invoke `/mthds-inputs`: it resolves paths relative to `inputs.json` rather than the working directory, formats placeholders and copies files, which a hand-written file gets wrong.
 - **This skill never runs a method**: a run needs inputs and spends inference credit.
 
@@ -109,7 +109,7 @@ Fix the **input concept(s)**, the **output concept** and the **description**, pr
 
 ### 2. The bundle home
 
-A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore. That directory is `<bundle_home>` in every command below, and its root file is `bundle.mthds`. Do not ask the user for the location.
+A path the user named wins. Otherwise the bundle goes in `mthds-wip/<bundle_dir>/`, `<bundle_dir>` being the `domain` with any dot turned into an underscore. That directory is `<bundle_home>` in every command below, and its root file is `bundle.mthds`. Do not ask the user for the location, with one exception. A folder's method tree is rooted at the nearest `METHODS.toml` at or above it, looking no higher than the root of its git repository, so a bundle home inside a project that has its own `METHODS.toml` is validated, and run, as part of that project's tree: validation judges every bundle of the project, a run of the bundle home starts at the `main_pipe` that `METHODS.toml` names, and a bundle home the project's `.gitignore` ignores, as many projects ignore `mthds-wip/`, is not in that tree at all, so validation never reads its files. Before writing, look for a `METHODS.toml` in the bundle home's parent folders up to the repository's root. When one is there and the method is meant to join that package, use a bundle home the project does not ignore, run the method with `--pipe <domain>.<main_pipe>`, and leave exporting it from the package to `/mthds-pkg`; otherwise ask the user for a bundle home outside that repository.
 
 ### 3. Infer the construction mode
 
@@ -122,22 +122,26 @@ When borderline, take the simplest path that can be written **completely** and v
 
 ### 4. Direct construction
 
-Design the whole graph in memory, then write `bundle.mthds` top-down — metadata, concepts, the concrete main pipe, its leaves — with concept codes checked library-wide and explicit `inputs` and `output` on every pipe. Write it with your agent's file tools, never through the shell, so the plugin's hook checks it. More than one file only at a natural module boundary, never one per pipe, and every file of the bundle declares the same `domain`. Include **no temporary `PipeSignature` declarations**. Leave `model` out unless the user asks for a model, a setting or a kind of behaviour, or the pipe's input is one the default model cannot read, such as a web page for a `PipeExtract`, or the pipe is a `PipeJudge`, which always names one; then look the reference up as the language reference's [model section](../shared/mthds-reference.md#model-references) says. **If the design would need a placeholder or a guessed contract, or writing or validation exposes an unresolved structural boundary**, stop extending the draft and read [stepwise.md](references/stepwise.md) before changing any file.
+Design the whole graph in memory, then write `bundle.mthds` top-down — metadata, concepts, the concrete main pipe, its leaves — with concept codes checked library-wide and explicit `inputs` and `output` on every pipe. Write it with your agent's file tools, never through the shell, so the plugin's hook checks it. More than one file only at a natural module boundary, never one per pipe; every file of the bundle declares the same `domain`, and only `bundle.mthds` declares `main_pipe`, the pipe a run of the bundle home starts at. Include **no temporary `PipeSignature` declarations**. Leave `model` out unless the user asks for a model, a setting or a kind of behaviour, or the pipe's input is one the default model cannot read, such as a web page for a `PipeExtract`, or the pipe is a `PipeJudge`, which always names one; then look the reference up as the language reference's [model section](../shared/mthds-reference.md#model-references) says. **If the design would need a placeholder or a guessed contract, or writing or validation exposes an unresolved structural boundary**, stop extending the draft and read [stepwise.md](references/stepwise.md) before changing any file.
 
 ### 5. Validate
 
 ```bash
-mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph
+mthds-agent validate bundle <bundle_home>/ --graph
 ```
 
-`-L` loads every `.mthds` file beneath the bundle directory and keeps the project's other bundles out of its namespace. Read the Markdown verdict it prints. On errors, fix from the error list and its locators, which name the offending file, then validate again; [error handling](../shared/error-handling.md) says how to recover by error domain.
+Handed the bundle home, pipelex reads it as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whether or not a pipe of `bundle.mthds` calls them, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The tree leaves out hidden and gitignored files, and a package nested below with a `METHODS.toml` of its own loads for the bundles to call without being judged. The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at, the `main_pipe` of `bundle.mthds`, and writes `dry_run.html` next to `bundle.mthds`; a bundle home whose files declare several `main_pipe`s draws nothing and says why under `## Graph`, and a run of it is refused the same way, so keep `main_pipe` in `bundle.mthds` alone.
+
+Read the Markdown verdict it prints. On errors, fix from the error list and its locators, which name the offending file, then validate again; [error handling](../shared/error-handling.md) says how to recover by error domain.
+
+pipelex judges a folder whole this way from 0.89.0 on. An older pipelex reads the same command as `mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph`: it loads the folder's other bundles for `bundle.mthds` to call but dry-runs only the pipes of `bundle.mthds`, so a pipe of another file is judged only when one of them calls it.
 
 ### 6. The runnable gate and delivery
 
 For a completed method, validation **without** `--allow-signatures` must pass and print the `✅ … this method is runnable.` line: this verdict is the runnable gate, so fix and re-validate until it passes. Then:
 
 1. **Project the input schema**: run `mthds-agent inputs bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --explicit` and show the user the inputs the method expects. Do not save it to `inputs.json`: preparing inputs is `/mthds-inputs`'s.
-2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to the bundle.
+2. **The flowchart**: say that validation wrote an interactive flowchart, `dry_run.html`, next to `bundle.mthds`.
 3. **Next steps**: suggest a dry run with mock inference, which needs no real inputs, then `/mthds-inputs` to prepare real ones and a run:
    ```bash
    mthds-agent run bundle <bundle_home>/ --dry-run --mock-inputs

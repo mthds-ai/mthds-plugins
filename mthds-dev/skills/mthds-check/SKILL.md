@@ -86,13 +86,13 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 
 > **No backend setup needed**: This skill works without configuring inference backends or API keys. You can start building/validating methods right away. Backend configuration is only needed to run methods with live inference — use `/mthds-runner-setup` when you're ready.
 
-### Step 1: Read the .mthds File
+### Step 1: Read the .mthds Files
 
-Load and parse the method.
+Load and parse the method: every `.mthds` file of its folder.
 
 ### Step 2: Run plxt Lint
 
-Catch TOML syntax and schema errors before semantic validation. This skill is read-only and never triggers the PostToolUse hook, so lint must be run explicitly:
+Catch TOML syntax and schema errors before semantic validation. This skill is read-only and never triggers the PostToolUse hook, so lint must be run explicitly, on each `.mthds` file of the method:
 
 ```bash
 mthds-agent plxt lint <file>.mthds
@@ -102,20 +102,28 @@ If lint reports errors, include them in the final report and continue — semant
 
 ### Step 3: Run CLI Validation
 
-Use `-L` pointing to the bundle's own directory to avoid namespace collisions. `--graph` generates a flowchart:
+Validate the method's folder, the directory holding its `.mthds` files. `--graph` generates a flowchart:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph
+mthds-agent validate bundle <bundle-directory>/ --graph
 ```
 
-### Step 4: Parse the JSON Output
+pipelex reads the folder as its method tree and judges every bundle of that tree: the pipes of every file are dry-run, whichever file declares `main_pipe`, and no pipe to start at is needed (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The folder is also the validation's library, which keeps the project's other bundles out of its namespace. `--graph` draws the pipe the method starts at and writes `dry_run.html` next to the bundle defining it. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, still validates, but draws nothing and says why under `## Graph`: for a method meant to run, report that as a warning, since a run of the folder is refused the same way unless `--pipe` names the pipe.
 
-- If `success: true` — all pipes validated, report clean status
-- If error — see [Error Handling Reference](../shared/error-handling.md) for error types and recovery
+To check one bundle file alone, as when the user names one file of a folder holding other methods, name the file with its folder as the library: `mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph` loads the folder's bundles for the file to call but dry-runs only the file's own pipes, so a pipe of another file is judged only when one of them calls it.
+
+pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, as the one-file form does, and refuses a folder holding several `.mthds` files and no `bundle.mthds`. On such a pipelex, validate the bundle file declaring the method's `main_pipe` in the one-file form, and say in the report that a pipe none of its pipes calls was not dry-run.
+
+### Step 4: Read the Verdict
+
+The command prints Markdown, which you read as it is; pass no `--format`.
+
+- **Valid**: stdout opens with `# Validation passed` and ends with the runnability verdict, `✅ … this method is runnable.`, or `⚠️ This method is NOT yet runnable …` followed by `## Pending signatures (N)`, which lists the pipes still declared as `PipeSignature` placeholders. Report a clean status, with any pending signature as a warning, not an error. On the pipelex runner a valid method that is not yet runnable also exits with code 1, so go by the verdict, not the exit code (see "Reading runnability and `pending_signatures`" in the [agent guide](../shared/mthds-agent-guide.md)).
+- **Invalid**: the command exits with code 1 and prints its error report on stderr, in Markdown: the error domain and each validation error, located on its file and, where it has one, its pipe. See [Error Handling Reference](../shared/error-handling.md) for error types and recovery.
 
 ### Step 5: Cross-Domain Validation
 
-When the bundle references pipes from other domains, use `--library-dir` (see [Error Handling — Cross-Domain](../shared/error-handling.md#cross-domain-validation)).
+When the bundle references pipes from other domains, use `--library-dir` (see [Error Handling — Cross-Domain](../shared/error-handling.md#cross-domain-validation)). Beside a method's folder, `mthds-agent validate bundle <bundle-directory>/ -L <other-directory>/ --graph` loads the other directory for the method's bundles to call, and its own pipes are not judged.
 
 ### Step 6: Analyze for Additional Issues
 
@@ -129,10 +137,10 @@ Manual review beyond CLI validation:
 ### Step 7: Report Findings
 
 Report by severity:
-- **Errors**: Validation failures from CLI (with `error_type` and `pipe_code`) and plxt lint errors
+- **Errors**: Validation failures from CLI (each with the file, and the pipe where it has one, the error report locates it on) and plxt lint errors
 - **Warnings**: Issues that may cause problems (e.g., model availability)
 - **Suggestions**: Improvements for maintainability
-- **Flowchart**: If validation succeeded, mention the generated `dry_run.html` flowchart next to the bundle
+- **Flowchart**: If validation succeeded, mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn
 
 ### Step 8: Do NOT Make Changes
 

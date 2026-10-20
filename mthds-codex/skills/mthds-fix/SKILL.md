@@ -95,43 +95,49 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 
 ### Step 1: Validate and Identify Errors
 
-Always use `-L` pointing to the bundle's own directory to avoid namespace collisions:
+Validate the method's folder, the directory holding its `.mthds` files:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/
+mthds-agent validate bundle <bundle-directory>/
 ```
 
-Parse the JSON output:
-- If `success: true` — nothing to fix, report clean status
-- If `error_type: "ValidateBundleError"` — iterate through `validation_errors` array and fix each (Step 2)
-- If model/config error — see [Error Handling Reference](../shared/error-handling.md#model--config-errors) (cannot be fixed by editing the .mthds file)
+pipelex reads the folder as its method tree and judges every bundle of that tree, so the errors listed cover every file of the method, each naming its file, whichever file declares `main_pipe` (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The folder is also the validation's library, which keeps the project's other bundles out of its namespace.
+
+To fix one bundle file alone, as when the user names one file of a folder holding other methods, name the file with its folder as the library: `mthds-agent validate bundle <file>.mthds -L <bundle-directory>/` loads the folder's bundles for the file to call but dry-runs only the file's own pipes, so a pipe of another file is judged only when one of them calls it.
+
+pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, as the one-file form does, and refuses a folder holding several `.mthds` files and no `bundle.mthds`. On such a pipelex, validate the bundle file declaring the method's `main_pipe` in the one-file form, and say in the report that a pipe none of its pipes calls was not dry-run.
+
+Read the verdict it prints in Markdown, as it is; pass no `--format`:
+- **Valid**: stdout opens with `# Validation passed` — nothing to fix, report clean status. Pipes listed under `## Pending signatures (N)` are `PipeSignature` placeholders still to implement, which `/mthds-design` does, not errors to fix here; on the pipelex runner such a method also exits with code 1, so go by the verdict, not the exit code.
+- **Invalid**: the command exits with code 1 and prints its error report on stderr, in Markdown, with the error domain and each validation error, located on its file and, where it has one, its pipe — fix each one (Step 2)
+- **A model or configuration error**, about the environment rather than the bundle — see [Error Handling Reference](../shared/error-handling.md#model--config-errors) (cannot be fixed by editing the .mthds file)
 
 ### Step 2: Fix .mthds Validation Errors
 
-Use the `error_type` field from each validation error to determine the fix:
+Match each validation error to its row below to determine the fix. From pipelex 0.90.0 the error report lists each error under its `### Errors` heading as `` - `<code>`: <detail> (<location>) ``: match the **Code** column. Before 0.90.0 it numbered each error and titled it in bold with its type in words, such as `1. **Missing Input Variable**` for `missing_input_variable`: match the **Type before 0.90.0** column. Where one code covers several types, the error's detail says which.
 
-| Error Type | Fix Strategy |
-|------------|-------------|
-| `missing_input_variable` | Add the missing variable(s) to the parent pipe's `inputs` line |
-| `extraneous_input_variable` | Remove the unused variable(s) from the pipe's `inputs` line |
-| `input_stuff_spec_mismatch` | Correct the concept type in `inputs` to match what the sub-pipe expects |
-| `inadequate_output_concept` | Change the `output` field to the correct concept type |
-| `inadequate_output_multiplicity` | Add or remove `[]` from the output concept |
-| `circular_dependency_error` | Restructure the method to break the cycle |
-| `llm_output_cannot_be_image` | Use PipeImgGen instead of PipeLLM for image generation |
-| `invalid_pipe_code_syntax` | Rename the pipe to valid snake_case |
-| `unknown_concept` | Add the concept definition to the bundle, or fix the typo |
-| `batch_item_name_collision` | Rename `input_item_name` (or `batch_as`) to a distinct singular form of the list name. Also update the branch pipe's `inputs` to use the new item name. |
-| `invalid_input_name` | For a dotted input name, declare the root with its whole concept and read the field in the template, or add a binding step to the calling sequence (`{ from = "invoice.total", result = "total_amount" }`) and declare the bound name. Rename a name starting with `_bound_`. |
-| `binding_step_invalid` | Give the binding step `from` and a plain `result` only, or move a binding out of a `PipeParallel`'s `branches` into a sequence step before it |
-| `binding_path_unresolved` | Fix the path's segment the message names, using the fields it lists |
-| `optional_not_handled` | Read the maybe-absent value through an optional input with a guard, or declare the sequence's output `?` |
+| Code | Type before 0.90.0 | Fix Strategy |
+|------|--------------------|-------------|
+| `method.input_undeclared` | `missing_input_variable` | Add the missing variable(s) to the parent pipe's `inputs` line |
+| `method.input_unused` | `extraneous_input_variable` | Remove the unused variable(s) from the pipe's `inputs` line |
+| `method.input_concept_mismatch` | `input_stuff_spec_mismatch` | Correct the concept type in `inputs` to match what the sub-pipe expects |
+| `method.output_concept_mismatch` | `inadequate_output_concept` | Change the `output` field to the correct concept type |
+| `method.output_concept_mismatch` | `llm_output_cannot_be_image` | Use PipeImgGen instead of PipeLLM for image generation |
+| `method.output_multiplicity_mismatch` | `inadequate_output_multiplicity` | Add or remove `[]` from the output concept |
+| `method.cycle` | none: an error headed **Validation Error**, whose message starts `Cycle detected` | Break the cycle the error names, such as concepts that refine or reference one another in a loop, by removing one of its links |
+| `method.identifier_invalid` | `invalid_pipe_code_syntax` | Rename the pipe to valid snake_case |
+| `method.identifier_invalid` | `invalid_input_name` | For a dotted input name, declare the root with its whole concept and read the field in the template, or add a binding step to the calling sequence (`{ from = "invoice.total", result = "total_amount" }`) and declare the bound name. Rename a name starting with `_bound_`. |
+| `method.concept_unresolved` | `unknown_concept`, `unresolved_concept` | Add the concept definition to the bundle, or fix the typo |
+| `method.name_conflict` | `batch_item_name_collision` | Rename `input_item_name` (or `batch_as`) to a distinct singular form of the list name. Also update the branch pipe's `inputs` to use the new item name. |
+| `method.binding_step_invalid` | `binding_step_invalid` | Give the binding step `from` and a plain `result` only, or move a binding out of a `PipeParallel`'s `branches` into a sequence step before it |
+| `method.field_path_unresolved` | `binding_path_unresolved` | Fix the path's segment the message names, using the fields it lists |
+| `method.optional_unhandled` | `optional_not_handled`, `optional_output_required`, `optional_input_unguarded`, `optional_branch_required_field` | Read the maybe-absent value through an optional input with a guard, or declare the sequence's output `?` |
 
 For error type descriptions, see [Error Handling — Validation Error Types](../shared/error-handling.md#validation-error-types).
 
 ### Step 3: Fix TOML Formatting Issues
 
-After applying semantic fixes, run `mthds-agent plxt lint <file>.mthds` as a quick TOML/schema correctness check. If lint passes, run `mthds-agent plxt fmt <file>.mthds` to auto-format the file before re-validating semantically in the next step.
+After applying semantic fixes, run `mthds-agent plxt lint <file>.mthds` on each file you changed as a quick TOML/schema correctness check. If lint passes, run `mthds-agent plxt fmt <file>.mthds` to auto-format the file before re-validating semantically in the next step.
 
 Beyond what plxt catches, watch for these common issues:
 
@@ -171,26 +177,28 @@ steps = [
 
 ### Step 4: Re-validate
 
-After applying fixes, re-validate:
+After applying fixes, re-validate the target of Step 1, the method's folder unless Step 1 took the one-file form:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/
+mthds-agent validate bundle <bundle-directory>/
 ```
 
-Continue the fix-validate loop until `success: true` is returned. Some fixes reveal new issues — for example, fixing a `missing_input_variable` may expose an `input_stuff_spec_mismatch` on the newly added input.
+Continue the fix-validate loop until the verdict reads `# Validation passed`. Some fixes reveal new issues — for example, fixing a `missing_input_variable` may expose an `input_stuff_spec_mismatch` on the newly added input.
 
 On the **final successful** validation, re-run with `--graph` to generate a flowchart:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph
+mthds-agent validate bundle <bundle-directory>/ --graph
 ```
+
+Handed a folder, `--graph` draws the pipe the method starts at and writes `dry_run.html` next to the bundle defining it. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`, the verdict standing as it is.
 
 ### Step 5: Report Results
 
 - List all changes made (which pipes were modified and how)
 - Show the final validation result
 - Flag any remaining warnings or suggestions
-- Mention the generated `dry_run.html` flowchart next to the bundle
+- Mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn
 
 ## Reference
 

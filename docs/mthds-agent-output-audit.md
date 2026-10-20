@@ -73,13 +73,13 @@ pipelex-agent validate bundle <file> -L <libraryDir> --allow-signatures --format
 
 #### B1 — `mthds-design` stepwise root scaffold · `skills/mthds-design/references/stepwise.md` ("Validating a scaffold")
 ```
-mthds-agent validate bundle …/bundle.mthds -L …/ --allow-signatures --graph
+mthds-agent validate bundle <bundle_home>/ --allow-signatures --graph
 ```
 - Default markdown on both streams. LLM reads `# Validation passed` and (on error) the markdown error. **Verdict: ✓ CORRECT.**
 
 #### B2 — `mthds-design` stepwise refine loop · `references/stepwise.md` ("Refine layer by layer") — **FIXED (Fix B applied 2026-06-08, in the since-retired `mthds-recursive`)**
 ```
-mthds-agent validate bundle …/bundle.mthds -L …/ --allow-signatures --graph
+mthds-agent validate bundle <bundle_home>/ --allow-signatures --graph
 ```
 - All markdown now. The LLM reads the backlog from the `## Pending signatures (N)` markdown section on stdout (success) and reads markdown errors on stderr (failure). `--format json` dropped, so Step 2 matches Steps 1 & 3 and never sends JSON errors to the LLM.
 - **Verdict: ✓ CORRECT** (was ✗ — the `--format json` inherit trap had been flipping errors to JSON for the LLM).
@@ -87,7 +87,7 @@ mthds-agent validate bundle …/bundle.mthds -L …/ --allow-signatures --graph
 
 #### B3 — `mthds-design` runnable gate · `SKILL.md.j2` step 5 and step 6, and `references/stepwise.md` ("Converging")
 ```
-mthds-agent validate bundle …/bundle.mthds -L …/ --graph
+mthds-agent validate bundle <bundle_home>/ --graph
 ```
 - Default markdown both streams. LLM reads. **Verdict: ✓ CORRECT.**
 

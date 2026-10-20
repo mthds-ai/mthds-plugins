@@ -37,12 +37,18 @@ class TestDesignSkill:
 
     def test_runnable_gate_is_strict_validation(self) -> None:
         body = self.design
-        assert "mthds-agent validate bundle <bundle_home>/bundle.mthds -L <bundle_home>/ --graph" in body
+        assert "mthds-agent validate bundle <bundle_home>/ --graph" in body
         assert "validation **without** `--allow-signatures` must pass" in body
+
+    def test_validation_judges_the_bundle_home_whole(self) -> None:
+        """The folder target judges every bundle of the method; a file plus -L dry-runs only that file's pipes."""
+        body = self.design
+        assert "judges every bundle of that tree" in body
+        assert "from 0.89.0 on" in body
 
     def test_stepwise_validates_leniently_then_strictly(self) -> None:
         body = self.stepwise
-        assert "--allow-signatures --graph" in body
+        assert "mthds-agent validate bundle <bundle_home>/ --allow-signatures --graph" in body
         assert "Every expansion adds exactly one new `<code>.mthds` definition file" in body
         assert "validate once more **without** `--allow-signatures`" in body
 
