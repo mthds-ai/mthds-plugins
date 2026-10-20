@@ -72,3 +72,36 @@ class TestValidateTargets:
         body = _shared("mthds-reference.md.j2")
         assert "so validate the method's folder: `mthds-agent validate bundle <bundle dir>/`" in body
         assert "loads every `.mthds` file beneath it" not in body
+
+    @pytest.mark.parametrize(
+        "body_source",
+        [("skill", "mthds-fix"), ("shared", "error-handling.md.j2")],
+        ids=["fix", "error-handling"],
+    )
+    def test_error_tables_key_on_codes_beside_older_types(self, body_source: tuple[str, str]) -> None:
+        """The fix table and the error-handling table match the 0.90.0 code first, keeping the older type beside it."""
+        kind, name = body_source
+        body = _skill(name) if kind == "skill" else _shared(name)
+        assert "| Code | Type before 0.90.0 |" in body
+        assert "match the **Code** column" in body
+        assert "match the **Type before 0.90.0** column" in body
+        for code, older_type in [
+            ("method.input_undeclared", "missing_input_variable"),
+            ("method.input_unused", "extraneous_input_variable"),
+            ("method.input_concept_mismatch", "input_stuff_spec_mismatch"),
+            ("method.output_concept_mismatch", "inadequate_output_concept"),
+            ("method.output_multiplicity_mismatch", "inadequate_output_multiplicity"),
+            ("method.identifier_invalid", "invalid_pipe_code_syntax"),
+            ("method.name_conflict", "batch_item_name_collision"),
+            ("method.field_path_unresolved", "binding_path_unresolved"),
+        ]:
+            assert f"| `{code}` | `{older_type}` |" in body
+        assert "| `method.cycle` | none:" in body
+        assert "circular_dependency_error" not in body
+        assert "error_type" not in body
+
+    def test_error_handling_says_errors_print_in_markdown(self) -> None:
+        body = _shared("error-handling.md.j2")
+        assert "prints JSON to **stderr**" not in body
+        assert "prints its error report to **stderr**" in body
+        assert "`--error-format json` gives JSON" in body

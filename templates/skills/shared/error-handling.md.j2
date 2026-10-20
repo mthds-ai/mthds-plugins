@@ -4,7 +4,7 @@ Canonical reference for all `mthds-agent` error types, recovery strategies, and 
 
 ## Error Output Format
 
-On failure, `mthds-agent` prints JSON to **stderr** and exits with code 1 and outputs error details.
+On failure, `mthds-agent` prints its error report to **stderr** and exits with a non-zero code. `run`, `validate` and `init` print it in Markdown by default, which an agent reads as it is; `--error-format json` gives JSON, and so does `--format json`, which `--error-format` follows when it is omitted. The commands that print JSON on success, `inputs`, `install` and `package`, report their errors in JSON.
 
 ## Error Domains
 
@@ -20,24 +20,26 @@ When `mthds-agent validate bundle` reports a list of errors.
 
 ### Validation Error Types
 
-| Error Type | Meaning | Fix Strategy |
-|------------|---------|--------------|
-| `missing_input_variable` | Pipe prompt references a variable not in `inputs` | Add the missing variable to the pipe's `inputs` line |
-| `extraneous_input_variable` | Pipe declares an input never used | Remove the unused variable from `inputs` |
-| `input_stuff_spec_mismatch` | Input concept type doesn't match sub-pipe expectation | Correct the concept type in `inputs` |
-| `inadequate_output_concept` | Output concept doesn't match connected pipes | Fix the `output` field to the correct concept |
-| `inadequate_output_multiplicity` | Output single/list mismatch | Add or remove `[]` from the output concept |
-| `circular_dependency_error` | Pipe references form a cycle | Restructure the method to break the cycle |
-| `llm_output_cannot_be_image` | PipeLLM cannot output Image directly | Use PipeImgGen for image generation instead |
-| `invalid_pipe_code_syntax` | Pipe code doesn't follow snake_case | Rename the pipe to valid snake_case |
-| `unknown_concept` | Referenced concept not defined in bundle | Add the concept definition, or fix the typo |
-| `batch_item_name_collision` | `input_item_name` collides with `input_list_name` or an `inputs` key | Rename `input_item_name` to a distinct singular form (e.g., list `"reports"` → item `"report"`) |
-| `invalid_input_name` | An input name that is not a plain `snake_case` name, such as a dotted `"invoice.total"` or a dotted `input_list_name`, or a name starting with the reserved prefix `_bound_` | Declare the root with its whole concept and read the field through it in the template, or bind the field to a plain name with a binding step in the calling sequence and declare that name; rename a `_bound_` name |
-| `binding_step_invalid` | A malformed sequence step: `pipe` beside `from`, a binding step without `result` or carrying a pipe step's field, a `from` or `result` outside its grammar, or a binding step or dotted `batch_over` in a `PipeParallel` branch | Give a binding step `from` and a plain `result` only; bind in a sequence step before the `PipeParallel` |
-| `binding_path_unresolved` | A binding path, or a dotted `batch_over`, that the declared structures cannot walk | Fix the segment the message names, using the fields it lists, or bind the value itself |
-| `optional_not_handled` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
-| `unknown_model` | A pipe's `model` (or a `PipeLLM`'s `model_to_structure`) names a model the model deck does not define, or a bare name the deck serves only as another model type; a run refuses the bundle with the same item, raised as `PipeOperatorModelChoiceError` | Write a reference the deck defines: the item carries the deck's close matches, and `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves |
-| `unknown_validation_error` | Uncategorized validation issue | Read the `message` field for details |
+From pipelex 0.90.0 the Markdown error report lists each error as `` - `<code>`: <detail> (<location>) ``: match the **Code** column. Before 0.90.0 it numbered each error and titled it in bold with its type in words, such as `1. **Missing Input Variable**` for `missing_input_variable`: match the **Type before 0.90.0** column. Where one code covers several types, the error's detail says which.
+
+| Code | Type before 0.90.0 | Meaning | Fix Strategy |
+|------|--------------------|---------|--------------|
+| `method.input_undeclared` | `missing_input_variable` | Pipe prompt references a variable not in `inputs` | Add the missing variable to the pipe's `inputs` line |
+| `method.input_unused` | `extraneous_input_variable` | Pipe declares an input never used | Remove the unused variable from `inputs` |
+| `method.input_concept_mismatch` | `input_stuff_spec_mismatch` | Input concept type doesn't match sub-pipe expectation | Correct the concept type in `inputs` |
+| `method.output_concept_mismatch` | `inadequate_output_concept` | Output concept doesn't match connected pipes | Fix the `output` field to the correct concept |
+| `method.output_concept_mismatch` | `llm_output_cannot_be_image` | PipeLLM cannot output Image directly | Use PipeImgGen for image generation instead |
+| `method.output_multiplicity_mismatch` | `inadequate_output_multiplicity` | Output single/list mismatch | Add or remove `[]` from the output concept |
+| `method.cycle` | none: an error headed **Validation Error**, whose message starts `Cycle detected` | Declarations form a cycle, such as concepts that refine or reference one another in a loop | Break the cycle the error names by removing one of its links |
+| `method.identifier_invalid` | `invalid_pipe_code_syntax` | Pipe code doesn't follow snake_case | Rename the pipe to valid snake_case |
+| `method.concept_unresolved` | `unknown_concept`, `unresolved_concept` | Referenced concept not defined in bundle | Add the concept definition, or fix the typo |
+| `method.name_conflict` | `batch_item_name_collision` | `input_item_name` collides with `input_list_name` or an `inputs` key | Rename `input_item_name` to a distinct singular form (e.g., list `"reports"` → item `"report"`) |
+| `method.identifier_invalid` | `invalid_input_name` | An input name that is not a plain `snake_case` name, such as a dotted `"invoice.total"` or a dotted `input_list_name`, or a name starting with the reserved prefix `_bound_` | Declare the root with its whole concept and read the field through it in the template, or bind the field to a plain name with a binding step in the calling sequence and declare that name; rename a `_bound_` name |
+| `method.binding_step_invalid` | `binding_step_invalid` | A malformed sequence step: `pipe` beside `from`, a binding step without `result` or carrying a pipe step's field, a `from` or `result` outside its grammar, or a binding step or dotted `batch_over` in a `PipeParallel` branch | Give a binding step `from` and a plain `result` only; bind in a sequence step before the `PipeParallel` |
+| `method.field_path_unresolved` | `binding_path_unresolved` | A binding path, or a dotted `batch_over`, that the declared structures cannot walk | Fix the segment the message names, using the fields it lists, or bind the value itself |
+| `method.optional_unhandled` | `optional_not_handled`, `optional_output_required`, `optional_input_unguarded`, `optional_branch_required_field` | A maybe-absent value, such as a binding over a field that is not `required`, escapes through a boundary that is not optional | Read it through an optional input (`X?`) with a guard, declare the output `?`, or mark the field `required` when the data always carries it |
+| `model.unknown` | `unknown_model` | A pipe's `model` (or a `PipeLLM`'s `model_to_structure`) names a model the model deck does not define, or a bare name the deck serves only as another model type; a run refuses the bundle with the same item, raised as `PipeOperatorModelChoiceError` | Write a reference the deck defines: the item carries the deck's close matches, and `mthds-agent models --type <category>` lists the presets, aliases and waterfalls the runner serves |
+| `method.schema_violation` | `unknown_validation_error` | Uncategorized validation issue | Read the error's detail, its message before 0.90.0 |
 
 ## Inference Setup Errors
 
