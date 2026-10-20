@@ -20,11 +20,17 @@ Until the environment check passes, write no `.mthds` file and do no other work:
 
 ### Step 1: Validate and Identify Errors
 
-Always use `-L` pointing to the bundle's own directory to avoid namespace collisions:
+Validate the method's folder, the directory holding its `.mthds` files:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/
+mthds-agent validate bundle <bundle-directory>/
 ```
+
+pipelex reads the folder as its method tree and judges every bundle of that tree, so the errors listed cover every file of the method, each naming its file, whichever file declares `main_pipe` (see "A Method's Folder as the Target" in the [agent guide](../shared/mthds-agent-guide.md)). The folder is also the validation's library, which keeps the project's other bundles out of its namespace.
+
+To fix one bundle file alone, as when the user names one file of a folder holding other methods, name the file with its folder as the library: `mthds-agent validate bundle <file>.mthds -L <bundle-directory>/` loads the folder's bundles for the file to call but dry-runs only the file's own pipes, so a pipe of another file is judged only when one of them calls it.
+
+pipelex judges a folder whole from 0.89.0 on. An older pipelex validates the folder's `bundle.mthds`, else its only `.mthds` file, as the one-file form does, and refuses a folder holding several `.mthds` files and no `bundle.mthds`. On such a pipelex, validate the bundle file declaring the method's `main_pipe` in the one-file form, and say in the report that a pipe none of its pipes calls was not dry-run.
 
 Parse the JSON output:
 - If `success: true` — nothing to fix, report clean status
@@ -56,7 +62,7 @@ For error type descriptions, see [Error Handling — Validation Error Types](../
 
 ### Step 3: Fix TOML Formatting Issues
 
-After applying semantic fixes, run `mthds-agent plxt lint <file>.mthds` as a quick TOML/schema correctness check. If lint passes, run `mthds-agent plxt fmt <file>.mthds` to auto-format the file before re-validating semantically in the next step.
+After applying semantic fixes, run `mthds-agent plxt lint <file>.mthds` on each file you changed as a quick TOML/schema correctness check. If lint passes, run `mthds-agent plxt fmt <file>.mthds` to auto-format the file before re-validating semantically in the next step.
 
 Beyond what plxt catches, watch for these common issues:
 
@@ -96,10 +102,10 @@ steps = [
 
 ### Step 4: Re-validate
 
-After applying fixes, re-validate:
+After applying fixes, re-validate the target of Step 1, the method's folder unless Step 1 took the one-file form:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/
+mthds-agent validate bundle <bundle-directory>/
 ```
 
 Continue the fix-validate loop until `success: true` is returned. Some fixes reveal new issues — for example, fixing a `missing_input_variable` may expose an `input_stuff_spec_mismatch` on the newly added input.
@@ -107,15 +113,17 @@ Continue the fix-validate loop until `success: true` is returned. Some fixes rev
 On the **final successful** validation, re-run with `--graph` to generate a flowchart:
 
 ```bash
-mthds-agent validate bundle <file>.mthds -L <bundle-directory>/ --graph
+mthds-agent validate bundle <bundle-directory>/ --graph
 ```
+
+Handed a folder, `--graph` draws the pipe the method starts at and writes `dry_run.html` next to the bundle defining it. A folder that settles no single pipe to start at, its bundles declaring several `main_pipe`s or none and no `METHODS.toml` naming one, draws nothing and says why under `## Graph`, the verdict standing as it is.
 
 ### Step 5: Report Results
 
 - List all changes made (which pipes were modified and how)
 - Show the final validation result
 - Flag any remaining warnings or suggestions
-- Mention the generated `dry_run.html` flowchart next to the bundle
+- Mention the generated `dry_run.html` flowchart next to the bundle defining the pipe it draws, or the reason given under `## Graph` when none was drawn
 
 ## Reference
 
