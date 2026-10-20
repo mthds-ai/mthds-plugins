@@ -118,7 +118,9 @@ mthds-agent doctor  # outputs markdown
 | Published method, by its address | `mthds-agent run method github.com/owner/repo[/name][@tag]` |
 | Method saved on the Pipelex platform, by its catalog id (hosted API only) | `mthds-agent run method mt_abc123 --hosted --with-memory --format json` |
 
-> **Directory mode** (recommended): Pass the pipeline directory as target. The CLI auto-detects `bundle.mthds`, `inputs.json`, and sets `-L` automatically — no need to specify them explicitly. This also avoids namespace collisions with other bundles.
+> **Directory mode** (recommended): Pass the method's folder as target. pipelex reads the folder as its method tree, rooted at the nearest `METHODS.toml` at or above it, else at the folder itself, and loads it as the run's library ahead of any `-L` directory, which keeps the project's other bundles out of the run's namespace. When neither `--inputs` nor piped stdin gives the inputs, it reads the folder's `inputs.json`, or its `inputs.toml`, and refuses a folder holding both.
+
+> **Where a folder run starts**: at the pipe `--pipe` names, else at the method's entry pipe, which no file name chooses, `bundle.mthds` included: the `main_pipe` of the `METHODS.toml` at the root of the tree or, with no manifest, the one `main_pipe` the folder's bundles declare. A folder that decides no single pipe, because its bundles declare none or several or its manifest declares none, is refused before anything runs, on this machine as on the hosted Pipelex API, with the problem `request.pipe_unspecified`, raised as `MethodEntryError`: its message names each bundle by its path in the tree, and its `params.candidates` lists the pipes the run could start at. Run it again with `--pipe`, or, for a method meant to start at one pipe, keep its `main_pipe` in one bundle only or declare it in its `METHODS.toml`. A `.mthds` file named alone starts at its own `main_pipe` unless `--pipe` names another pipe. pipelex reads a folder this way from 0.87.0 on: an older pipelex ran the folder's `bundle.mthds`, else its only `.mthds` file.
 
 > **Methods named by address or catalog id**: a run on the hosted Pipelex API resolves a published address or a catalog id there, and the catalog id works only there; it needs pipelex 0.79.0 or later. A run on this machine fetches a published method and reads a relative `--inputs` path from the fetched package's directory rather than from the working directory, so pass the inputs inline or as an absolute path.
 
@@ -134,11 +136,13 @@ This applies when you just wrote or saw `inputs.json` being written with real co
 
 If `/mthds-run` is invoked without prior input preparation in this session, perform the full readiness check:
 
-Get the input schema for the target:
+Get the input schema for the target, passing the same target and the same `--pipe`, if any, as the run:
 
 ```bash
-mthds-agent inputs bundle bundle.mthds --explicit
+mthds-agent inputs bundle <bundle-dir>/ --explicit
 ```
+
+Handed the method's folder, the command answers for the pipe the run starts at, chosen by the same rule and refused in the same way (see "Where a folder run starts" in Step 2).
 
 **Output:**
 ```json
@@ -164,7 +168,7 @@ Fill in the `content` fields with actual values. For complex inputs, use the /mt
 
 Before running, assess whether inputs are ready. This prevents runtime failures from placeholder values.
 
-**No inputs required**: If `mthds-agent inputs bundle <file>.mthds` returns an empty `inputs` object (`{}`), inputs are ready — skip to Step 4.
+**No inputs required**: If `mthds-agent inputs bundle` returns an empty `inputs` object (`{}`), inputs are ready — skip to Step 4.
 
 **Inputs required**: If inputs exist, check `inputs.json` for readiness:
 

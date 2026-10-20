@@ -223,15 +223,25 @@ A run on the hosted Pipelex API writes none of the run files.
 
 ## Library Isolation
 
-Pipelex loads `.mthds` files into a flat namespace. When multiple bundles exist in the project, pipe codes can collide. Use **directory mode** for `run` to auto-detect the bundle, inputs, and library dir, or pass `-L` explicitly for other commands:
+Pipelex loads `.mthds` files into a flat namespace. When multiple bundles exist in the project, pipe codes can collide. Use **directory mode** for `run`, which loads the method's folder as the run's library (see "A Method's Folder as the Target" below), or pass `-L` explicitly for other commands:
 
 ```bash
 # Validate (isolated)
 mthds-agent validate bundle mthds-wip/pipeline_01/bundle.mthds -L mthds-wip/pipeline_01/
 
-# Run (directory mode: auto-detects bundle, inputs, and -L)
+# Run (directory mode: loads the folder as -L, starts at the method's entry pipe, reads the folder's inputs.json)
 mthds-agent run bundle mthds-wip/pipeline_01/
 ```
+
+## A Method's Folder as the Target
+
+`run bundle`, `inputs bundle` and `validate bundle` take a `.mthds` file or a method's folder. pipelex reads a folder as its method tree: the method rooted at the nearest `METHODS.toml` at or above the folder, else at the folder itself, with every bundle of it, whatever its file is called. No file name chooses anything, `bundle.mthds` included.
+
+- **`run bundle` and `inputs bundle` act on one pipe**: the one `--pipe` names, else the method's entry pipe, which the MTHDS protocol's entry rule selects: the `main_pipe` of the `METHODS.toml` at the root of the tree or, with no manifest, the one `main_pipe` the folder's bundles declare. A folder that decides no single pipe, because its bundles declare none or several or its manifest declares none, is refused with the problem `request.pipe_unspecified`, raised as `MethodEntryError`: its message names each bundle by its path in the tree, and its `params.candidates` lists the pipes it could start at. Name the pipe with `--pipe`, or keep one `main_pipe`: a method split across several files and meant to run declares its `main_pipe` in one file only, or in its `METHODS.toml`. `run bundle` also reads the folder's `inputs.json` when neither `--inputs` nor piped stdin gives the inputs.
+- **`validate bundle` judges the whole tree**, every bundle of it, and needs no pipe to start at, so a folder whose bundles declare several `main_pipe`s, or none, is validated like any other. With `--graph`, it draws the pipe `--pipe` names, else the entry pipe, and when the folder decides none it draws nothing and says why, under `## Graph` in Markdown and in `graph_unavailable` in JSON, the verdict standing as it is.
+- **A `.mthds` file named alone** acts on its own `main_pipe` unless `--pipe` names another pipe.
+
+pipelex reads a folder this way from 0.89.0 on, and `run bundle` from 0.87.0. An older pipelex took the folder's `bundle.mthds`, else its only `.mthds` file, and refused a folder holding several `.mthds` files and no `bundle.mthds`.
 
 ## Lenient Validation — `--allow-signatures`
 
