@@ -55,8 +55,8 @@ Every `targets/<name>.toml` you bumped, `.claude-plugin/marketplace.json`, `CHAN
 ## CI on the release pull request
 
 - **`guard-branches.yml`** (`gate-main`) — on a pull request whose base is `main`, the head branch must match `^release\/v[0-9]+\.[0-9]+\.[0-9]+$`, so the release branch name is the only way in. It fires on `pull_request_target` with `types: [opened, edited, reopened]`, and therefore does not re-run when the branch is pushed to again.
-- **`checks.yml`** (`Validate skills`) — on every pull request, `make check` then `make test`, on Python 3.13.
-- **`tests.yml`** (`Unit tests`) — on every pull request, `make gha-tests` (`pytest --exitfirst --quiet`), on Python 3.12.
+- **`checks.yml`** (`Validate skills`) — on every pull request, `make check` then `make test`, on the Python that `.python-version` names.
+- **`tests.yml`** (`Unit tests`) — on every pull request, `make gha-tests` (`pytest --exitfirst --quiet`), on the Python that `.python-version` names.
 
 **Nothing in CI checks the release as a release.** There is no `version-check.yml` and no `changelog-check.yml`: no job compares the version in `targets/*.toml` against the version in the branch name, and no job reads `CHANGELOG.md` at all. `make check` catches an *internally inconsistent* bump — a target left behind, a stale `plugin.json`, a marketplace number lagging the targets — but a consistent bump to the wrong number, or a release with no changelog entry, merges green. Getting the number and the entry right is this skill's job, not CI's.
 
