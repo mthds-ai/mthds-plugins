@@ -22,12 +22,7 @@ make agent-test    # Silent on success, full output on failure
 
 ## Python Version Compatibility
 
-- Supports Python 3.10+ (`requires-python = ">=3.10"`). Never use features introduced after Python 3.10 without a compatibility fallback.
-- Common pitfalls:
-  - `datetime.UTC` was added in Python 3.11. Use `datetime.timezone.utc` instead.
-  - `StrEnum` was added in Python 3.11. Use `enum.StrEnum` with a `try/except` or conditional import for 3.10 support.
-  - `type` statement (PEP 695) was added in Python 3.12. Use `TypeAlias` from `typing` instead.
-  - `ExceptionGroup` / `except*` was added in Python 3.11. Avoid unless using the `exceptiongroup` backport.
+- The tooling supports Python 3.13 and later (`requires-python = ">=3.13"` in `pyproject.toml`), so any feature of Python 3.13 can be used without a compatibility fallback.
 
 ## Variables, Loops and Indexes
 
