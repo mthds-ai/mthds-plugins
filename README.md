@@ -77,7 +77,7 @@ make check     # the shared, Claude and Codex packaging checks
 make test      # the unit tests
 ```
 
-[Build targets](docs/build-targets.md) explains the targets and their variables.
+[Build targets](docs/build-targets.md) explains the targets and their variables, and [Developing mthds-plugins](docs/development.md) says which Python the environment is built on and how to try another.
 
 ## License
 
